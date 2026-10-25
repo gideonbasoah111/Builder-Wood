@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3e2723">
+  <title>Checkout — {{ shop_name | default("Builder Wood") }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <style>
+    .checkout-page { padding: 40px 0 80px; }
+    .checkout-head { margin-bottom: 24px; }
+    .checkout-head h1 { font-family: "Fraunces", serif; font-size: 30px; letter-spacing: -.5px; margin: 6px 0 4px; }
+    .checkout-head p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+    .checkout-grid { display: grid; grid-template-columns: 1.25fr .9fr; gap: 32px; align-items: start; }
+    .card-box { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; }
+    .card-box h3 { font-family: "Fraunces", serif; font-size: 18px; margin: 0 0 14px; letter-spacing: -.2px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-row.single { grid-template-columns: 1fr; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 700; color: var(--ink-2); letter-spacing: .2px; }
+    .field label .optional { font-weight: 400; color: var(--muted); margin-left: 4px; }
+    .field input, .field textarea, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); outline: 0; transition: border-color .15s; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--wood-med); }
+    .field textarea { resize: vertical; min-height: 70px; }
+
+    .delivery-opt { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .delivery-opt label { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 10px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s; }
+    .delivery-opt label:hover { border-color: var(--wood-light); }
+    .delivery-opt label:has(input:checked) { border-color: var(--wood-med); background: #fbf7ee; }
+    .delivery-opt input { margin-top: 3px; accent-color: var(--wood-med); }
+    .delivery-opt b { display: block; font-size: 13px; font-weight: 700; }
+    .delivery-opt small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    .submit-btn { width: 100%; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--wood-med); color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .2px; transition: background .15s; }
+    .submit-btn:hover { background: var(--wood-dark); }
+    .submit-btn:disabled { background: #c7bfb1; cursor: not-allowed; }
+    .message { margin-top: 12px; font-size: 12.5px; color: var(--wood-med); min-height: 18px; line-height: 1.5; }
+    .message.err { color: var(--red); }
+
+    .cart-list { display: flex; flex-direction: column; margin-bottom: 16px; }
+    .cart-item { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .cart-item:last-child { border-bottom: 0; }
+    .cart-item .thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--parchment-2); overflow: hidden; display: grid; place-items: center; font-size: 22px; }
+    .cart-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .cart-item .name { font-size: 13px; font-weight: 700; margin: 0 0 2px; line-height: 1.3; }
+    .cart-item .meta { font-size: 11.5px; color: var(--muted); }
+    .cart-item .price { font-family: "Fraunces", serif; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+
+    .totals { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .totals .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+    .totals .row.total { font-size: 16px; font-weight: 800; color: var(--ink); margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+    .totals .row.total b { font-family: "Fraunces", serif; font-size: 20px; color: var(--wood-med); }
+    .note-small { margin: 14px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+    .empty-cart { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-cart .mark { font-size: 42px; margin-bottom: 8px; }
+    .empty-cart p { margin: 0 0 8px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--wood-med); margin-bottom: 20px; }
+
+    .checkout-header { position: sticky; top: 0; z-index: 30; background: var(--wood); color: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.14); }
+    .checkout-header-inner { display: flex; align-items: center; gap: 20px; padding: 14px 0; }
+    .checkout-header .brand { color: #fff; }
+    .checkout-header .back-shop { margin-left: auto; color: var(--gold-2); font-weight: 700; font-size: 13px; }
+    .checkout-header .back-shop:hover { color: #fff; }
+
+    @media (max-width: 900px) {
+      .checkout-grid { grid-template-columns: 1fr; gap: 20px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="checkout-header">
+    <div class="container checkout-header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Checkout</small></span>
+      </a>
+      <a class="back-shop" href="/">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="checkout-page">
+    <div class="container">
+      <a class="back-link" href="/">← Continue shopping</a>
+
+      <div class="checkout-head">
+        <span class="kicker">Checkout</span>
+        <h1>Confirm your order.</h1>
+        <p>We'll pass your order to the seller, who will confirm price and delivery.</p>
+      </div>
+
+      <div class="checkout-grid">
+        <form id="order-form" class="card-box" novalidate>
+          <h3>Your details</h3>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="name">Full name</label>
+              <input id="name" name="name" type="text" required placeholder="Kofi Mensah" autocomplete="name">
+            </div>
+            <div class="field">
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" type="tel" required placeholder="+233 24 000 0000" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="form-row single">
+            <div class="field">
+              <label for="email">Email <span class="optional">(required for payment)</span></label>
+              <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+            </div>
+          </div>
+
+          <div class="form-row single">
+            <div class="field">
+              <label for="address">Delivery address</label>
+              <textarea id="address" name="address" required placeholder="House / street / landmark — e.g. 'Asokwa, near Melcom'"></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="distance">Distance from Sokoban (km)</label>
+              <input id="distance" name="distance" type="number" min="0" step="0.5" value="5" required>
+            </div>
+            <div class="field">
+              <label for="notes">Notes to seller <span class="optional">(optional)</span></label>
+              <input id="notes" name="notes" type="text" placeholder="e.g. grade / treatment preference">
+            </div>
+          </div>
+
+          <h3 style="margin-top:24px;">Delivery method</h3>
+          <div class="delivery-opt">
+            <label>
+              <input type="radio" name="delivery" value="pickup">
+              <span><b>Pickup</b><small>Collect at Sokoban Wood Village · Free</small></span>
+            </label>
+            <label>
+              <input type="radio" name="delivery" value="aboboyaa" checked>
+              <span><b>Aboboyaa</b><small>Up to 25 pieces · within 5 km · from GH₵10</small></span>
+            </label>
+            <label>
+              <input type="radio" name="delivery" value="pickup-truck">
+              <span><b>Small pickup</b><small>Up to 80 pieces · within 25 km · from GH₵30</small></span>
+            </label>
+            <label>
+              <input type="radio" name="delivery" value="truck">
+              <span><b>Truck</b><small>Up to 1,000 pieces · within 200 km · from GH₵60</small></span>
+            </label>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-btn" disabled>Place Order & Pay</button>
+          <div class="message" id="message" role="status" aria-live="polite"></div>
+        </form>
+
+        <aside class="card-box">
+          <h3>Order summary</h3>
+          <div id="cart-host">
+            <div class="empty-cart">
+              <div class="mark">🪵</div>
+              <p>Loading your cart...</p>
+            </div>
+          </div>
+          <div class="totals" id="totals" hidden>
+            <div class="row"><span>Subtotal</span><span id="subtotal">GH₵0.00</span></div>
+            <div class="row"><span>Delivery (estimated)</span><span id="delivery-fee">GH₵0.00</span></div>
+            <div class="row total"><span>Total (estimated)</span><b id="total">GH₵0.00</b></div>
+          </div>
+          <p class="note-small">Final price and delivery fee are confirmed by the seller before dispatch. Payment is secure via Paystack.</p>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+      const $ = (s) => document.querySelector(s);
+      const getToken = () => localStorage.getItem("bw_token");
+
+      const VEHICLES = {
+        "pickup":       { base: 0,  rate: 0 },
+        "aboboyaa":     { base: 10, rate: 3 },
+        "pickup-truck": { base: 30, rate: 5 },
+        "truck":        { base: 60, rate: 8 },
+      };
+
+      let cart = [];
+
+      function money(v, c = "GH₵") {
+        const n = Number(v);
+        return Number.isFinite(n) ? `${c}${n.toFixed(2)}` : "—";
+      }
+
+      async function loadCart() {
+        const token = getToken();
+        if (!token) {
+          window.location.href = "/login";
+          return;
+        }
+
+        try {
+          const res = await fetch("/cart/", {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            cart = await res.json();
+            renderCart();
+          }
+        } catch (err) {
+          console.error("Failed to load cart", err);
+        }
+      }
+
+      async function loadUserProfile() {
+          const token = getToken();
+          if (!token) return;
+
+          try {
+              const res = await fetch("/auth/me", {
+                  headers: { "Authorization": `Bearer ${token}` }
+              });
+              if (res.ok) {
+                  const user = await res.json();
+                  if (user.name) document.getElementById("name").value = user.name;
+                  if (user.phone_number) document.getElementById("phone").value = user.phone_number;
+                  if (user.address) document.getElementById("address").value = user.address;
+                  if (user.email) document.getElementById("email").value = user.email;
+              }
+          } catch (err) {
+              console.warn("Could not load user profile", err);
+          }
+      }
+
+      function renderCart() {
+        const host = $("#cart-host");
+        const totals = $("#totals");
+        const submitBtn = $("#submit-btn");
+
+        if (!cart.length) {
+          host.innerHTML = `<div class="empty-cart"><div class="mark">🪵</div><p>Your cart is empty.</p><p><a href="/" style="color:var(--wood-med);font-weight:700;">Go back to the shop →</a></p></div>`;
+          totals.hidden = true;
+          submitBtn.disabled = true;
+          return;
+        }
+
+        host.innerHTML = `<div class="cart-list">${cart.map((i) => `
+          <div class="cart-item">
+            <div class="thumb">${i.image_url ? `<img src="${i.image_url}" alt="">` : "🪵"}</div>
+            <div>
+              <p class="name">${i.local_name}</p>
+              <div class="meta">Qty ${i.quantity}</div>
+            </div>
+            <div class="price">${money(i.price_per_piece * i.quantity, i.currency)}</div>
+          </div>
+        `).join("")}</div>`;
+
+        totals.hidden = false;
+        recalcTotals();
+        submitBtn.disabled = false;
+      }
+
+      function recalcTotals() {
+        if (!cart.length) return;
+        const subtotal = cart.reduce((s, i) => s + (i.price_per_piece * i.quantity), 0);
+        const method = document.querySelector('input[name="delivery"]:checked')?.value || "pickup";
+        const v = VEHICLES[method] || VEHICLES.pickup;
+        const km = Number($("#distance").value) || 0;
+        const fee = v.base + v.rate * km;
+
+        $("#subtotal").textContent = money(subtotal);
+        $("#delivery-fee").textContent = money(fee);
+        $("#total").textContent = money(subtotal + fee);
+      }
+
+      document.querySelectorAll('input[name="delivery"]').forEach((r) =>
+        r.addEventListener("change", recalcTotals)
+      );
+      $("#distance").addEventListener("input", recalcTotals);
+
+      $("#order-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const msg = $("#message");
+        msg.textContent = "";
+        msg.classList.remove("err");
+
+        const name = $("#name").value.trim();
+        const phone = $("#phone").value.trim();
+        const email = $("#email").value.trim();
+        const address = $("#address").value.trim();
+        const distance = Number($("#distance").value);
+        const method = document.querySelector('input[name="delivery"]:checked').value;
+
+        if (!name || !phone || !email || !address || !Number.isFinite(distance)) {
+          msg.textContent = "Please fill in all required fields, including email for payment.";
+          msg.classList.add("err");
+          return;
+        }
+        if (!cart.length) {
+          msg.textContent = "Your cart is empty.";
+          msg.classList.add("err");
+          return;
+        }
+
+        const payload = {
+          customer_name: name,
+          customer_phone: phone,
+          customer_email: email,
+          delivery_address: address,
+          distance_km: distance,
+          delivery_method: method,
+          notes: $("#notes").value.trim() || null,
+          items: cart.map((i) => ({
+            wood_id: i.wood_id,
+            quantity: i.quantity,
+          })),
+        };
+
+        $("#submit-btn").disabled = true;
+        msg.textContent = "Creating order…";
+
+        try {
+          const token = getToken();
+
+          // 1. Create the Order
+          const res = await fetch("/orders/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+          }
+
+          const orders = await res.json();
+          const orderId = orders[0].order_id; // Get the first order ID (multi-seller)
+
+          msg.textContent = "Redirecting to Paystack...";
+
+          // 2. Initialize Payment
+          const payRes = await fetch("/payments/initialize", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          });
+
+          const payData = await payRes.json();
+
+          if (!payRes.ok) {
+            throw new Error(payData.detail || "Could not initialize payment");
+          }
+
+          // 3. Redirect to Paystack Checkout
+          window.location.href = payData.authorization_url;
+
+        } catch (err) {
+          msg.textContent = err.message || "Could not submit order. Try again.";
+          msg.classList.add("err");
+          $("#submit-btn").disabled = false;
+        }
+      });
+
+      loadCart();
+      loadUserProfile();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3e2723">
+  <title>Order received — {{ shop_name | default("Builder Wood") }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <style>
+    .confirm-page { padding: 56px 0 80px; }
+
+    .confirm-card {
+      max-width: 720px;
+      margin-inline: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 40px 36px;
+      text-align: center;
+    }
+
+    .confirm-mark { font-size: 52px; margin-bottom: 12px; }
+    .confirm-card h1 { font-family: "Fraunces", serif; font-size: 30px; letter-spacing: -.5px; margin: 0 0 8px; }
+    .confirm-card > p { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+
+    .confirm-id {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--wood-med);
+      background: var(--parchment-2);
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+    }
+
+    .confirm-table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; }
+    .confirm-table th, .confirm-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .confirm-table th { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+    .confirm-table td { color: var(--ink); vertical-align: middle; }
+
+    .confirm-totals { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
+    .confirm-totals .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+    .confirm-totals .row.total { font-size: 16px; font-weight: 800; color: var(--ink); padding-top: 10px; border-top: 1px solid var(--line); }
+    .confirm-totals .row.total b { font-family: "Fraunces", serif; font-size: 20px; color: var(--wood-med); }
+
+    .confirm-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+    .confirm-status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; background: var(--parchment-2); color: var(--wood-med); margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Order confirmation</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Continue shopping</a>
+    </div>
+  </header>
+
+  <main class="confirm-page">
+    <div class="container">
+      <div class="confirm-card">
+        <div class="confirm-mark">✓</div>
+        <span class="confirm-status" id="status">Pending</span>
+        <h1>Order received.</h1>
+        <p>We've sent your order to the seller. They'll confirm delivery and contact you shortly.</p>
+        <div class="confirm-id" id="order-id">Loading order…</div>
+
+        <table class="confirm-table" id="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Size</th>
+              <th style="text-align:center">Qty</th>
+              <th style="text-align:right">Price</th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            <!-- Items will be inserted here -->
+          </tbody>
+        </table>
+
+        <div class="confirm-totals" id="totals">
+          <div class="row"><span>Subtotal</span><span id="subtotal">GH₵0.00</span></div>
+          <div class="row"><span>Delivery</span><span id="delivery">GH₵0.00</span></div>
+          <div class="row total"><span>Total</span><b id="total">GH₵0.00</b></div>
+        </div>
+
+        <div class="confirm-actions">
+          <a class="btn btn-primary" href="/">Back to shop</a>
+          <!-- The Message seller button -->
+          <a class="btn btn-gold" href="#" id="whatsapp-link">Message the seller</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (s) => document.querySelector(s);
+      const orderId = window.location.pathname.split("/").pop();
+      const money = (v) => `GH₵${Number(v || 0).toFixed(2)}`;
+
+      // 1. Get the token
+      const token = localStorage.getItem("bw_token");
+      if (!token) {
+          window.location.href = "/login";
+      }
+
+      // 2. Fetch the order securely
+      fetch(`/orders/${orderId}`, {
+        headers: {
+            "Authorization": `Bearer ${token}`
+        }
+      })
+        .then((r) => {
+            if (r.ok) return r.json();
+            if (r.status === 401) {
+                window.location.href = "/login";
+                throw new Error("Not logged in");
+            }
+            throw new Error(`HTTP ${r.status}`);
+        })
+        .then((order) => {
+          $("#order-id").textContent = `Order #${order.order_id}`;
+          $("#status").textContent = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+          $("#subtotal").textContent = money(order.subtotal);
+          $("#delivery").textContent = money(order.delivery_fee);
+          $("#total").textContent = money(order.total_price);
+
+          // 3. Render the items
+          $("#items-body").innerHTML = (order.items || []).map((i) => {
+            const sizeText = (i.size_snap && i.size_snap !== "None") ? i.size_snap : "—";
+
+            return `
+              <tr>
+                <td style="font-weight:600;">${i.wood_name_snap || "Timber"}</td>
+                <td style="color:var(--muted);">${sizeText}</td>
+                <td style="text-align:center;">${i.quantity}</td>
+                <td style="text-align:right; font-weight:600;">${money(i.price_at_purchase * i.quantity)}</td>
+              </tr>
+            `;
+          }).join("");
+
+          // 4. Set WhatsApp link with the message
+          const text = `Hello, about order #${order.order_id} (${money(order.total_price)}) — my delivery address is ${order.delivery_address}.`;
+          $("#whatsapp-link").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        })
+        .catch((err) => {
+          $("#order-id").textContent = "Order not found";
+          $("#items-table").hidden = true;
+          $("#totals").hidden = true;
+          console.error(err);
+        });
+    })();
+  </script>
+</body>
+</html>

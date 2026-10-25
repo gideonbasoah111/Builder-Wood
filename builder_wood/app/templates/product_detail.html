@@ -1,0 +1,1424 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3e2723">
+  <meta name="description" content="Explore timber products, compare specifications, check availability and contact sellers on Builder Wood.">
+
+  <title>Product Details — Builder Wood</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <style>
+    :root {
+      --detail-wood: #5d4037;
+      --detail-dark: #3e2723;
+      --detail-gold: #b58b51;
+      --detail-green: #42664b;
+      --detail-bg: #faf8f4;
+      --detail-border: #e8e0d6;
+      --detail-muted: #786e65;
+      --detail-danger: #b42318;
+      --detail-radius: 14px;
+      --detail-shadow: 0 12px 35px rgba(62, 39, 35, .07);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--detail-bg);
+      color: var(--detail-dark);
+      font-family: "Inter", sans-serif;
+    }
+
+    button, input, a {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible {
+      outline: 3px solid var(--detail-gold);
+      outline-offset: 3px;
+    }
+
+    .detail-page {
+      padding: 28px 0 76px;
+      min-height: 70vh;
+    }
+
+    .detail-page .container {
+      width: min(1180px, calc(100% - 36px));
+      margin-inline: auto;
+    }
+
+    .detail-breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 0 0 26px;
+      color: var(--detail-muted);
+      font-size: 13px;
+    }
+
+    .detail-breadcrumb a,
+    .back-link {
+      color: var(--detail-wood);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .detail-breadcrumb a:hover,
+    .back-link:hover {
+      color: var(--detail-gold);
+    }
+
+    .breadcrumb-current {
+      overflow-wrap: anywhere;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr);
+      align-items: start;
+      gap: clamp(28px, 5vw, 64px);
+    }
+
+    /* Product gallery */
+
+    .detail-gallery {
+      min-width: 0;
+    }
+
+    .main-image {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+      border: 1px solid var(--detail-border);
+      border-radius: var(--detail-radius);
+      background: #f0e9df;
+      box-shadow: var(--detail-shadow);
+    }
+
+    .main-image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform .35s ease;
+    }
+
+    @media (hover: hover) {
+      .main-image:hover img {
+        transform: scale(1.035);
+      }
+    }
+
+    .gallery-count {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      z-index: 1;
+      padding: 7px 11px;
+      border-radius: 30px;
+      background: rgba(35, 24, 20, .78);
+      color: white;
+      font-size: 12px;
+    }
+
+    .thumbnail-row {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 15px 2px 5px;
+    }
+
+    .thumbnail {
+      flex: 0 0 78px;
+      width: 78px;
+      height: 70px;
+      padding: 0;
+      overflow: hidden;
+      border: 2px solid transparent;
+      border-radius: 9px;
+      background: #eee5da;
+      cursor: pointer;
+      opacity: .75;
+      transition: border-color .2s, opacity .2s;
+    }
+
+    .thumbnail img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .thumbnail:hover,
+    .thumbnail.active {
+      border-color: var(--detail-wood);
+      opacity: 1;
+    }
+
+    .gallery-note {
+      margin-top: 12px;
+      color: var(--detail-muted);
+      font-size: 12px;
+    }
+
+    .product-trust {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .trust-item {
+      padding: 14px 10px;
+      border: 1px solid var(--detail-border);
+      border-radius: 10px;
+      background: white;
+      text-align: center;
+    }
+
+    .trust-icon {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 21px;
+    }
+
+    .trust-title {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .trust-text {
+      display: block;
+      margin-top: 4px;
+      color: var(--detail-muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    /* Product information */
+
+    .detail-info {
+      min-width: 0;
+      padding-top: 5px;
+    }
+
+    .detail-category {
+      display: inline-block;
+      margin-bottom: 13px;
+      color: var(--detail-wood);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(30px, 3.4vw, 43px);
+      font-weight: 600;
+      line-height: 1.14;
+      letter-spacing: -.7px;
+      overflow-wrap: anywhere;
+    }
+
+    .seller-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 16px;
+      color: var(--detail-muted);
+      font-size: 13px;
+    }
+
+    .seller-line strong {
+      color: var(--detail-dark);
+    }
+
+    .seller-avatar {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: #e9ded0;
+      font-size: 15px;
+    }
+
+    .detail-divider {
+      height: 1px;
+      margin: 22px 0;
+      border: 0;
+      background: var(--detail-border);
+    }
+
+    .price-label {
+      margin-bottom: 7px;
+      color: var(--detail-muted);
+      font-size: 12px;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .detail-price {
+      color: var(--detail-dark);
+      font-family: "Fraunces", serif;
+      font-size: clamp(29px, 3vw, 38px);
+      font-weight: 700;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .price-unit {
+      color: var(--detail-muted);
+      font-size: 13px;
+    }
+
+    .stock-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 13px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stock-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #368052;
+    }
+
+    .stock-status.out-of-stock {
+      color: var(--detail-danger);
+    }
+
+    .stock-status.out-of-stock .stock-dot {
+      background: var(--detail-danger);
+    }
+
+    .stock-status.low-stock {
+      color: #9a6516;
+    }
+
+    .stock-status.low-stock .stock-dot {
+      background: #d59a2a;
+    }
+
+    .spec-section {
+      margin-top: 25px;
+    }
+
+    .section-heading {
+      margin: 0 0 13px;
+      font-family: "Fraunces", serif;
+      font-size: 19px;
+      font-weight: 600;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .spec-item {
+      padding: 13px;
+      border: 1px solid var(--detail-border);
+      border-radius: 10px;
+      background: white;
+    }
+
+    .spec-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--detail-muted);
+      font-size: 11px;
+    }
+
+    .spec-value {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-desc {
+      margin: 23px 0 0;
+      color: #645951;
+      font-size: 13px;
+      line-height: 1.85;
+      overflow-wrap: anywhere;
+    }
+
+    .description-heading {
+      margin-bottom: 8px;
+    }
+
+    /* Quantity and shopping actions */
+
+    .purchase-box {
+      margin-top: 26px;
+      padding: 19px;
+      border: 1px solid var(--detail-border);
+      border-radius: var(--detail-radius);
+      background: white;
+    }
+
+    .purchase-label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .purchase-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      height: 48px;
+      border: 1px solid var(--detail-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .quantity-btn {
+      width: 35px;
+      height: 100%;
+      border: 0;
+      background: #faf7f2;
+      color: var(--detail-dark);
+      cursor: pointer;
+      font-size: 19px;
+    }
+
+    .quantity-btn:hover:not(:disabled) {
+      background: #eee3d5;
+    }
+
+    .quantity-btn:disabled {
+      cursor: not-allowed;
+      opacity: .4;
+    }
+
+    .quantity-input {
+      width: 39px;
+      height: 100%;
+      padding: 0;
+      border: 0;
+      outline: none;
+      background: white;
+      color: var(--detail-dark);
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      appearance: textfield;
+    }
+
+    .quantity-input::-webkit-inner-spin-button,
+    .quantity-input::-webkit-outer-spin-button {
+      margin: 0;
+      appearance: none;
+    }
+
+    .btn-add {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      flex: 1;
+      min-width: 0;
+      min-height: 48px;
+      padding: 12px 16px;
+      border: 1px solid var(--detail-wood);
+      border-radius: 8px;
+      background: var(--detail-wood);
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background .2s, transform .2s;
+    }
+
+    .btn-add:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: var(--detail-dark);
+    }
+
+    .btn-add:disabled {
+      border-color: #c9c4bf;
+      background: #c9c4bf;
+      cursor: not-allowed;
+    }
+
+    .cart-icon {
+      font-size: 17px;
+    }
+
+    .order-total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 17px;
+      padding-top: 14px;
+      border-top: 1px solid var(--detail-border);
+      color: var(--detail-muted);
+      font-size: 12px;
+    }
+
+    .order-total strong {
+      color: var(--detail-dark);
+      font-size: 17px;
+    }
+
+    .purchase-hint {
+      margin: 11px 0 0;
+      color: var(--detail-muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .btn-wa {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 47px;
+      margin-top: 12px;
+      padding: 12px 16px;
+      border: 1px solid #d4e4d5;
+      border-radius: 8px;
+      background: #eff6ef;
+      color: #315b38;
+      text-align: center;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background .2s;
+    }
+
+    .btn-wa:hover {
+      background: #e0eee0;
+    }
+
+    .btn-wa.disabled {
+      opacity: .5;
+      pointer-events: none;
+    }
+
+    .detail-message {
+      padding: 45px 20px;
+      border: 1px solid var(--detail-border);
+      border-radius: var(--detail-radius);
+      background: white;
+      text-align: center;
+    }
+
+    .message-icon {
+      margin-bottom: 12px;
+      font-size: 35px;
+    }
+
+    .detail-message h2 {
+      margin: 0 0 10px;
+      font-family: "Fraunces", serif;
+    }
+
+    .detail-message p {
+      color: var(--detail-muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .message-retry {
+      margin-top: 12px;
+      padding: 11px 19px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--detail-wood);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .toast-message {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 1000;
+      width: min(360px, calc(100% - 40px));
+      padding: 15px 18px;
+      border: 1px solid var(--detail-border);
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .13);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .toast-message.success {
+      border-left: 4px solid var(--detail-green);
+    }
+
+    .toast-message.error {
+      border-left: 4px solid var(--detail-danger);
+    }
+
+    .detail-footer-note {
+      margin-top: 30px;
+      color: var(--detail-muted);
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 800px) {
+      .detail-page {
+        padding-top: 20px;
+      }
+
+      .detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 28px;
+      }
+
+      .detail-title {
+        font-size: 33px;
+      }
+
+      .product-trust {
+        margin-top: 17px;
+      }
+
+      .detail-info {
+        padding-top: 0;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .detail-page .container {
+        width: calc(100% - 24px);
+      }
+
+      .detail-title {
+        font-size: 29px;
+      }
+
+      .purchase-box {
+        padding: 14px;
+      }
+
+      .purchase-controls {
+        gap: 8px;
+      }
+
+      .quantity-btn {
+        width: 29px;
+      }
+
+      .quantity-input {
+        width: 32px;
+      }
+
+      .btn-add {
+        padding-inline: 9px;
+        font-size: 12px;
+      }
+
+      .trust-item {
+        padding: 12px 5px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/" aria-label="Builder Wood home">
+        <span class="brand-mark" aria-hidden="true">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em></span>
+      </a>
+
+      <a class="catnav-quote"
+         href="/"
+         style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;text-decoration:none;">
+        ← Back to shop
+      </a>
+    </div>
+  </header>
+
+  <main class="detail-page">
+    <div class="container">
+
+      <nav class="detail-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <span aria-hidden="true">/</span>
+        <a href="/">Timber products</a>
+        <span aria-hidden="true">/</span>
+        <span class="breadcrumb-current" id="breadcrumb-product">Product details</span>
+      </nav>
+
+      <section id="product-detail" aria-live="polite" aria-busy="true">
+        <div class="detail-message">
+          <div class="message-icon" aria-hidden="true">🪵</div>
+          <h2>Preparing your product</h2>
+          <p>Loading product information and availability...</p>
+        </div>
+      </section>
+
+      <p class="detail-footer-note">
+        Builder Wood connects customers with timber sellers.
+        Confirm product dimensions, availability and delivery arrangements
+        with the seller before completing your purchase.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      "use strict";
+
+      const token = localStorage.getItem("bw_token");
+      const container = document.getElementById("product-detail");
+      const breadcrumb = document.getElementById("breadcrumb-product");
+
+      const placeholderImage =
+        "https://placehold.co/900x675/f0e9df/5d4037?text=Builder+Wood";
+
+      let currentProduct = null;
+      let currentQuantity = 1;
+      let isAddingToCart = false;
+      let toastTimer = null;
+
+      // Escape database values before placing them in HTML.
+      function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, char => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        })[char]);
+      }
+
+      // Only permit HTTP(S) URLs for product images.
+      function safeImageURL(value) {
+        if (!value) return placeholderImage;
+
+        try {
+          const url = new URL(value, window.location.origin);
+
+          if (!["http:", "https:"].includes(url.protocol)) {
+            return placeholderImage;
+          }
+
+          return url.href;
+        } catch {
+          return placeholderImage;
+        }
+      }
+
+      function money(value, currency = "GH₵") {
+        const amount = Number(value);
+        const symbol = String(currency || "GH₵").slice(0, 12);
+
+        if (!Number.isFinite(amount)) return "Price unavailable";
+
+        try {
+          return `${symbol}${amount.toLocaleString("en-GH", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          })}`;
+        } catch {
+          return `${symbol}${amount.toFixed(2)}`;
+        }
+      }
+
+      function showToast(message, type = "success") {
+        document.getElementById("bw-toast")?.remove();
+        clearTimeout(toastTimer);
+
+        const toast = document.createElement("div");
+        toast.id = "bw-toast";
+        toast.className = `toast-message ${type}`;
+        toast.setAttribute("role", "status");
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        toastTimer = setTimeout(() => toast.remove(), 4000);
+      }
+
+      function showError(title, message, retry = false) {
+        container.setAttribute("aria-busy", "false");
+
+        container.innerHTML = `
+          <div class="detail-message">
+            <div class="message-icon" aria-hidden="true">🪵</div>
+            <h2>${escapeHTML(title)}</h2>
+            <p>${escapeHTML(message)}</p>
+            ${retry
+              ? '<button class="message-retry" id="retry-product">Try again</button>'
+              : '<a class="back-link" href="/">← Return to shop</a>'}
+          </div>
+        `;
+
+        document.getElementById("retry-product")?.addEventListener(
+          "click",
+          loadProduct
+        );
+      }
+
+      function normalizeGhanaPhone(value) {
+        let phone = String(value || "").replace(/\D/g, "");
+
+        if (phone.startsWith("00")) {
+          phone = phone.slice(2);
+        }
+
+        if (phone.startsWith("233")) {
+          phone = phone.slice(3);
+        } else if (phone.startsWith("0")) {
+          phone = phone.slice(1);
+        }
+
+        // Ghanaian mobile and landline numbers normally have 9
+        // national significant digits.
+        if (!/^\d{9}$/.test(phone)) return "";
+
+        return "233" + phone;
+      }
+
+      function makeWhatsAppURL(product, sellerName, phoneValue) {
+        const phone = normalizeGhanaPhone(phoneValue);
+
+        if (!phone) return "";
+
+        const message =
+          `Hello ${sellerName}, I am interested in buying ` +
+          `${product.display_name || "this timber product"} on Builder Wood. ` +
+          `Could you confirm its availability, dimensions and delivery options?`;
+
+        return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      }
+
+      function renderGallery(product) {
+        const images = Array.isArray(product.images)
+          ? product.images
+              .filter(img => img && img.image_url)
+              .slice()
+              .sort((a, b) => {
+                if (Boolean(a.is_primary) !== Boolean(b.is_primary)) {
+                  return a.is_primary ? -1 : 1;
+                }
+
+                return (Number(a.display_order) || 0) -
+                       (Number(b.display_order) || 0);
+              })
+          : [];
+
+        const urls = [...new Set(images.map(img =>
+          safeImageURL(img.image_url)
+        ))];
+
+        if (!urls.length) urls.push(placeholderImage);
+
+        const initialImage = urls[0];
+
+        return `
+          <div class="detail-gallery">
+            <div class="main-image">
+              <img
+                id="main-product-img"
+                src="${escapeHTML(initialImage)}"
+                alt="${escapeHTML(product.display_name || "Timber product")}"
+                fetchpriority="high"
+              >
+              <span class="gallery-count" id="gallery-count">
+                1 / ${urls.length}
+              </span>
+            </div>
+
+            ${urls.length > 1 ? `
+              <div class="thumbnail-row" aria-label="Product images">
+                ${urls.map((url, index) => `
+                  <button
+                    type="button"
+                    class="thumbnail ${index === 0 ? "active" : ""}"
+                    data-image-index="${index}"
+                    aria-label="View product image ${index + 1}"
+                    aria-pressed="${index === 0}"
+                  >
+                    <img
+                      src="${escapeHTML(url)}"
+                      alt=""
+                      loading="lazy"
+                    >
+                  </button>
+                `).join("")}
+              </div>
+              <p class="gallery-note">
+                Select an image to see another view of the product.
+              </p>
+            ` : ""}
+          </div>
+        `;
+      }
+
+      function renderProduct(product) {
+        currentProduct = product;
+
+        const seller = product.seller || {};
+        const sellerName = seller.name || "Builder Wood seller";
+        const categoryName = product.category?.category_name || "Timber";
+        const price = Number(product.price_per_piece);
+        const stock = Math.max(0, Number(product.stock_quantity) || 0);
+        const currency = product.currency || "GH₵";
+
+        const loggedInUserId = localStorage.getItem("bw_user_id");
+
+        const isMyProduct = Boolean(
+          product.seller_id &&
+          loggedInUserId &&
+          String(product.seller_id) === String(loggedInUserId)
+        );
+
+        const isOutOfStock = stock < 1;
+        const isLowStock = stock > 0 && stock <= 5;
+
+        const stockClass = isOutOfStock
+          ? "out-of-stock"
+          : isLowStock
+            ? "low-stock"
+            : "";
+
+        const stockText = isOutOfStock
+          ? "Currently out of stock"
+          : isLowStock
+            ? `Only ${stock} piece${stock === 1 ? "" : "s"} available`
+            : `${stock.toLocaleString("en-GH")} pieces available`;
+
+        const phone = seller.phone_number || "";
+        const whatsappURL = makeWhatsAppURL(product, sellerName, phone);
+
+        const description =
+          product.description || "No description provided for this timber.";
+
+        const validPrice = Number.isFinite(price) && price >= 0;
+
+        breadcrumb.textContent = product.display_name || "Product details";
+
+        container.setAttribute("aria-busy", "false");
+
+        container.innerHTML = `
+          <div class="detail-grid">
+
+            ${renderGallery(product)}
+
+            <div class="detail-info">
+
+              <span class="detail-category">
+                ${escapeHTML(categoryName)}
+              </span>
+
+              <h1 class="detail-title">
+                ${escapeHTML(product.display_name || "Timber product")}
+              </h1>
+
+              <div class="seller-line">
+                <span class="seller-avatar" aria-hidden="true">🏪</span>
+                <span>Sold by <strong>${escapeHTML(sellerName)}</strong></span>
+              </div>
+
+              <hr class="detail-divider">
+
+              <div class="price-label">Price per piece</div>
+
+              <div class="price-row">
+                <span class="detail-price">
+                  ${validPrice ? escapeHTML(money(price, currency)) : "Price unavailable"}
+                </span>
+                <span class="price-unit">/ piece</span>
+              </div>
+
+              <div class="stock-status ${stockClass}">
+                <span class="stock-dot" aria-hidden="true"></span>
+                <span>${escapeHTML(stockText)}</span>
+              </div>
+
+              <section class="spec-section" aria-labelledby="spec-heading">
+                <h2 class="section-heading" id="spec-heading">
+                  Product specifications
+                </h2>
+
+                <div class="spec-grid">
+                  <div class="spec-item">
+                    <span class="spec-label">📏 Size / Dimensions</span>
+                    <span class="spec-value">
+                      ${escapeHTML(product.size_label || "Not specified")}
+                    </span>
+                  </div>
+
+                  <div class="spec-item">
+                    <span class="spec-label">🪵 Treatment</span>
+                    <span class="spec-value">
+                      ${product.is_treated ? "Treated" : "Untreated"}
+                    </span>
+                  </div>
+
+                  <div class="spec-item">
+                    <span class="spec-label">📦 Availability</span>
+                    <span class="spec-value">
+                      ${stock.toLocaleString("en-GH")} pieces
+                    </span>
+                  </div>
+
+                  <div class="spec-item">
+                    <span class="spec-label">🏷️ Category</span>
+                    <span class="spec-value">
+                      ${escapeHTML(categoryName)}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="spec-section" aria-labelledby="description-heading">
+                <h2 class="section-heading description-heading"
+                    id="description-heading">
+                  About this product
+                </h2>
+
+                <p class="detail-desc" style="margin-top:0">
+                  ${escapeHTML(description)}
+                </p>
+              </section>
+
+              <div class="purchase-box">
+
+                <label class="purchase-label" for="product-quantity">
+                  Select quantity
+                </label>
+
+                <div class="purchase-controls">
+                  <div class="quantity-control">
+                    <button
+                      type="button"
+                      class="quantity-btn"
+                      id="quantity-minus"
+                      aria-label="Decrease quantity"
+                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
+                    >−</button>
+
+                    <input
+                      class="quantity-input"
+                      id="product-quantity"
+                      type="number"
+                      inputmode="numeric"
+                      min="1"
+                      max="${stock}"
+                      value="1"
+                      aria-label="Quantity in pieces"
+                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
+                    >
+
+                    <button
+                      type="button"
+                      class="quantity-btn"
+                      id="quantity-plus"
+                      aria-label="Increase quantity"
+                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
+                    >+</button>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-add"
+                    id="add-to-cart-btn"
+                    ${isOutOfStock || isMyProduct || !validPrice ? "disabled" : ""}
+                  >
+                    <span class="cart-icon" aria-hidden="true">🛒</span>
+                    <span>
+                      ${isMyProduct
+                        ? "Your product"
+                        : isOutOfStock
+                          ? "Out of stock"
+                          : !validPrice
+                            ? "Price unavailable"
+                            : "Add to Cart"}
+                    </span>
+                  </button>
+                </div>
+
+                <div class="order-total">
+                  <span>Estimated item total</span>
+                  <strong id="estimated-total">
+                    ${validPrice ? escapeHTML(money(price, currency)) : "Unavailable"}
+                  </strong>
+                </div>
+
+                <p class="purchase-hint">
+                  This is an estimated product subtotal. Delivery charges,
+                  if applicable, are not included.
+                </p>
+
+                <a
+                  class="btn-wa ${whatsappURL ? "" : "disabled"}"
+                  id="message-seller"
+                  href="${whatsappURL ? escapeHTML(whatsappURL) : "#"}"
+                  ${whatsappURL ? 'target="_blank" rel="noopener noreferrer"' : 'aria-disabled="true"'}
+                >
+                  <span aria-hidden="true">💬</span>
+                  Message Seller on WhatsApp
+                </a>
+
+                ${!whatsappURL ? `
+                  <p class="purchase-hint">
+                    Seller contact details are not available for WhatsApp.
+                    Please use the seller's other contact options if provided.
+                  </p>
+                ` : ""}
+              </div>
+
+            </div>
+          </div>
+        `;
+
+        bindGalleryEvents();
+        bindPurchaseEvents();
+      }
+
+      function bindGalleryEvents() {
+        const mainImage = document.getElementById("main-product-img");
+        const counter = document.getElementById("gallery-count");
+        const thumbnails = [...document.querySelectorAll(".thumbnail")];
+
+        if (!mainImage) return;
+
+        mainImage.addEventListener("error", () => {
+          if (mainImage.src !== placeholderImage) {
+            mainImage.src = placeholderImage;
+          }
+        });
+
+        thumbnails.forEach(button => {
+          const image = button.querySelector("img");
+
+          image?.addEventListener("error", () => {
+            button.hidden = true;
+          });
+
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.imageIndex);
+
+            if (!Number.isInteger(index)) return;
+
+            mainImage.src = image.src;
+
+            thumbnails.forEach((thumbnail, i) => {
+              const active = i === index;
+              thumbnail.classList.toggle("active", active);
+              thumbnail.setAttribute("aria-pressed", String(active));
+            });
+
+            if (counter) {
+              counter.textContent = `${index + 1} / ${thumbnails.length}`;
+            }
+          });
+        });
+      }
+
+      function bindPurchaseEvents() {
+        const quantityInput = document.getElementById("product-quantity");
+        const minusButton = document.getElementById("quantity-minus");
+        const plusButton = document.getElementById("quantity-plus");
+        const addButton = document.getElementById("add-to-cart-btn");
+        const totalElement = document.getElementById("estimated-total");
+
+        if (!quantityInput || !currentProduct) return;
+
+        const stock = Math.max(
+          0,
+          Number(currentProduct.stock_quantity) || 0
+        );
+
+        const price = Number(currentProduct.price_per_piece);
+        const currency = currentProduct.currency || "GH₵";
+
+        function updateQuantity() {
+          let quantity = Number.parseInt(quantityInput.value, 10);
+
+          if (!Number.isFinite(quantity)) quantity = 1;
+
+          quantity = Math.max(1, Math.min(stock || 1, quantity));
+          currentQuantity = quantity;
+          quantityInput.value = String(quantity);
+
+          minusButton.disabled = quantity <= 1 || stock < 1;
+          plusButton.disabled = quantity >= stock || stock < 1;
+
+          if (totalElement) {
+            totalElement.textContent =
+              Number.isFinite(price) && price >= 0
+                ? money(price * quantity, currency)
+                : "Unavailable";
+          }
+        }
+
+        minusButton.addEventListener("click", () => {
+          quantityInput.value = String(currentQuantity - 1);
+          updateQuantity();
+        });
+
+        plusButton.addEventListener("click", () => {
+          quantityInput.value = String(currentQuantity + 1);
+          updateQuantity();
+        });
+
+        quantityInput.addEventListener("change", updateQuantity);
+        quantityInput.addEventListener("input", () => {
+          if (quantityInput.value === "") return;
+          updateQuantity();
+        });
+
+        addButton.addEventListener("click", () => {
+          addToCart(currentProduct.wood_id, currentQuantity);
+        });
+
+        updateQuantity();
+      }
+
+      async function loadProduct() {
+        const pathParts = window.location.pathname.split("/").filter(Boolean);
+        const woodId = pathParts[pathParts.length - 1];
+
+        if (!woodId || !/^\d+$/.test(woodId) || Number(woodId) < 1) {
+          showError(
+            "Invalid product",
+            "The product address is invalid. Return to the shop and select a product."
+          );
+          return;
+        }
+
+        container.setAttribute("aria-busy", "true");
+
+        try {
+          const response = await fetch(
+            `/woods/${encodeURIComponent(woodId)}`,
+            {
+              method: "GET",
+              headers: { "Accept": "application/json" }
+            }
+          );
+
+          if (response.status === 404) {
+            showError(
+              "Product not found",
+              "This timber product may have been removed or is no longer available."
+            );
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+          }
+
+          const product = await response.json();
+
+          if (!product || typeof product !== "object" ||
+              !product.wood_id) {
+            throw new Error("Invalid product response");
+          }
+
+          renderProduct(product);
+
+        } catch (error) {
+          console.error("Builder Wood product details error:", error);
+
+          showError(
+            "Unable to load product",
+            "Please check your connection and try again.",
+            true
+          );
+        }
+      }
+
+      async function addToCart(woodId, quantity) {
+        if (isAddingToCart) return;
+
+        if (!token) {
+          showToast("Please log in before adding items to your cart.", "error");
+
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 900);
+
+          return;
+        }
+
+        if (!currentProduct || Number(woodId) !== Number(currentProduct.wood_id)) {
+          showToast("Invalid product. Please reload the page.", "error");
+          return;
+        }
+
+        const stock = Math.max(
+          0,
+          Number(currentProduct.stock_quantity) || 0
+        );
+
+        const price = Number(currentProduct.price_per_piece);
+        const requestedQuantity = Number(quantity);
+
+        if (
+          !Number.isInteger(requestedQuantity) ||
+          requestedQuantity < 1 ||
+          requestedQuantity > stock
+        ) {
+          showToast("Please select a valid quantity within available stock.", "error");
+          return;
+        }
+
+        if (!Number.isFinite(price) || price < 0) {
+          showToast("The product price is invalid. Please contact the seller.", "error");
+          return;
+        }
+
+        isAddingToCart = true;
+
+        const button = document.getElementById("add-to-cart-btn");
+
+        if (button) {
+          button.disabled = true;
+          button.innerHTML = "<span>Adding to cart...</span>";
+        }
+
+        try {
+          const response = await fetch("/cart/add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              wood_id: Number(woodId),
+              quantity: requestedQuantity
+            })
+          });
+
+          if (response.status === 401 || response.status === 403) {
+            showToast("Your session may have expired. Please log in again.", "error");
+
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 900);
+
+            return;
+          }
+
+          if (!response.ok) {
+            let errorMessage = "Could not add this product to your cart.";
+
+            try {
+              const data = await response.json();
+              if (typeof data.detail === "string") {
+                errorMessage = data.detail;
+              }
+            } catch {
+              // Keep the fallback message if the response is not JSON.
+            }
+
+            showToast(errorMessage, "error");
+            return;
+          }
+
+          showToast(
+            `${requestedQuantity} piece${requestedQuantity === 1 ? "" : "s"} added to your cart.`,
+            "success"
+          );
+
+          // Stay on the product page so the customer can continue shopping.
+          // Navigate to the cart instead if your application has a dedicated cart URL.
+
+        } catch (error) {
+          console.error("Builder Wood add-to-cart error:", error);
+          showToast("Network error. Please check your connection and try again.", "error");
+
+        } finally {
+          isAddingToCart = false;
+
+          const currentButton = document.getElementById("add-to-cart-btn");
+
+          if (currentButton && currentProduct) {
+            const stockNow = Number(currentProduct.stock_quantity) || 0;
+            const loggedInUserId = localStorage.getItem("bw_user_id");
+
+            const isMyProduct = Boolean(
+              currentProduct.seller_id &&
+              loggedInUserId &&
+              String(currentProduct.seller_id) === String(loggedInUserId)
+            );
+
+            currentButton.disabled =
+              stockNow < 1 ||
+              isMyProduct ||
+              !Number.isFinite(Number(currentProduct.price_per_piece));
+
+            currentButton.innerHTML = `
+              <span class="cart-icon" aria-hidden="true">🛒</span>
+              <span>${isMyProduct
+                ? "Your product"
+                : stockNow < 1
+                  ? "Out of stock"
+                  : "Add to Cart"}</span>
+            `;
+          }
+        }
+      }
+
+      // Retain compatibility with other scripts that use this function.
+      window.addToCart = (id, quantity = 1) => addToCart(id, quantity);
+
+      loadProduct();
+    });
+  </script>
+</body>
+</html>

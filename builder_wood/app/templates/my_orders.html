@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My Orders — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .orders-page { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .page-header h2 { font-family: Fraunces, serif; margin: 0; }
+
+    .order-card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .order-head { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--parchment); border-bottom: 1px solid var(--line); }
+    .order-head h4 { margin: 0; font-size: 15px; }
+    .order-head .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-confirmed { background: #cce5ff; color: #004085; }
+    .status-shipped { background: #d1ecf1; color: #0c5460; }
+    .status-delivered { background: #d4edda; color: #155724; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+
+    .order-body { padding: 20px; }
+    .order-items { margin-bottom: 15px; }
+
+    /* Item Layout */
+    .order-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        font-size: 13px;
+        padding: 12px 0;
+        border-bottom: 1px dashed var(--line);
+    }
+    .order-item:last-child { border-bottom: none; }
+
+    .item-details { display: flex; flex-direction: column; gap: 4px; }
+    .item-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+    .item-meta { display: flex; gap: 10px; align-items: center; }
+    .item-size {
+        font-size: 11px;
+        background: var(--parchment-2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--ink-2);
+        font-weight: 600;
+    }
+    .item-qty { font-size: 12px; color: var(--wood-med); font-weight: 700; }
+
+    .item-price { font-weight: 800; font-size: 14px; color: var(--ink); }
+
+    /* Totals */
+    .order-totals { margin-top: 15px; border-top: 2px solid var(--line); padding-top: 15px; }
+    .total-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .total-row.grand-total { font-weight: 800; font-size: 16px; color: var(--ink); margin-top: 8px; }
+
+    /* Footer meta */
+    .order-meta { margin-top: 20px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .btn-receipt { display: inline-block; padding: 8px 14px; background: var(--wood-med); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 12px; transition: background 0.15s; }
+    .btn-receipt:hover { background: var(--wood-dark); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>My Orders</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="orders-page">
+    <div class="page-header">
+      <h2>My Orders</h2>
+    </div>
+
+    <div id="orders-list">
+      <p style="text-align:center; color:var(--muted);">Loading your orders...</p>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.href = "/login";
+
+    const list = document.getElementById("orders-list");
+
+    async function loadOrders() {
+        try {
+            const res = await fetch("/orders/my-orders", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error("Failed to load orders");
+            const orders = await res.json();
+
+            if (orders.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:var(--muted);">You have not placed any orders yet.<br><br><a href="/" style="color:var(--wood-med);font-weight:700;">Start shopping →</a></p>';
+                return;
+            }
+
+            list.innerHTML = orders.map(o => {
+                let statusClass = "status-" + o.status;
+
+                return `
+                    <div class="order-card">
+                        <div class="order-head">
+                            <h4>Order #${o.order_id} <span style="font-size:12px; font-weight:400; color:var(--muted);">${o.order_date ? new Date(o.order_date).toLocaleDateString() : ''}</span></h4>
+                            <span class="status ${statusClass}">${o.status}</span>
+                        </div>
+                        <div class="order-body">
+
+                            <div class="order-items">
+                                ${(o.items || []).map(item => {
+                                    // Fallback if size is missing
+                                    const sizeText = (item.size_snap && item.size_snap !== "None")
+                                        ? item.size_snap
+                                        : "Standard Size";
+
+                                    return `
+                                    <div class="order-item">
+                                        <div class="item-details">
+                                            <span class="item-name">${item.wood_name_snap || 'Timber'}</span>
+                                            <div class="item-meta">
+                                                <span class="item-size">Size: ${sizeText}</span>
+                                                <span class="item-qty">Qty: ${item.quantity}</span>
+                                            </div>
+                                        </div>
+                                        <div class="item-price">
+                                            GH₵ ${(Number(item.price_at_purchase) * item.quantity).toFixed(2)}
+                                        </div>
+                                    </div>
+                                    `;
+                                }).join("")}
+                            </div>
+
+                            <div class="order-totals">
+                                <div class="total-row">
+                                    <span>Subtotal</span>
+                                    <span>GH₵ ${Number(o.subtotal).toFixed(2)}</span>
+                                </div>
+                                <div class="total-row">
+                                    <span>Delivery Fee</span>
+                                    <span>GH₵ ${Number(o.delivery_fee).toFixed(2)}</span>
+                                </div>
+                                <div class="total-row grand-total">
+                                    <span>Total</span>
+                                    <span>GH₵ ${Number(o.total_price).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <div class="order-meta">
+                                <span>📍 Delivering to: ${o.delivery_address}</span>
+                                <a href="/order/${o.order_id}" class="btn-receipt">View Receipt</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        } catch (err) {
+            list.innerHTML = '<p style="text-align:center; color:var(--red);">Error loading orders.</p>';
+            console.error(err);
+        }
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>

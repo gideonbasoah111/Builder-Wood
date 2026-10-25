@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Orders — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    /* ---------- Layout ---------- */
+    .dashboard-page { max-width: 960px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+
+    /* ---------- Stats strip ---------- */
+    .stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--parchment); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+    .stat-card .stat-num { font-size: 24px; font-weight: 700; font-family: Fraunces, serif; line-height: 1.1; }
+    .stat-card .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+
+    /* ---------- Tabs & filters ---------- */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .nav-tabs { display: flex; gap: 20px; }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 5px; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active, .nav-tabs a[aria-current="page"] { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+    .filters { display: flex; gap: 8px; padding-bottom: 8px; flex-wrap: wrap; }
+    .chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--ink-2); }
+    .chip[aria-pressed="true"] { background: var(--wood-med); border-color: var(--wood-med); color: #fff; }
+    .search-box { border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 13px; min-width: 180px; }
+
+    /* ---------- Alerts (Low Stock & Out of Stock) ---------- */
+    .alert-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      border-left: 5px solid;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .alert-low { border-left-color: #f0ad4e; background: #fffdf5; }
+    .alert-out { border-left-color: var(--red); background: #fff9f9; }
+
+    .alert-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .alert-low .alert-icon { background: #fdf2e3; color: #d68910; }
+    .alert-out .alert-icon { background: #fdebea; color: var(--red); }
+
+    .alert-content { flex: 1; }
+    .alert-content h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+    .alert-low .alert-content h4 { color: #8a5a00; }
+    .alert-out .alert-content h4 { color: #7a1f1a; }
+
+    .alert-content p { margin: 0 0 12px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+
+    .alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .alert-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 6px 10px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+    }
+    .alert-item b { font-weight: 700; }
+    .alert-low .alert-item b { color: #8a5a00; }
+    .alert-out .alert-item b { color: var(--red); }
+
+    .alert-btn {
+      display: inline-block;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .alert-low .alert-btn { background: #f0ad4e; color: #fff; }
+    .alert-low .alert-btn:hover { background: #ec971f; }
+    .alert-out .alert-btn { background: var(--red); color: #fff; }
+    .alert-out .alert-btn:hover { background: #8c2c22; }
+
+    /* ---------- Order cards ---------- */
+    .order-card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .order-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 15px 20px; background: var(--parchment); border-bottom: 1px solid var(--line); }
+    .order-head h4 { margin: 0; font-size: 15px; }
+    .order-head .meta { font-size: 12px; font-weight: 400; color: var(--muted); }
+    .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+    .status-pending   { background: #fff3cd; color: #856404; }
+    .status-confirmed { background: #cce5ff; color: #004085; }
+    .status-shipped   { background: #d1ecf1; color: #0c5460; }
+    .status-delivered { background: #d4edda; color: #155724; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+
+    .order-body { padding: 20px; }
+    .order-item { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 8px; }
+    .order-total { font-weight: 700; font-size: 15px; border-top: 1px dashed var(--line); padding-top: 15px; margin-top: 15px; display: flex; justify-content: space-between; }
+    .order-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+
+    .btn { padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; }
+    .btn-primary { background: var(--wood-med); color: #fff; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-danger  { background: #b02a37; color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 11px; }
+    .msg { margin-top: 15px; font-weight: 600; text-align: center; min-height: 1.2em; }
+    .msg.ok  { color: var(--green); }
+    .msg.err { color: var(--red); }
+
+    /* ---------- Skeleton loading ---------- */
+    .skeleton { position: relative; overflow: hidden; background: var(--parchment-2, #eee); border-radius: 10px; height: 120px; margin-bottom: 20px; }
+    .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: shimmer 1.2s infinite; }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+
+    /* ---------- Modal ---------- */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(20, 12, 4, .6); z-index: 100; align-items: center; justify-content: center; }
+    .modal-backdrop.show { display: flex; }
+    .modal { background: #fff; border-radius: var(--radius-lg); padding: 30px; max-width: 400px; width: 90%; text-align: center; box-shadow: var(--shadow-lg); }
+    .modal h3 { font-family: "Fraunces", serif; font-size: 22px; margin: 0 0 10px; }
+    .modal p { color: var(--ink-2); margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 10px; justify-content: center; }
+    .btn-cancel { background: var(--parchment-2); color: var(--ink); }
+    .btn-confirm { background: var(--wood-med); color: #fff; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <div class="dash-header">
+      <h2>Seller Dashboard</h2>
+      <button class="btn btn-sm" id="refresh-btn" type="button">↻ Refresh</button>
+    </div>
+
+    <!-- Summary stats -->
+    <section class="stats-strip" id="stats-strip" aria-label="Order summary"></section>
+
+    <div class="toolbar">
+      <nav class="nav-tabs" aria-label="Seller sections">
+        <a href="/seller/upload">Upload Wood</a>
+        <a href="/seller/products">My Products</a>
+        <a href="/seller/orders" aria-current="page">My Orders</a>
+      </nav>
+      <div class="filters" role="group" aria-label="Filter orders by status">
+        <input class="search-box" id="search" type="search" placeholder="Search order #…" aria-label="Search by order number">
+        <button class="chip" data-filter="all"       aria-pressed="true"  type="button">All</button>
+        <button class="chip" data-filter="pending"   aria-pressed="false" type="button">Pending</button>
+        <button class="chip" data-filter="confirmed" aria-pressed="false" type="button">Confirmed</button>
+        <button class="chip" data-filter="shipped"   aria-pressed="false" type="button">Shipped</button>
+        <button class="chip" data-filter="delivered" aria-pressed="false" type="button">Delivered</button>
+      </div>
+    </div>
+
+    <!-- Alerts Container -->
+    <div id="alerts-container"></div>
+
+    <div id="orders-list" aria-live="polite"></div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </main>
+
+  <!-- Confirmation modal -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
+      <h3 id="modal-title">Confirm Action</h3>
+      <p id="modal-message">Are you sure you want to do this?</p>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="modal-cancel" type="button">Cancel</button>
+        <button class="btn btn-confirm" id="modal-confirm" type="button">Yes, continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.replace("/login");
+
+    const msgEl   = document.getElementById("msg");
+    const listEl  = document.getElementById("orders-list");
+    const statsEl = document.getElementById("stats-strip");
+    const searchEl = document.getElementById("search");
+    const refreshBtn = document.getElementById("refresh-btn");
+    const alertsContainer = document.getElementById("alerts-container");
+
+    let allOrders = [];
+    let activeFilter = "all";
+    let searchTerm = "";
+
+    /* ---------------- Helpers ---------------- */
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+
+    const fmtMoney = (n) => "GH₵ " + Number(n).toFixed(2);
+
+    function showMsg(text, ok = true) {
+      msgEl.textContent = text;
+      msgEl.className = "msg " + (ok ? "ok" : "err");
+      clearTimeout(showMsg._t);
+      showMsg._t = setTimeout(() => { msgEl.textContent = ""; }, 5000);
+    }
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, {
+        ...options,
+        headers: { "Authorization": `Bearer ${token}`, ...(options.headers || {}) }
+      });
+      if (!res.ok) {
+        let detail = "Request failed.";
+        try { detail = (await res.json()).detail || detail; } catch {}
+        throw new Error(detail);
+      }
+      return res.json();
+    }
+
+    /* ---------------- Accessible modal ---------------- */
+    const backdrop = document.getElementById("modal-backdrop");
+    const mTitle   = document.getElementById("modal-title");
+    const mMessage = document.getElementById("modal-message");
+    const mCancel  = document.getElementById("modal-cancel");
+    const mConfirm = document.getElementById("modal-confirm");
+
+    let pendingAction = null;
+    let lastFocused = null;
+
+    function showModal(title, message, onConfirm) {
+      mTitle.textContent = title;
+      mMessage.textContent = message;
+      lastFocused = document.activeElement;
+      pendingAction = onConfirm;
+      backdrop.classList.add("show");
+      mConfirm.focus();
+    }
+
+    function hideModal() {
+      backdrop.classList.remove("show");
+      pendingAction = null;
+      if (lastFocused) lastFocused.focus();
+    }
+
+    mCancel.addEventListener("click", hideModal);
+    mConfirm.addEventListener("click", () => {
+      const fn = pendingAction;
+      hideModal();
+      if (fn) fn();
+    });
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) hideModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (!backdrop.classList.contains("show")) return;
+      if (e.key === "Escape") hideModal();
+    });
+
+    /* ---------------- Alerts (Low & Out of Stock) ---------------- */
+    async function checkStockAlerts() {
+      try {
+        const items = await api("/seller/low-stock");
+
+        const outOfStock = items.filter(i => Number(i.stock) <= 0);
+        const lowStock = items.filter(i => Number(i.stock) > 0 && Number(i.stock) <= 10);
+
+        let html = "";
+
+        // 1. Render Out of Stock Alert (Red)
+        if (outOfStock.length > 0) {
+          const rows = outOfStock.map(i => `
+            <div class="alert-item">
+              <span>${escapeHtml(i.local_name)}</span>
+              <b>Sold Out</b>
+            </div>`).join("");
+
+          html += `
+            <div class="alert-box alert-out">
+              <div class="alert-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <div class="alert-content">
+                <h4>Out of Stock</h4>
+                <p>The following items have sold out and are hidden from the store. Restock them to start selling again.</p>
+                <div class="alert-list">${rows}</div>
+                <a href="/seller/products" class="alert-btn">Manage Inventory</a>
+              </div>
+            </div>`;
+        }
+
+        // 2. Render Low Stock Alert (Yellow)
+        if (lowStock.length > 0) {
+          const rows = lowStock.map(i => `
+            <div class="alert-item">
+              <span>${escapeHtml(i.local_name)}</span>
+              <b>${Number(i.stock)} left</b>
+            </div>`).join("");
+
+          html += `
+            <div class="alert-box alert-low">
+              <div class="alert-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <div class="alert-content">
+                <h4>Low Stock Warning</h4>
+                <p>These items are running low. Restock soon to avoid missing out on sales.</p>
+                <div class="alert-list">${rows}</div>
+                <a href="/seller/upload" class="alert-btn">Restock Now</a>
+              </div>
+            </div>`;
+        }
+
+        alertsContainer.innerHTML = html;
+      } catch {
+        alertsContainer.innerHTML = "";
+      }
+    }
+
+    /* ---------------- Stats ---------------- */
+    function renderStats(orders) {
+      const count = (s) => orders.filter(o => o.status === s).length;
+      const revenue = orders
+        .filter(o => o.status !== "cancelled")
+        .reduce((sum, o) => sum + Number(o.total_price), 0);
+
+      statsEl.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-num">${orders.length}</div>
+          <div class="stat-label">Total Orders</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${count("pending")}</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${count("confirmed")}</div>
+          <div class="stat-label">Confirmed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${fmtMoney(revenue)}</div>
+          <div class="stat-label">Total Revenue</div>
+        </div>
+      `;
+    }
+
+    /* ---------------- Render Orders ---------------- */
+    function renderOrders(orders) {
+      if (orders.length === 0) {
+        listEl.innerHTML = `
+          <div style="text-align:center; padding:40px 20px; color:var(--muted);">
+            <p>No orders match your current filters.</p>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = orders.map(o => {
+        let statusClass = "status-" + o.status;
+
+        let actions = "";
+        if (o.status === "pending") {
+          actions = `<button class="btn btn-primary btn-sm" onclick="promptUpdate(${o.order_id}, 'confirmed', 'Confirm Order', 'Are you sure you want to accept this order?')">Confirm Order</button>
+                     <button class="btn btn-danger btn-sm" onclick="promptUpdate(${o.order_id}, 'cancelled', 'Cancel Order', 'Are you sure you want to cancel this order?')">Cancel</button>`;
+        } else if (o.status === "confirmed") {
+          actions = `<button class="btn btn-primary btn-sm" onclick="promptUpdate(${o.order_id}, 'shipped', 'Mark as Shipped', 'Has the wood been loaded and sent out for delivery?')">Mark as Shipped</button>`;
+        } else if (o.status === "shipped") {
+          actions = `<button class="btn btn-success btn-sm" onclick="promptUpdate(${o.order_id}, 'delivered', 'Mark as Delivered', 'Has the buyer received the wood?')">Mark as Delivered</button>`;
+        }
+
+        return `
+          <div class="order-card">
+            <div class="order-head">
+              <h4>Order #${o.order_id} <span class="meta">${o.order_date ? new Date(o.order_date).toLocaleDateString() : ''}</span></h4>
+              <span class="status ${statusClass}">${o.status}</span>
+            </div>
+            <div class="order-body">
+              <div class="order-items">
+                ${o.items.map(item => `
+                  <div class="order-item">
+                    <span>${escapeHtml(item.wood_name_snap)} ${escapeHtml(item.size_snap)} (x${item.quantity})</span>
+                    <span>${fmtMoney(item.price_at_purchase * item.quantity)}</span>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="order-total">
+                <span>Total</span>
+                <span>${fmtMoney(o.total_price)}</span>
+              </div>
+              <div class="order-actions">
+                ${actions}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    /* ---------------- Filtering ---------------- */
+    function applyFilters() {
+      let filtered = allOrders;
+
+      if (activeFilter !== "all") {
+        filtered = filtered.filter(o => o.status === activeFilter);
+      }
+
+      if (searchTerm) {
+        filtered = filtered.filter(o => String(o.order_id).includes(searchTerm));
+      }
+
+      renderOrders(filtered);
+    }
+
+    /* ---------------- Main Load ---------------- */
+    async function loadOrders() {
+      listEl.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+
+      try {
+        const data = await api("/orders/seller/orders");
+        allOrders = data;
+
+        renderStats(allOrders);
+        applyFilters();
+        checkStockAlerts();
+      } catch (err) {
+        listEl.innerHTML = `<p style="text-align:center; color:var(--red);">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    /* ---------------- Status Update ---------------- */
+    function promptUpdate(orderId, newStatus, title, message) {
+      showModal(title, message, async () => {
+        try {
+          await api(`/orders/${orderId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus })
+          });
+          showMsg(`Order #${orderId} updated to ${newStatus}.`);
+          loadOrders();
+        } catch (err) {
+          showMsg(err.message, false);
+        }
+      });
+    }
+
+    /* ---------------- Event Listeners ---------------- */
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", (e) => {
+        document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+        e.target.setAttribute("aria-pressed", "true");
+        activeFilter = e.target.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    searchEl.addEventListener("input", (e) => {
+      searchTerm = e.target.value.trim();
+      applyFilters();
+    });
+
+    refreshBtn.addEventListener("click", loadOrders);
+
+    /* ---------------- Initialization ---------------- */
+    loadOrders();
+  </script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My Products — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .dashboard-page { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .dash-header h2 { font-family: Fraunces, serif; font-size: 24px; margin: 0; color: var(--ink); }
+
+    .nav-tabs { display: flex; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid var(--line); }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 5px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+    .nav-tabs a:hover { color: var(--ink); }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+
+    .product-row {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: 20px;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      background: #fff;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .product-row:hover {
+      border-color: var(--wood-light);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .product-row img {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--parchment-2);
+      border: 1px solid var(--line);
+    }
+
+    .product-info { display: flex; flex-direction: column; gap: 4px; }
+    .product-info h4 { margin: 0; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+
+    .product-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--ink-2);
+      align-items: center;
+    }
+
+    .meta-badge {
+      background: var(--parchment-2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      color: var(--wood-med);
+    }
+
+    .stock-low { color: var(--red); font-weight: 700; }
+    .stock-ok { color: var(--green); font-weight: 600; }
+
+    .actions { display: flex; gap: 8px; }
+
+    .btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line-2);
+      background: #fff;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: #fbe9e7;
+      color: var(--red);
+      border-color: #f5c6cb;
+    }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state h4 { color: var(--ink); margin-bottom: 8px; }
+    .empty-state a { color: var(--wood-med); font-weight: 700; text-decoration: none; }
+    .empty-state a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <div class="dash-header">
+      <h2>My Products</h2>
+    </div>
+
+    <div class="nav-tabs">
+      <a href="/seller/upload">Upload Wood</a>
+      <a href="/seller/products" class="active">My Products</a>
+      <a href="/seller/orders">My Orders</a>
+    </div>
+
+    <div id="products-list">
+      <p style="text-align:center; color:var(--muted);">Loading your listings...</p>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.href = "/login";
+
+    const list = document.getElementById("products-list");
+
+    async function loadProducts() {
+        try {
+            const res = await fetch("/woods/seller/my-products", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.status === 401) {
+                localStorage.removeItem("bw_token");
+                localStorage.removeItem("bw_role");
+                localStorage.removeItem("bw_name");
+                localStorage.removeItem("bw_user_id");
+                window.location.href = "/login";
+                return;
+            }
+
+            if (!res.ok) throw new Error("Failed to load");
+            const products = await res.json();
+
+            if (products.length === 0) {
+                list.innerHTML = `
+                  <div class="empty-state">
+                    <h4>No products yet</h4>
+                    <p>You haven't uploaded any wood to the marketplace.</p>
+                    <br>
+                    <a href="/seller/upload">Upload your first wood →</a>
+                  </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = products.map(p => {
+                const isLowStock = p.stock_quantity > 0 && p.stock_quantity <= 10;
+                const stockClass = isLowStock ? "stock-low" : "stock-ok";
+                const stockText = p.stock_quantity > 0 ? `${p.stock_quantity} in stock` : "Out of stock";
+
+                return `
+                <div class="product-row">
+                    <img src="${p.primary_image_url || 'https://via.placeholder.com/72?text=No+Image'}" alt="${p.display_name}">
+
+                    <div class="product-info">
+                        <h4>${p.display_name}</h4>
+                        <div class="product-meta">
+                            <span class="meta-badge">GH₵ ${Number(p.price_per_piece).toFixed(2)}</span>
+                            <span class="${stockClass}">${stockText}</span>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn-icon" onclick="deleteProduct(${p.wood_id})" title="Delete Listing">
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join("");
+        } catch (err) {
+            list.innerHTML = '<p style="text-align:center; color:var(--red);">Error loading products. Please try again.</p>';
+        }
+    }
+
+    async function deleteProduct(id) {
+        if (!confirm("Are you sure you want to delete this listing? It will be permanently removed from the store.")) return;
+
+        try {
+            const res = await fetch(`/woods/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                loadProducts();
+            } else if (res.status === 401) {
+                window.location.href = "/login";
+            } else {
+                alert("Could not delete. Are you sure this is your product?");
+            }
+        } catch (err) {
+            alert("Network error");
+        }
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Timber — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .dashboard-page { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .nav-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 5px; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; font-family: inherit; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); box-shadow: 0 0 0 3px rgba(93,64,55,0.1); }
+
+    .row { display: flex; gap: 16px; }
+    .row .form-group { flex: 1; }
+
+    /* Image Uploader Styles */
+    .image-upload-section {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .upload-slot {
+      border: 2px dashed var(--line-2);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      background: #fafbf8;
+      position: relative;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-slot:hover { border-color: var(--wood-med); background: var(--parchment); }
+
+    .upload-slot input[type="file"] { display: none; }
+
+    .upload-slot .slot-icon { font-size: 32px; color: var(--wood-light); margin-bottom: 8px; }
+    .upload-slot h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+    .upload-slot p { margin: 0; font-size: 11px; color: var(--muted); }
+
+    .preview-container {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
+    .preview-container.visible { display: block; }
+    .preview-container img { width: 100%; height: 100%; object-fit: cover; }
+
+    .remove-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--red);
+      border: none;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .submit-btn { width: 100%; background: var(--wood-med); color: white; padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.15s; }
+    .submit-btn:hover { background: var(--wood-dark); }
+    .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; }
+    .auth-warning { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
+
+    @media (max-width: 700px) {
+      .image-upload-section { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <div class="dash-header">
+      <h2>Seller Dashboard</h2>
+    </div>
+
+    <div class="nav-tabs">
+      <a href="/seller/upload" class="active">Upload Wood</a>
+      <a href="/seller/products">My Products</a>
+      <a href="/seller/orders">My Orders</a>
+    </div>
+
+    <div id="auth-warning" class="auth-warning">
+      You must be logged in as an approved seller to upload wood.
+      <br><a href="/login" style="color: #856404; font-weight: bold;">Click here to log in</a>
+    </div>
+
+    <form id="upload-form">
+
+      <h3 style="font-family: Fraunces, serif; margin-bottom: 16px;">Product Photos</h3>
+
+      <div class="image-upload-section">
+        <!-- MAIN IMAGE SLOT -->
+        <div class="upload-slot" onclick="document.getElementById('main-input').click()">
+          <div class="slot-icon">🖼️</div>
+          <h4>Main View</h4>
+          <p>Cover photo for the shop</p>
+          <input type="file" id="main-input" name="main_image" accept="image/*" required onchange="previewImage(this, 'main-preview')">
+          <div class="preview-container" id="main-preview">
+            <img src="" alt="Main Preview">
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'main-input', 'main-preview')">×</button>
+          </div>
+        </div>
+
+        <!-- DIMENSION IMAGE SLOT -->
+        <div class="upload-slot" onclick="document.getElementById('dim-input').click()">
+          <div class="slot-icon">📏</div>
+          <h4>Dimension</h4>
+          <p>Photo showing tape measure</p>
+          <input type="file" id="dim-input" name="dimension_image" accept="image/*" onchange="previewImage(this, 'dim-preview')">
+          <div class="preview-container" id="dim-preview">
+            <img src="" alt="Dimension Preview">
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'dim-input', 'dim-preview')">×</button>
+          </div>
+        </div>
+
+        <!-- DETAIL IMAGES SLOT -->
+        <div class="upload-slot" onclick="document.getElementById('detail-input').click()">
+          <div class="slot-icon">🔍</div>
+          <h4>Details</h4>
+          <p>Grain, treated stamp, etc.</p>
+          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple onchange="previewMultipleImages(this)">
+          <div class="preview-container" id="detail-preview">
+            <img src="" alt="Detail Preview">
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'detail-input', 'detail-preview')">×</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Local Name (e.g. Wawa, Denya)</label>
+          <input type="text" name="local_name" required>
+        </div>
+        <div class="form-group">
+          <label>Trade Name (e.g. Obeche)</label>
+          <input type="text" name="trade_name">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Thickness (inches)</label>
+          <input type="number" step="0.5" name="thickness" required>
+        </div>
+        <div class="form-group">
+          <label>Width (inches)</label>
+          <input type="number" step="0.5" name="width" required>
+        </div>
+        <div class="form-group">
+          <label>Length (ft)</label>
+          <input type="number" step="1" name="length" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Price per piece (GHS)</label>
+          <input type="number" step="0.01" name="price" required>
+        </div>
+        <div class="form-group">
+          <label>Stock Quantity</label>
+          <input type="number" name="stock" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category_slug">
+            <option value="softwood">Softwood</option>
+            <option value="hardwood">Hardwood</option>
+            <option value="interior">Interior</option>
+            <option value="furniture">Furniture</option>
+            <option value="roofing">Roofing</option>
+            <option value="ceiling">Ceiling</option>
+            <option value="flooring">Flooring</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Product Form</label>
+          <select name="product_form">
+            <option value="Sawn Timber">Sawn Timber</option>
+            <option value="Ceiling Batten">Ceiling Batten</option>
+            <option value="T&G Board">T&G Board</option>
+            <option value="Moulding">Moulding</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+        <input type="checkbox" name="is_treated" id="is_treated" style="width:auto;">
+        <label for="is_treated" style="margin:0;">Is this wood treated?</label>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit-btn">Publish to Store</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("bw_token");
+    const submitBtn = document.getElementById("submit-btn");
+    const msg = document.getElementById("msg");
+
+    if (!token) {
+      document.getElementById("auth-warning").style.display = "block";
+      submitBtn.disabled = true;
+    }
+
+    // Preview Logic for Single Image
+    function previewImage(input, previewId) {
+      const preview = document.getElementById(previewId);
+      const img = preview.querySelector("img");
+
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          img.src = e.target.result;
+          preview.classList.add("visible");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // Preview Logic for Multiple Images (only shows the first one selected as a preview)
+    function previewMultipleImages(input) {
+      const preview = document.getElementById("detail-preview");
+      const img = preview.querySelector("img");
+
+      if (input.files && input.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          img.src = e.target.result;
+          preview.classList.add("visible");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // Clear Image
+    function clearImage(event, inputId, previewId) {
+      event.stopPropagation(); // Prevent the slot click from opening the file dialog again
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+
+      input.value = "";
+      preview.classList.remove("visible");
+      preview.querySelector("img").src = "";
+    }
+
+    // Submit Form
+    document.getElementById("upload-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+
+      formData.set("is_treated", form.is_treated.checked ? "true" : "false");
+
+      msg.textContent = "Uploading...";
+      msg.style.color = "var(--wood-med)";
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/seller/add-wood", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.textContent = "Success! Wood added to store.";
+          msg.style.color = "var(--green)";
+          form.reset();
+
+          // Reset all previews
+          document.querySelectorAll('.preview-container').forEach(p => {
+            p.classList.remove('visible');
+            p.querySelector('img').src = "";
+          });
+        } else {
+          msg.textContent = "Error: " + (data.detail || "Could not upload");
+          msg.style.color = "var(--red)";
+        }
+      } catch (err) {
+        msg.textContent = "Error: Network failure";
+        msg.style.color = "var(--red)";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

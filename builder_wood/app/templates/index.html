@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#242019">
+  <title>{{ shop_name | default("Builder Wood") }} — Timber, Ceiling Boards & Wooden Furniture</title>
+  <meta name="description" content="Shop timber, ceiling boards, battens, wooden doors and furniture from Builder Wood at Sokoban Wood Village, Kumasi.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <div class="announce">
+    <div class="container announce-inner">
+      <span class="announce-loc">📍 Sokoban Wood Village, Kumasi</span>
+      <span class="announce-note">Quality timber. Straight from the yard.</span>
+      <span class="announce-links"><a href="#contact">Contact</a><a href="#delivery">Delivery info</a></span>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/" aria-label="Builder Wood home">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Timber · Ceilings · Doors</small></span>
+      </a>
+
+      <form class="search" id="search-form" role="search" autocomplete="off">
+        <input id="search-input" type="search" placeholder="Search timber, Wawa, Denya, ceiling boards…" aria-label="Search products">
+        <button type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg><span>Search</span></button>
+        <div class="search-hints" id="search-hints"></div>
+      </form>
+
+      <div class="header-actions">
+        <div id="auth-area" class="auth-area">
+          <div id="auth-logged-out" class="auth-logged-out">
+            <a href="/login" class="btn btn-outline">Login</a>
+            <a href="/login?mode=register" class="btn btn-gold auth-signup">Sign Up</a>
+          </div>
+          <div id="auth-logged-in" class="auth-logged-in">
+            <span id="user-greeting" class="user-greeting"></span>
+            <a href="/my-orders" id="buyer-orders-link" class="btn btn-outline">My Orders</a>
+            <a href="/seller/orders" id="dashboard-link" class="btn btn-outline">Dashboard</a>
+            <button id="logout-btn" class="btn btn-outline logout-btn" type="button">Logout</button>
+          </div>
+        </div>
+        <a class="cart-btn" id="cart-open" href="#" aria-label="Open cart">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H6"></path><circle cx="10" cy="20" r="1.3"></circle><circle cx="18" cy="20" r="1.3"></circle></svg>
+          <span class="cart-badge" id="cart-count">0</span>
+        </a>
+      </div>
+    </div>
+
+    <nav class="catnav" aria-label="Product categories">
+      <div class="container catnav-inner">
+        <div class="catnav-drop">
+          <button class="catnav-all" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>All categories</button>
+          <div class="catnav-menu">
+            <div class="catnav-group">
+              <h6>Timber types</h6>
+              <a data-cat="hardwood">Hardwood <span>Denya · Odum · Dahoma</span></a>
+              <a data-cat="softwood">Softwood <span>Wawa · Ofram · Kyenkyen</span></a>
+            </div>
+            <div class="catnav-group">
+              <h6>Shop by use</h6>
+              <a data-cat="roofing">Roofing timber <span>Rafters &amp; purlins</span></a>
+              <a data-cat="ceiling">Ceiling &amp; battens <span>Boards and framing</span></a>
+              <a data-cat="flooring">Flooring <span>Timber planks</span></a>
+              <a data-cat="furniture">Furniture wood <span>Mahogany · Sapele</span></a>
+              <a data-cat="interior">Interior &amp; doors <span>Doors and finishes</span></a>
+            </div>
+            <div class="catnav-group">
+              <h6>Popular searches</h6>
+              <a class="species" data-search="Wawa">Wawa <span>Browse stock</span></a>
+              <a class="species" data-search="Esa">Esa <span>Browse stock</span></a>
+              <a class="species" data-search="Denya">Denya <span>Browse stock</span></a>
+              <a class="species" data-search="Odum">Odum <span>Browse stock</span></a>
+              <a class="species" data-search="Cindella">Cindella <span>Browse stock</span></a>
+            </div>
+          </div>
+        </div>
+        <a class="catnav-link" data-cat="hardwood">Hardwood</a>
+        <a class="catnav-link" data-cat="softwood">Softwood</a>
+        <a class="catnav-link" data-cat="roofing">Roofing</a>
+        <a class="catnav-link" data-cat="ceiling">Ceiling &amp; Battens</a>
+        <a class="catnav-link" data-cat="furniture">Furniture</a>
+        <a class="catnav-link" data-cat="interior">Doors</a>
+        <a class="catnav-link" data-cat="flooring">Flooring</a>
+        <a class="catnav-quote" href="#contact">Need a quote? <span>→</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-photo" role="img" aria-label="Timber planks and wood materials"></div>
+      <div class="hero-overlay"></div>
+      <div class="container hero-copy">
+        <span class="hero-kicker">Your timber marketplace in Kumasi</span>
+        <h1>Build with wood<br>you can count on.</h1>
+        <p>Shop timber, ceiling boards, battens, wooden doors and furniture from sellers at Sokoban Wood Village. Browse available stock and order by the piece.</p>
+        <div class="hero-actions">
+          <a href="#products" class="btn btn-gold">Explore products <span>→</span></a>
+          <a href="#contact" class="btn btn-outline">Talk to our team</a>
+        </div>
+        <ul class="hero-points">
+          <li>✓ Clear product prices</li>
+          <li>✓ Local sellers in Kumasi</li>
+          <li>✓ Pickup and delivery options</li>
+        </ul>
+      </div>
+      <div class="hero-stamp"><span>BUILT</span><b>WITH</b><span>QUALITY</span><i>WOOD</i></div>
+    </section>
+
+    <section class="trust">
+      <div class="container trust-grid">
+        <div class="trust-cell"><span class="trust-icon">🪵</span><div><b>Timber for every project</b><small>Hardwood, softwood and framing</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">📐</span><div><b>Product details upfront</b><small>Sizes, treatment and stock where available</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">🛻</span><div><b>Flexible collection</b><small>Pickup, Aboboyaa or truck delivery</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">🤝</span><div><b>Local seller support</b><small>Ask about grades, bulk orders and cuts</small></div></div>
+      </div>
+    </section>
+
+    <section class="section section-products" id="products">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Browse the yard</span>
+            <h2 id="catalog-title">Our timber</h2>
+            <p class="section-sub" id="catalog-sub">Find the right materials for your next project.</p>
+          </div>
+          <label class="sort"><span>Sort by</span>
+            <select id="sort-select">
+              <option value="featured">Recommended</option>
+              <option value="price_asc">Price: low to high</option>
+              <option value="price_desc">Price: high to low</option>
+              <option value="name_asc">Name A–Z</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="chip-row" id="chip-row">
+          <button class="chip active" data-cat="">All products</button>
+          <button class="chip" data-cat="hardwood">Hardwood</button>
+          <button class="chip" data-cat="softwood">Softwood</button>
+          <button class="chip" data-cat="roofing">Roofing</button>
+          <button class="chip" data-cat="ceiling">Ceiling &amp; battens</button>
+          <button class="chip" data-cat="furniture">Furniture</button>
+          <button class="chip" data-cat="interior">Doors &amp; interior</button>
+          <button class="chip" data-cat="flooring">Flooring</button>
+        </div>
+
+        <div class="result-bar">
+          <span id="result-count">Loading products…</span>
+          <button class="link" id="clear-filters" type="button">Clear filters <span>↺</span></button>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <div class="empty-mark">🪵</div>
+          <h3>No products found</h3>
+          <p>Try another search or clear the selected filters.</p>
+          <button class="btn btn-primary" id="empty-clear" type="button">Show all products</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-about" id="about">
+      <div class="container about-grid">
+        <div class="about-image">
+          <img src="/static/uploads/products/production_area.JPG" alt="Warm modern interior with wooden furniture" loading="lazy">
+          <div class="about-image-note"><b>From the timber yard</b><span>For builders, makers and homes</span></div>
+        </div>
+        <div class="about-copy">
+          <span class="kicker">About Builder Wood</span>
+          <h2>Good materials make a stronger build.</h2>
+          <p>Builder Wood connects buyers with timber and wood-product sellers at Sokoban Wood Village in Kumasi. Explore listings, compare available details and choose materials for your project.</p>
+          <p>Whether you need a few pieces for a home improvement or a larger order for a construction site, start with the products listed in our store.</p>
+          <a class="btn btn-primary" href="#products">Browse the catalog <span>→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-services">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Shop by project</span>
+            <h2>More than construction timber.</h2>
+            <p class="section-sub">Explore wood products for finishing, furnishing and framing.</p>
+          </div>
+        </div>
+        <div class="service-grid">
+          <article class="service-card">
+            <div class="service-art service-art-ceiling" style="--art:linear-gradient(135deg,#d7b78b,#8b5c2f)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">01 / FINISHING</span>
+              <h3>Ceiling boards &amp; battens</h3>
+              <p>Wooden ceiling boards and support battens for interior finishing and framing.</p>
+              <a class="link" data-cat="ceiling">Shop ceiling products <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-doors" style="--art:linear-gradient(135deg,#a5733f,#4f2a10)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">02 / INTERIOR</span>
+              <h3>Wooden doors</h3>
+              <p>Explore timber options for interior and exterior doors and woodwork.</p>
+              <a class="link" data-cat="interior">Explore doors <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-furniture" style="--art:linear-gradient(135deg,#c48a53,#6a3a15)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">03 / FURNITURE</span>
+              <h3>Furniture wood</h3>
+              <p>Find wood suitable for cabinets, desks, beds, chairs and custom pieces.</p>
+              <a class="link" data-cat="furniture">Shop furniture wood <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-roofing" style="--art:linear-gradient(135deg,#b07240,#3c2008)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">04 / STRUCTURE</span>
+              <h3>Roofing timber</h3>
+              <p>Browse framing timber for rafters, purlins and other construction needs.</p>
+              <a class="link" data-cat="roofing">Shop roofing timber <span>→</span></a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="delivery">
+      <div class="container band-grid">
+        <div class="band-copy">
+          <span class="kicker kicker-light">From yard to site</span>
+          <h2>Delivery that fits<br><em>your order.</em></h2>
+          <p>Collection and delivery options depend on distance, load size and availability. Confirm the final delivery cost with the seller before placing your order.</p>
+          <a href="#contact" class="btn btn-gold">Ask about delivery <span>→</span></a>
+        </div>
+        <ul class="band-list">
+          <li><span class="d-icon">📍</span><div><b>Pickup at Sokoban</b><small>Collect your order directly from the timber yard.</small></div></li>
+          <li><span class="d-icon">🛺</span><div><b>Aboboyaa</b><small>For small loads and short-distance delivery up to 5 km.</small></div></li>
+          <li><span class="d-icon">🚙</span><div><b>Small pickup</b><small>For suitable medium-sized loads. Confirm capacity and distance.</small></div></li>
+          <li><span class="d-icon">🚛</span><div><b>Truck delivery</b><small>For larger orders and longer routes, subject to availability.</small></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section section-contact" id="contact">
+      <div class="container contact-card">
+        <div>
+          <span class="kicker kicker-light">Need help choosing?</span>
+          <h2>Let's get your project moving.</h2>
+          <p>Ask about available stock, product sizes, bulk orders or delivery before you buy.</p>
+        </div>
+        <ul class="contact-list">
+          <li><b>WhatsApp</b><a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Chat with Builder Wood ↗</a></li>
+          <li><b>Phone</b><a href="tel:0247881337">024 788 1337</a></li>
+          <li><b>Email</b><a href="mailto:builderwood@email.com">builderwood@email.com</a></li>
+          <li><b>Visit</b><span>Sokoban Wood Village, Kumasi</span></li>
+        </ul>
+        <a class="btn btn-gold contact-cta" href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Contact us <span>→</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand brand-light" href="/">
+          <span class="brand-mark">🪵</span>
+          <span class="brand-text">Builder<em>Wood</em><small>Timber · Ceilings · Doors</small></span>
+        </a>
+        <p>Quality wood for builders and homes, from Sokoban Wood Village in Kumasi.</p>
+      </div>
+      <div class="footer-col">
+        <h6>Shop products</h6>
+        <a data-cat="hardwood">Hardwood</a>
+        <a data-cat="softwood">Softwood</a>
+        <a data-cat="roofing">Roofing timber</a>
+        <a data-cat="ceiling">Ceiling &amp; battens</a>
+        <a data-cat="furniture">Furniture wood</a>
+        <a data-cat="interior">Doors &amp; interior</a>
+      </div>
+      <div class="footer-col">
+        <h6>Helpful links</h6>
+        <a href="#products">Browse products</a>
+        <a href="#delivery">Delivery information</a>
+        <a href="#about">About Builder Wood</a>
+        <a href="#contact">Contact and quotes</a>
+      </div>
+      <div class="footer-col">
+        <h6>Contact</h6>
+        <a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+        <a href="tel:0247881337">☎ 024 788 1337</a>
+        <a href="mailto:builderwood@email.com">✉ Email us</a>
+        <span class="footer-address">📍 Sokoban, Kumasi</span>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <span>© <span id="year"></span> Builder Wood</span>
+        <span>Sokoban Wood Village · Kumasi, Ghana</span>
+        <span>Timber · Ceilings · Doors · Furniture</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="cart-drawer" aria-hidden="true" aria-label="Shopping cart">
+    <header class="drawer-head">
+      <h3>Your cart <span id="drawer-count">(0)</span></h3>
+      <button class="close-button" id="cart-close" type="button" aria-label="Close cart">×</button>
+    </header>
+    <div class="drawer-body" id="cart-items">
+      <div class="cart-empty"><span>🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>
+    </div>
+    <footer class="drawer-foot">
+      <div class="subtotal-row"><span>Estimated subtotal</span><strong id="cart-subtotal">GH₵0.00</strong></div>
+      <p class="drawer-note">Delivery and final prices are confirmed with the seller.</p>
+      <button class="btn btn-primary full" id="checkout-button" type="button">Review order <span>→</span></button>
+      <span class="drawer-msg" id="cart-message" role="status"></span>
+    </footer>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
