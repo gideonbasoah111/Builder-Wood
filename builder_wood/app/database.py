@@ -1,18 +1,32 @@
+import os
+from urllib.parse import quote_plus
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# XAMPP default: user=root, no password, port 3306
+from builder_wood.app.config import settings  # adjust import to your actual path
+
+_pw = quote_plus(settings.DB_PASSWORD or "")
 SQLALCHEMY_DATABASE_URL = (
-    "mysql+mysqlconnector://root:new_secure_password@localhost:3306/woodshop_db"
-    "?charset=utf8mb4"
+    f"mysql+mysqlconnector://{settings.DB_USER}:{_pw}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    f"?charset=utf8mb4"
 )
 
+# Resolve the CA path relative to the project root
+_ca_path = settings.DB_SSL_CA
+if not os.path.isabs(_ca_path):
+    _ca_path = os.path.join(os.getcwd(), _ca_path)
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,     # reconnects if XAMPP restarted
-    pool_recycle=3600,      # MySQL drops idle connections after 8h; refresh hourly
-    echo=False,             # set True to see SQL while debugging
+    connect_args={
+        "ssl_ca": _ca_path,
+        "ssl_verify_cert": True,
+    },
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
