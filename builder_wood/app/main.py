@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -34,28 +35,66 @@ BASE_DIR = Path(__file__).resolve().parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Never crash the whole app if the DB is momentarily unreachable
-    # at boot. Log it and continue; the admin user can be created later.
-    try:
-        db = SessionLocal()
+    # ------------------------------------------------------------------
+    # One-time bootstrap admin.
+    #
+    # Runs ONLY when BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD
+    # are set in the environment. Otherwise it does nothing — so the
+    # normal (production) state after the first deploy is "no admin is
+    # ever created automatically".
+    #
+    # Lifecycle:
+    #   1. Add the four BOOTSTRAP_ADMIN_* env vars in Render.
+    #   2. Deploy. Admin is created once. Logs say so.
+    #   3. Log in, confirm.
+    #   4. Delete the four env vars from Render.
+    #   5. Redeploy. Logs say "No bootstrap admin configured".
+    # ------------------------------------------------------------------
+    admin_email = os.getenv("BOOTSTRAP_ADMIN_EMAIL")
+    admin_password = os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
+    admin_name = os.getenv("BOOTSTRAP_ADMIN_NAME", "System Admin")
+    admin_phone = os.getenv("BOOTSTRAP_ADMIN_PHONE")  # optional; NULL is fine
+
+    if admin_email and admin_password:
         try:
-            admin_email = "admin@builderwood.com"
-            if not db.query(User).filter(User.email == admin_email).first():
-                db.add(
-                    User(
-                        name="System Admin",
-                        email=admin_email,
-                        phone_number="+233000000000",
-                        password_hash=get_password_hash("admin123"),
-                        role="admin",
-                        is_active=True,
-                    )
+            db = SessionLocal()
+            try:
+                existing = (
+                    db.query(User).filter(User.email == admin_email).first()
                 )
-                db.commit()
-        finally:
-            db.close()
-    except Exception as e:
-        logger.error(f"Startup admin check failed: {e}")
+                if existing:
+                    logger.info(
+                        "Bootstrap admin already exists: %s", admin_email
+                    )
+                else:
+                    db.add(
+                        User(
+                            name=admin_name,
+                            email=admin_email,
+                            phone_number=admin_phone,
+                            password_hash=get_password_hash(admin_password),
+                            role="admin",
+                            is_active=True,
+                        )
+                    )
+                    db.commit()
+                    logger.warning(
+                        "Bootstrap admin created: %s", admin_email
+                    )
+                    logger.warning(
+                        "REMOVE BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD, "
+                        "BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_PHONE from Render now."
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            # Never let bootstrap failures crash the app.
+            logger.error("Bootstrap admin failed: %s", e)
+    else:
+        logger.info(
+            "No bootstrap admin configured "
+            "(BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD unset)."
+        )
 
     yield
 
