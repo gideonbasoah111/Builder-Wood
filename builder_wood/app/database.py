@@ -1,11 +1,15 @@
 import os
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from builder_wood.app.config import settings  # adjust import to your actual path
+from builder_wood.app.config import settings
 
+# ------------------------------------------------------------------
+# Build the SQLAlchemy URL from Settings (env vars / .env)
+# ------------------------------------------------------------------
 _pw = quote_plus(settings.DB_PASSWORD or "")
 SQLALCHEMY_DATABASE_URL = (
     f"mysql+mysqlconnector://{settings.DB_USER}:{_pw}"
@@ -13,17 +17,36 @@ SQLALCHEMY_DATABASE_URL = (
     f"?charset=utf8mb4"
 )
 
-# Resolve the CA path relative to the project root
-_ca_path = settings.DB_SSL_CA
-if not os.path.isabs(_ca_path):
-    _ca_path = os.path.join(os.getcwd(), _ca_path)
+# ------------------------------------------------------------------
+# SSL: resolve the CA path relative to THIS file, not cwd.
+# database.py lives at builder_wood/app/database.py, so:
+#   __file__          -> .../builder_wood/app/database.py
+#   .parent           -> .../builder_wood/app
+#   .parent.parent    -> .../builder_wood
+#   / "ca.pem"        -> .../builder_wood/ca.pem
+# ------------------------------------------------------------------
+_connect_args: dict = {}
 
+if settings.DB_SSL_CA:
+    _ca_path = (Path(__file__).resolve().parent.parent / "ca.pem").resolve()
+
+    if not _ca_path.exists():
+        raise FileNotFoundError(
+            f"CA certificate not found at {_ca_path}. "
+            f"Ensure builder_wood/ca.pem is committed and deployed."
+        )
+
+    _connect_args = {
+        "ssl_ca": str(_ca_path),
+        "ssl_verify_cert": True,
+    }
+
+# ------------------------------------------------------------------
+# Engine / session
+# ------------------------------------------------------------------
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={
-        "ssl_ca": _ca_path,
-        "ssl_verify_cert": True,
-    },
+    connect_args=_connect_args,
     pool_pre_ping=True,
     pool_recycle=3600,
     echo=False,
