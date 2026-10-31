@@ -22,13 +22,7 @@
     .row { display: flex; gap: 16px; }
     .row .form-group { flex: 1; }
 
-    /* Image Uploader Styles */
-    .image-upload-section {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
-    }
+    .image-upload-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
 
     .upload-slot {
       border: 2px dashed var(--line-2);
@@ -46,35 +40,20 @@
       transition: border-color 0.2s, background 0.2s;
     }
     .upload-slot:hover { border-color: var(--wood-med); background: var(--parchment); }
-
     .upload-slot input[type="file"] { display: none; }
-
     .upload-slot .slot-icon { font-size: 32px; color: var(--wood-light); margin-bottom: 8px; }
     .upload-slot h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
     .upload-slot p { margin: 0; font-size: 11px; color: var(--muted); }
 
-    .preview-container {
-      position: absolute;
-      inset: 0;
-      border-radius: 10px;
-      overflow: hidden;
-      display: none;
-    }
+    .preview-container { position: absolute; inset: 0; border-radius: 10px; overflow: hidden; display: none; }
     .preview-container.visible { display: block; }
     .preview-container img { width: 100%; height: 100%; object-fit: cover; }
 
     .remove-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
+      position: absolute; top: 8px; right: 8px;
       background: rgba(255, 255, 255, 0.9);
-      color: var(--red);
-      border: none;
-      border-radius: 50%;
-      width: 26px;
-      height: 26px;
-      font-weight: 900;
-      cursor: pointer;
+      color: var(--red); border: none; border-radius: 50%;
+      width: 26px; height: 26px; font-weight: 900; cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
 
@@ -82,12 +61,12 @@
     .submit-btn:hover { background: var(--wood-dark); }
     .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; }
+    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; white-space: pre-line; }
+    .msg.error { color: var(--red); }
+    .msg.success { color: var(--green); }
     .auth-warning { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
 
-    @media (max-width: 700px) {
-      .image-upload-section { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 700px) { .image-upload-section { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -117,41 +96,41 @@
       <br><a href="/login" style="color: #856404; font-weight: bold;">Click here to log in</a>
     </div>
 
-    <form id="upload-form">
+    <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
 
       <h3 style="font-family: Fraunces, serif; margin-bottom: 16px;">Product Photos</h3>
 
       <div class="image-upload-section">
-        <!-- MAIN IMAGE SLOT -->
         <div class="upload-slot" onclick="document.getElementById('main-input').click()">
           <div class="slot-icon">🖼️</div>
           <h4>Main View</h4>
           <p>Cover photo for the shop</p>
-          <input type="file" id="main-input" name="main_image" accept="image/*" required onchange="previewImage(this, 'main-preview')">
+          <input type="file" id="main-input" name="main_image" accept="image/*" required
+                 onchange="previewImage(this, 'main-preview')">
           <div class="preview-container" id="main-preview">
             <img src="" alt="Main Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'main-input', 'main-preview')">×</button>
           </div>
         </div>
 
-        <!-- DIMENSION IMAGE SLOT -->
         <div class="upload-slot" onclick="document.getElementById('dim-input').click()">
           <div class="slot-icon">📏</div>
           <h4>Dimension</h4>
           <p>Photo showing tape measure</p>
-          <input type="file" id="dim-input" name="dimension_image" accept="image/*" onchange="previewImage(this, 'dim-preview')">
+          <input type="file" id="dim-input" name="dimension_image" accept="image/*"
+                 onchange="previewImage(this, 'dim-preview')">
           <div class="preview-container" id="dim-preview">
             <img src="" alt="Dimension Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'dim-input', 'dim-preview')">×</button>
           </div>
         </div>
 
-        <!-- DETAIL IMAGES SLOT -->
         <div class="upload-slot" onclick="document.getElementById('detail-input').click()">
           <div class="slot-icon">🔍</div>
           <h4>Details</h4>
           <p>Grain, treated stamp, etc.</p>
-          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple onchange="previewMultipleImages(this)">
+          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple
+                 onchange="previewMultipleImages(this)">
           <div class="preview-container" id="detail-preview">
             <img src="" alt="Detail Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'detail-input', 'detail-preview')">×</button>
@@ -161,45 +140,45 @@
 
       <div class="row">
         <div class="form-group">
-          <label>Local Name (e.g. Wawa, Denya)</label>
-          <input type="text" name="local_name" required>
+          <label for="local_name">Local Name (e.g. Wawa, Denya)</label>
+          <input type="text" id="local_name" name="local_name" required>
         </div>
         <div class="form-group">
-          <label>Trade Name (e.g. Obeche)</label>
-          <input type="text" name="trade_name">
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="form-group">
-          <label>Thickness (inches)</label>
-          <input type="number" step="0.5" name="thickness" required>
-        </div>
-        <div class="form-group">
-          <label>Width (inches)</label>
-          <input type="number" step="0.5" name="width" required>
-        </div>
-        <div class="form-group">
-          <label>Length (ft)</label>
-          <input type="number" step="1" name="length" required>
+          <label for="trade_name">Trade Name (e.g. Obeche)</label>
+          <input type="text" id="trade_name" name="trade_name" required>
         </div>
       </div>
 
       <div class="row">
         <div class="form-group">
-          <label>Price per piece (GHS)</label>
-          <input type="number" step="0.01" name="price" required>
+          <label for="thickness">Thickness (inches)</label>
+          <input type="number" id="thickness" step="0.5" min="0.1" name="thickness" required>
         </div>
         <div class="form-group">
-          <label>Stock Quantity</label>
-          <input type="number" name="stock" required>
+          <label for="width">Width (inches)</label>
+          <input type="number" id="width" step="0.5" min="0.1" name="width" required>
+        </div>
+        <div class="form-group">
+          <label for="length">Length (ft)</label>
+          <input type="number" id="length" step="1" min="1" name="length" required>
         </div>
       </div>
 
       <div class="row">
         <div class="form-group">
-          <label>Category</label>
-          <select name="category_slug">
+          <label for="price">Price per piece (GHS)</label>
+          <input type="number" id="price" step="0.01" min="0.01" name="price" required>
+        </div>
+        <div class="form-group">
+          <label for="stock">Stock Quantity</label>
+          <input type="number" id="stock" step="1" min="0" name="stock" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="category_slug">Category</label>
+          <select id="category_slug" name="category_slug" required>
             <option value="softwood">Softwood</option>
             <option value="hardwood">Hardwood</option>
             <option value="interior">Interior</option>
@@ -210,11 +189,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Product Form</label>
-          <select name="product_form">
+          <label for="product_form">Product Form</label>
+          <select id="product_form" name="product_form" required>
             <option value="Sawn Timber">Sawn Timber</option>
             <option value="Ceiling Batten">Ceiling Batten</option>
-            <option value="T&G Board">T&G Board</option>
+            <option value="T&amp;G Board">T&amp;G Board</option>
             <option value="Moulding">Moulding</option>
           </select>
         </div>
@@ -226,103 +205,143 @@
       </div>
 
       <button type="submit" class="submit-btn" id="submit-btn">Publish to Store</button>
-      <div class="msg" id="msg"></div>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
     </form>
   </main>
 
   <script>
-    const token = localStorage.getItem("bw_token");
-    const submitBtn = document.getElementById("submit-btn");
-    const msg = document.getElementById("msg");
+    (function () {
+      const token = localStorage.getItem("bw_token");
+      const submitBtn = document.getElementById("submit-btn");
+      const msg = document.getElementById("msg");
+      const form = document.getElementById("upload-form");
 
-    if (!token) {
-      document.getElementById("auth-warning").style.display = "block";
-      submitBtn.disabled = true;
-    }
+      if (!token) {
+        document.getElementById("auth-warning").style.display = "block";
+        submitBtn.disabled = true;
+      }
 
-    // Preview Logic for Single Image
-    function previewImage(input, previewId) {
-      const preview = document.getElementById(previewId);
-      const img = preview.querySelector("img");
-
-      if (input.files && input.files[0]) {
+      function previewImage(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const img = preview.querySelector("img");
+        if (!input.files || !input.files[0]) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = (e) => {
           img.src = e.target.result;
           preview.classList.add("visible");
         };
         reader.readAsDataURL(input.files[0]);
       }
-    }
 
-    // Preview Logic for Multiple Images (only shows the first one selected as a preview)
-    function previewMultipleImages(input) {
-      const preview = document.getElementById("detail-preview");
-      const img = preview.querySelector("img");
-
-      if (input.files && input.files.length > 0) {
+      function previewMultipleImages(input) {
+        const preview = document.getElementById("detail-preview");
+        const img = preview.querySelector("img");
+        if (!input.files || !input.files.length) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = (e) => {
           img.src = e.target.result;
           preview.classList.add("visible");
         };
         reader.readAsDataURL(input.files[0]);
       }
-    }
 
-    // Clear Image
-    function clearImage(event, inputId, previewId) {
-      event.stopPropagation(); // Prevent the slot click from opening the file dialog again
-      const input = document.getElementById(inputId);
-      const preview = document.getElementById(previewId);
+      function clearImage(event, inputId, previewId) {
+        event.stopPropagation();
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        input.value = "";
+        preview.classList.remove("visible");
+        preview.querySelector("img").src = "";
+      }
 
-      input.value = "";
-      preview.classList.remove("visible");
-      preview.querySelector("img").src = "";
-    }
+      window.previewImage = previewImage;
+      window.previewMultipleImages = previewMultipleImages;
+      window.clearImage = clearImage;
 
-    // Submit Form
-    document.getElementById("upload-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-
-      formData.set("is_treated", form.is_treated.checked ? "true" : "false");
-
-      msg.textContent = "Uploading...";
-      msg.style.color = "var(--wood-med)";
-      submitBtn.disabled = true;
-
-      try {
-        const res = await fetch("/seller/add-wood", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` },
-          body: formData
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          msg.textContent = "Success! Wood added to store.";
-          msg.style.color = "var(--green)";
-          form.reset();
-
-          // Reset all previews
-          document.querySelectorAll('.preview-container').forEach(p => {
-            p.classList.remove('visible');
-            p.querySelector('img').src = "";
-          });
-        } else {
-          msg.textContent = "Error: " + (data.detail || "Could not upload");
-          msg.style.color = "var(--red)";
+      function renderError(data, fallback) {
+        if (!data) return fallback;
+        if (Array.isArray(data.detail)) {
+          return data.detail
+            .map((e) => {
+              const field = (e.loc || []).filter((x) => x !== "body").join(".");
+              return field ? field + ": " + e.msg : e.msg;
+            })
+            .join("\n");
         }
-      } catch (err) {
-        msg.textContent = "Error: Network failure";
-        msg.style.color = "var(--red)";
-      } finally {
-        submitBtn.disabled = false;
+        if (typeof data.detail === "string") return data.detail;
+        return fallback;
       }
-    });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        msg.textContent = "";
+        msg.className = "msg";
+
+        if (!token) {
+          msg.textContent = "You must be logged in.";
+          msg.classList.add("error");
+          return;
+        }
+
+        if (!form.checkValidity()) {
+          msg.textContent = "Please fill all required fields correctly.";
+          msg.classList.add("error");
+          form.reportValidity();
+          return;
+        }
+
+        const formData = new FormData(form);
+
+        for (const [key, value] of [...formData.entries()]) {
+          if (value instanceof File && value.size === 0) {
+            formData.delete(key);
+          }
+        }
+
+        formData.set("is_treated", form.is_treated.checked ? "true" : "false");
+
+        submitBtn.disabled = true;
+        msg.textContent = "Uploading...";
+        msg.classList.add("success");
+
+        try {
+          const res = await fetch("/seller/add-wood", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: formData,
+          });
+
+          if (res.status === 401) {
+            msg.textContent = "Session expired. Please log in again.";
+            msg.className = "msg error";
+            setTimeout(() => { window.location.href = "/login"; }, 1500);
+            return;
+          }
+
+          let data = null;
+          try { data = await res.json(); } catch (_) { /* non-JSON response */ }
+
+          if (res.ok) {
+            msg.textContent = "Success! Wood #" + (data && data.wood_id ? data.wood_id : "") + " added.";
+            msg.className = "msg success";
+            form.reset();
+            document.querySelectorAll(".preview-container").forEach((p) => {
+              p.classList.remove("visible");
+              const img = p.querySelector("img");
+              if (img) img.src = "";
+            });
+          } else {
+            msg.textContent = "Error: " + renderError(data, "HTTP " + res.status);
+            msg.className = "msg error";
+          }
+        } catch (err) {
+          msg.textContent = "Error: network failure — " + ((err && err.message) || "unknown");
+          msg.className = "msg error";
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+    })();
   </script>
 </body>
 </html>
