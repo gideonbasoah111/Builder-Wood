@@ -4,6 +4,7 @@ Bulk-import woods into woodshop_db.
 Usage (from project root 'digital marketing/'):
     python -m builder_wood.import_woods
 
+Auto-seeds categories if they are missing, so this works on a fresh database.
 Idempotent: re-running skips woods that already exist (same name + size + seller).
 """
 
@@ -11,6 +12,7 @@ from decimal import Decimal
 
 from builder_wood.app.database import SessionLocal
 from builder_wood.app.models import User, Category, Wood, WoodImage
+from builder_wood.seed import seed_categories
 
 
 # ============================================================
@@ -202,21 +204,13 @@ def main():
         seller = db.query(User).filter(User.role == "seller").first()
         if not seller:
             print("✗ No seller found in users table.")
-            print("  Insert one first. Example SQL:")
-            print("""
-  INSERT INTO users (role, name, company_name, email, phone_number, password_hash, location)
-  VALUES ('seller', 'Jane Mensah', 'Mensah Timber, Sokoban',
-          'jane@sokobanwood.gh', '+233244000001',
-          'not-a-real-hash-yet', 'Sokoban Wood Village, Kumasi');
-""")
+            print("  Run: python -m builder_wood.seed   (or insert one manually).")
             return
         print(f"→ using seller: {seller.name} (user_id={seller.user_id})")
 
-        # 2. Category lookup
+        # 2. Categories — auto-seed if missing
+        seed_categories(db)
         cats = {c.slug: c.category_id for c in db.query(Category).all()}
-        if not cats:
-            print("✗ No categories found. Insert the 7 categories first.")
-            return
         print(f"→ loaded {len(cats)} categories: {', '.join(sorted(cats.keys()))}")
 
         # 3. Import loop

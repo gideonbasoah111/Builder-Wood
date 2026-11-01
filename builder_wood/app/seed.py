@@ -5,6 +5,7 @@ Usage (from project root 'digital marketing/'):
     python -m builder_wood.seed
 
 Inserts:
+  - 7 top-level categories (if missing)
   - 1 demo seller
   - 6 demo wood listings spread across categories
 Idempotent: skips anything that already exists.
@@ -17,6 +18,30 @@ from builder_wood.app.models import User, Category, Wood
 
 
 SELLER_EMAIL = "jane@sokobanwood.gh"
+
+# Top-level categories. slug must match the values sent by the upload form.
+CATEGORY_SEED = [
+    ("hardwood",  "Hardwood"),
+    ("softwood",  "Softwood"),
+    ("roofing",   "Roofing"),
+    ("ceiling",   "Ceiling"),
+    ("furniture", "Furniture"),
+    ("interior",  "Interior"),
+    ("flooring",  "Flooring"),
+]
+
+
+def seed_categories(db):
+    """Insert the 7 top-level categories if they are missing."""
+    existing = {c.slug for c in db.query(Category).all()}
+    added = 0
+    for slug, category_name in CATEGORY_SEED:
+        if slug in existing:
+            continue
+        db.add(Category(slug=slug, category_name=category_name))
+        added += 1
+    db.commit()
+    print(f"✓ categories: {added} added, {len(existing)} already present")
 
 
 def get_or_create_seller(db):
@@ -43,7 +68,10 @@ def get_or_create_seller(db):
 def cat_id(db, slug):
     c = db.query(Category).filter(Category.slug == slug).first()
     if not c:
-        raise SystemExit(f"Category '{slug}' not found. Did you run the seed SQL?")
+        raise SystemExit(
+            f"Category '{slug}' not found even after seeding. "
+            f"Check CATEGORY_SEED and the categories table."
+        )
     return c.category_id
 
 
@@ -99,6 +127,7 @@ def seed_woods(db, seller):
 def main():
     db = SessionLocal()
     try:
+        seed_categories(db)                 # ← NEW: always ensure categories exist
         seller = get_or_create_seller(db)
         seed_woods(db, seller)
         print("\nDone. Open http://127.0.0.1:8000/ to see them.")

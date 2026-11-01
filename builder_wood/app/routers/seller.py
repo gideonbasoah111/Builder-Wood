@@ -136,9 +136,10 @@ async def add_wood(
         .first()
     )
     if not category:
+        # 400 (not 422) so the frontend and logs agree on "invalid category".
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unknown category '{category_slug}'.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid category '{category_slug}'.",
         )
 
     new_wood = models.Wood(

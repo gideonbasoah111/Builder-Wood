@@ -4,9 +4,9 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn builder_wood.app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m builder_wood.seed && uvicorn builder_wood.app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PAYSTACK_SECRET_KEY
-        sync: false # This tells Render to ask you for the value in the dashboard
+        sync: false
       - key: BASE_URL
-        value: https://builder-wood-api.onrender.com # We will update this after deployment
+        value: https://builder-wood-api.onrender.com
