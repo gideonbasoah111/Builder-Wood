@@ -56,7 +56,15 @@ def _safe_ext(filename: Optional[str]) -> str:
 
 
 async def _upload_to_cloudinary(upload: UploadFile, wood_id: int, tag: str) -> str:
-    """Upload an image to Cloudinary and return its secure_url."""
+    """Upload an image to Cloudinary and return its secure_url.
+
+    NOTE: Only `public_id` and `resource_type` are passed. Adding `folder`
+    or `overwrite` introduces additional parameters into the signed string,
+    which can cause 'Invalid Signature' errors when the SDK's signature
+    doesn't match what Cloudinary validates.
+
+    The full path is embedded in `public_id` instead (e.g. "builder_wood/...").
+    """
     _safe_ext(upload.filename)  # validate extension first
 
     content = await upload.read()
@@ -69,15 +77,14 @@ async def _upload_to_cloudinary(upload: UploadFile, wood_id: int, tag: str) -> s
             ),
         )
 
-    public_id = f"{wood_id}_{tag}_{uuid.uuid4().hex[:8]}"
+    # Full path embedded in public_id — no `folder` param needed.
+    public_id = f"builder_wood/{wood_id}_{tag}_{uuid.uuid4().hex[:8]}"
 
     try:
         result = cloudinary.uploader.upload(
             content,
             public_id=public_id,
             resource_type="image",
-            folder="builder_wood",
-            overwrite=False,
         )
     except Exception as exc:
         raise HTTPException(

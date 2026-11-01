@@ -1,19 +1,29 @@
 """
 Cloudinary configuration.
 
-The Python SDK automatically reads the CLOUDINARY_URL environment variable
-when cloudinary.config() is called. Just importing this module ensures the
-SDK is configured before any upload happens.
+Reads credentials from builder_wood.app.config.settings (which pulls them
+from environment variables / .env). Called once at import time from main.py.
 
-Set CLOUDINARY_URL in Render's environment variables:
-    cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+Set these on Render (Environment tab) or in local .env:
+    CLOUDINARY_CLOUD_NAME
+    CLOUDINARY_API_KEY
+    CLOUDINARY_API_SECRET
 
-To find it: Cloudinary Console -> Settings -> API Keys -> "Cloudinary URL"
+Find values: Cloudinary Console -> Dashboard (cloud name)
+             Cloudinary Console -> Settings -> API Keys (key + secret)
 """
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
-# Ensure the SDK uses HTTPS URLs (secure_url) for all uploads.
-# CLOUDINARY_URL env var is read automatically by cloudinary.config().
-cloudinary.config(secure=True)
+from builder_wood.app.config import settings
+
+
+cloudinary.config(
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET,
+    secure=True,
+    # If your Cloudinary account enforces SHA-256, uncomment:
+    # signature_algorithm="sha256",
+)
