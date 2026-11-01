@@ -1,12 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from typing import List
+from pathlib import Path
 
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_admin
+from builder_wood.app.config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Templates for the admin dashboard HTML page
+_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+_templates = Jinja2Templates(directory=_TEMPLATES_DIR)
+
+
+# ---------------------------------------------------------------------------
+# Admin dashboard page (HTML)
+# Serves admin_dashboard.html. The template fetches data from the JSON
+# endpoints below via JavaScript using the bearer token in localStorage.
+# ---------------------------------------------------------------------------
+@router.get("", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/", response_class=HTMLResponse, include_in_schema=False)
+def admin_dashboard_page(request: Request):
+    return _templates.TemplateResponse(
+        request=request,
+        name="admin_dashboard.html",
+        context={"shop_name": settings.APP_NAME},
+    )
+
 
 # --- USER MANAGEMENT ---
 @router.get("/pending-sellers", response_model=List[schemas.UserOut])

@@ -127,7 +127,7 @@ def seed_woods(db, seller):
 def main():
     db = SessionLocal()
     try:
-        seed_categories(db)                 # ← NEW: always ensure categories exist
+        seed_categories(db)                 # ← always ensure categories exist
         seller = get_or_create_seller(db)
         seed_woods(db, seller)
         print("\nDone. Open http://127.0.0.1:8000/ to see them.")
