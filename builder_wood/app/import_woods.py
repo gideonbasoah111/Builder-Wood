@@ -6,12 +6,15 @@ Usage (from project root 'digital marketing/'):
 
 Auto-seeds categories if they are missing, so this works on a fresh database.
 Idempotent: re-running skips woods that already exist (same name + size + seller).
+
+NOTE: Images are no longer attached from local disk — uploads go to Cloudinary
+via /seller/upload. Bulk-imported woods start with no images.
 """
 
 from decimal import Decimal
 
 from builder_wood.app.database import SessionLocal
-from builder_wood.app.models import User, Category, Wood, WoodImage
+from builder_wood.app.models import User, Category, Wood
 from builder_wood.seed import seed_categories
 
 
@@ -29,9 +32,6 @@ from builder_wood.seed import seed_categories
 #
 # category_slug must be one of:
 #   hardwood, softwood, roofing, ceiling, furniture, interior, flooring
-#
-# product_form must be one of:
-#   Sawn Timber, Ceiling Batten, T&G Board, Moulding, Plinth
 # ============================================================
 
 WOODS = [
@@ -160,43 +160,6 @@ WOODS = [
 ]
 
 
-# ============================================================
-# Optional: images
-# ============================================================
-# For each wood created, if a matching image exists in
-# builder_wood/app/static/uploads/products/, we attach it.
-#
-# Filename pattern we look for (first match wins):
-#   {wood_id}.jpg, {wood_id}.jpeg, {wood_id}.png
-#   {wood_id}_{local_name_lower}.jpg, ...
-#
-# So if the wood ends up with wood_id=7, drop '7.jpg' or
-# '7_wawa.jpg' into that folder and it will be attached.
-# ============================================================
-
-from pathlib import Path
-
-UPLOAD_DIR = Path(__file__).resolve().parent / "app" / "static" / "uploads" / "products"
-
-
-def find_image(wood_id: int, local_name: str):
-    """Return a URL for the first matching image file, or None."""
-    if not UPLOAD_DIR.exists():
-        return None
-    slug = local_name.lower().replace(" ", "-")
-    candidates = [
-        f"{wood_id}.jpg",  f"{wood_id}.jpeg", f"{wood_id}.png",
-        f"{wood_id}_{slug}.jpg", f"{wood_id}_{slug}.jpeg", f"{wood_id}_{slug}.png",
-    ]
-    for name in candidates:
-        if (UPLOAD_DIR / name).exists():
-            return f"/static/uploads/products/{name}"
-    return None
-
-
-# ============================================================
-# Import logic
-# ============================================================
 def main():
     db = SessionLocal()
     try:
@@ -213,8 +176,8 @@ def main():
         cats = {c.slug: c.category_id for c in db.query(Category).all()}
         print(f"→ loaded {len(cats)} categories: {', '.join(sorted(cats.keys()))}")
 
-        # 3. Import loop
-        added = skipped = images_added = 0
+        # 3. Import loop (no image attach — uploads go to Cloudinary via /seller/upload)
+        added = skipped = 0
         for row in WOODS:
             (local, trade, slug, t, w, l, form, treated,
              price, stock, featured, desc, dur) = row
@@ -224,7 +187,6 @@ def main():
                 skipped += 1
                 continue
 
-            # Skip duplicate
             exists = (db.query(Wood)
                       .filter_by(local_name=local, thickness_in=t,
                                  width_in=w, length_ft=l,
@@ -256,29 +218,12 @@ def main():
                 is_featured=featured,
             )
             db.add(wood)
-            db.flush()  # get wood.wood_id
-
-            # Image attach (if a matching file exists)
-            url = find_image(wood.wood_id, local)
-            if url:
-                db.add(WoodImage(
-                    wood_id=wood.wood_id,
-                    image_url=url,
-                    alt_text=f"{local} {int(t)}x{int(w)}x{int(l)}",
-                    is_primary=True,
-                    display_order=0,
-                ))
-                images_added += 1
-                img_note = f"  [img: {url.split('/')[-1]}]"
-            else:
-                img_note = ""
-
-            print(f"  ✓ {local} {int(t)}x{int(w)}x{int(l)}  GH₵{price}{img_note}")
+            print(f"  ✓ {local} {int(t)}x{int(w)}x{int(l)}  GH₵{price}")
             added += 1
 
         db.commit()
-        print(f"\nDone. added={added}, skipped={skipped}, images={images_added}")
-        print("Open http://127.0.0.1:8000/ to see them.")
+        print(f"\nDone. added={added}, skipped={skipped}")
+        print("Upload images via /seller/upload — they go to Cloudinary.")
     finally:
         db.close()
 

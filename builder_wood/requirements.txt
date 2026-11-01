@@ -11,3 +11,4 @@ python-multipart
 mysql-connector-python
 requests
 jinja2
+cloudinary>=1.40.0

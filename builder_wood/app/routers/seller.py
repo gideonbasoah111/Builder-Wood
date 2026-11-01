@@ -1,11 +1,11 @@
 # builder_wood/app/routers/seller.py
 from __future__ import annotations
 
-import shutil
 import uuid
 from pathlib import Path
 from typing import List, Optional
 
+import cloudinary.uploader
 from fastapi import (
     APIRouter,
     Depends,
@@ -29,9 +29,6 @@ router = APIRouter(prefix="/seller", tags=["seller"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-
-UPLOAD_DIR = BASE_DIR / "static" / "uploads" / "products"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB per file
@@ -58,35 +55,56 @@ def _safe_ext(filename: Optional[str]) -> str:
     return ext
 
 
-def _save_upload(upload: UploadFile, wood_id: int, tag: str) -> str:
-    ext = _safe_ext(upload.filename)
-    unique_filename = f"{wood_id}_{tag}_{uuid.uuid4().hex[:8]}{ext}"
-    dest = UPLOAD_DIR / unique_filename
+async def _upload_to_cloudinary(upload: UploadFile, wood_id: int, tag: str) -> str:
+    """Upload an image to Cloudinary and return its secure_url."""
+    _safe_ext(upload.filename)  # validate extension first
 
-    written = 0
+    content = await upload.read()
+    if len(content) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"Image '{upload.filename}' exceeds "
+                f"{MAX_IMAGE_BYTES // (1024 * 1024)} MB."
+            ),
+        )
+
+    public_id = f"{wood_id}_{tag}_{uuid.uuid4().hex[:8]}"
+
     try:
-        with dest.open("wb") as buffer:
-            while True:
-                chunk = upload.file.read(1024 * 1024)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if written > MAX_IMAGE_BYTES:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=(
-                            f"Image '{upload.filename}' exceeds "
-                            f"{MAX_IMAGE_BYTES // (1024 * 1024)} MB."
-                        ),
-                    )
-                buffer.write(chunk)
-    except Exception:
-        dest.unlink(missing_ok=True)
-        raise
-    finally:
-        upload.file.close()
+        result = cloudinary.uploader.upload(
+            content,
+            public_id=public_id,
+            resource_type="image",
+            folder="builder_wood",
+            overwrite=False,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Cloudinary upload failed: {exc}",
+        )
 
-    return f"/static/uploads/products/{unique_filename}"
+    secure_url = result.get("secure_url")
+    if not secure_url:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Cloudinary returned no secure_url",
+        )
+    return secure_url
+
+
+def _public_id_from_url(url: str) -> Optional[str]:
+    """Extract a Cloudinary public_id from its secure_url (for rollback cleanup)."""
+    if not url or "/upload/" not in url:
+        return None
+    try:
+        path = url.split("/upload/", 1)[1]  # e.g. v123/builder_wood/abc.jpg
+        if path.startswith("v") and "/" in path:
+            path = path.split("/", 1)[1]    # strip version
+        return path.rsplit(".", 1)[0] if "." in path else path
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +154,6 @@ async def add_wood(
         .first()
     )
     if not category:
-        # 400 (not 422) so the frontend and logs agree on "invalid category".
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid category '{category_slug}'.",
@@ -160,11 +177,14 @@ async def add_wood(
     db.add(new_wood)
     db.flush()
 
-    written_files: List[Path] = []
+    uploaded_public_ids: List[str] = []
 
     try:
-        url = _save_upload(main_image, new_wood.wood_id, "main")
-        written_files.append(UPLOAD_DIR / Path(url).name)
+        # Main image
+        url = await _upload_to_cloudinary(main_image, new_wood.wood_id, "main")
+        pid = _public_id_from_url(url)
+        if pid:
+            uploaded_public_ids.append(pid)
         db.add(
             models.WoodImage(
                 wood_id=new_wood.wood_id,
@@ -174,10 +194,13 @@ async def add_wood(
             )
         )
 
+        # Dimension image (optional)
         order_counter = 1
         if dimension_image and dimension_image.filename:
-            url = _save_upload(dimension_image, new_wood.wood_id, "dim")
-            written_files.append(UPLOAD_DIR / Path(url).name)
+            url = await _upload_to_cloudinary(dimension_image, new_wood.wood_id, "dim")
+            pid = _public_id_from_url(url)
+            if pid:
+                uploaded_public_ids.append(pid)
             db.add(
                 models.WoodImage(
                     wood_id=new_wood.wood_id,
@@ -188,12 +211,15 @@ async def add_wood(
             )
             order_counter += 1
 
+        # Detail images (optional, multiple)
         if detail_images:
             for img in detail_images:
                 if not img.filename:
                     continue
-                url = _save_upload(img, new_wood.wood_id, "detail")
-                written_files.append(UPLOAD_DIR / Path(url).name)
+                url = await _upload_to_cloudinary(img, new_wood.wood_id, "detail")
+                pid = _public_id_from_url(url)
+                if pid:
+                    uploaded_public_ids.append(pid)
                 db.add(
                     models.WoodImage(
                         wood_id=new_wood.wood_id,
@@ -207,8 +233,11 @@ async def add_wood(
         db.commit()
     except Exception:
         db.rollback()
-        for p in written_files:
-            p.unlink(missing_ok=True)
+        for pid in uploaded_public_ids:
+            try:
+                cloudinary.uploader.destroy(pid)
+            except Exception:
+                pass
         raise
 
     return {"status": "success", "wood_id": new_wood.wood_id}

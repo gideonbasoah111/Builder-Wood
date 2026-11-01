@@ -12,15 +12,13 @@ from builder_wood.app.config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-# Templates for the admin dashboard HTML page
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 _templates = Jinja2Templates(directory=_TEMPLATES_DIR)
 
 
 # ---------------------------------------------------------------------------
-# Admin dashboard page (HTML)
-# Serves admin_dashboard.html. The template fetches data from the JSON
-# endpoints below via JavaScript using the bearer token in localStorage.
+# Admin dashboard page (HTML) — fixes 404 on the "Admin Panel" button.
+# The template fetches data from the JSON endpoints below via JavaScript.
 # ---------------------------------------------------------------------------
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -86,7 +84,7 @@ def resolve_dispute(order_id: int, action: str, db: Session = Depends(get_db), a
         order.status = "cancelled"
         for item in order.items:
             wood = db.query(models.Wood).filter(models.Wood.wood_id == item.wood_id).first()
-            if wood: wood.stock_quantity += item.quantity # Return stock
+            if wood: wood.stock_quantity += item.quantity
     elif action == "release":
         order.status = "delivered"
         order.is_funds_released = True
