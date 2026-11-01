@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str = "defaultdb"
 
+    # Cloudinary image storage
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
+
     # SSL certificate
     DB_SSL_CA: str = "builder_wood/ca.pem"
 
