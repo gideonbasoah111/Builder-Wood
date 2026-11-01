@@ -11,6 +11,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+# Configure Cloudinary before anything else imports it.
+# (Just the import triggers cloudinary.config() in cloudinary_config.py.)
+from builder_wood.app import cloudinary_config  # noqa: F401
+
 from builder_wood.app.auth import get_password_hash
 from builder_wood.app.config import settings
 from builder_wood.app.database import SessionLocal
