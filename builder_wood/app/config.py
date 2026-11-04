@@ -5,12 +5,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     APP_NAME: str = "Builder Wood"
 
-    # Application security (REQUIRED — set in .env / Render env vars)
+    # Application security (REQUIRED)
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
-    # Paystack (REQUIRED — set in .env / Render env vars)
+    # Paystack (REQUIRED)
     PAYSTACK_SECRET_KEY: str
 
     # Application URL
@@ -23,17 +23,16 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str = "defaultdb"
 
-    # Cloudinary image storage
-    CLOUDINARY_CLOUD_NAME: str
-    CLOUDINARY_API_KEY: str
-    CLOUDINARY_API_SECRET: str
-
-    # Delivery distance (Nominatim + OpenRouteService)
-    NOMINATIM_USER_AGENT: str = "BuilderWood/1.0 (contact@builderwood.gh)"
-    ORS_API_KEY: str
-
     # SSL certificate
     DB_SSL_CA: str = "builder_wood/ca.pem"
+
+    # Cloudinary image storage
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
+    # Delivery distance (Nominatim + OSRM)
+    NOMINATIM_USER_AGENT: str = "BuilderWood/1.0 (contact@builderwood.gh)"
 
     model_config = SettingsConfigDict(
         env_file=".env",

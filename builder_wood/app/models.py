@@ -250,9 +250,8 @@ class PaymentTransaction(Base):
 class GeocodeCache(Base):
     __tablename__ = "geocode_cache"
     cache_id = Column(Integer, primary_key=True, autoincrement=True)
-    address_key = Column(String(255), nullable=False, unique=True)
+    address_key = Column(String(255), nullable=False, unique=True, index=True)
     lat = Column(DECIMAL(10, 7), nullable=False)
     lon = Column(DECIMAL(10, 7), nullable=False)
     display_name = Column(String(255), nullable=False)
-    distance_km = Column(DECIMAL(6, 2), nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
