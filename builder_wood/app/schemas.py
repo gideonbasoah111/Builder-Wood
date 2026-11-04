@@ -247,6 +247,17 @@ class OrderOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class DistanceEstimateIn(BaseModel):
+    address: str = Field(min_length=3)
+
+
+class DistanceEstimateOut(BaseModel):
+    distance_km: Decimal
+    geocoded_address: str
+    from_cache: bool = False
+
+
+
 
 # ============================================================
 # CONVERSATIONS / MESSAGES

@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3e2723">
   <title>Checkout — {{ shop_name | default("Builder Wood") }}</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
-
   <style>
     .checkout-page { padding: 40px 0 80px; }
     .checkout-head { margin-bottom: 24px; }
@@ -29,6 +27,10 @@
     .field input, .field textarea, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); outline: 0; transition: border-color .15s; }
     .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--wood-med); }
     .field textarea { resize: vertical; min-height: 70px; }
+    .hint { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .hint.ok { color: var(--green); font-weight: 600; }
+    .hint.err { color: var(--red); font-weight: 600; }
+    .hint.loading { color: var(--wood-med); font-weight: 600; }
 
     .delivery-opt { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
     .delivery-opt label { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 10px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s; }
@@ -58,6 +60,8 @@
     .totals .row.total { font-size: 16px; font-weight: 800; color: var(--ink); margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
     .totals .row.total b { font-family: "Fraunces", serif; font-size: 20px; color: var(--wood-med); }
     .note-small { margin: 14px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+    .osm-credit { font-size: 10.5px; color: var(--muted); margin-top: 8px; }
+    .osm-credit a { color: var(--wood-med); text-decoration: underline; }
 
     .empty-cart { text-align: center; padding: 40px 20px; color: var(--muted); }
     .empty-cart .mark { font-size: 42px; margin-bottom: 8px; }
@@ -96,7 +100,7 @@
       <div class="checkout-head">
         <span class="kicker">Checkout</span>
         <h1>Confirm your order.</h1>
-        <p>We'll pass your order to the seller, who will confirm price and delivery.</p>
+        <p>Delivery distance is calculated automatically from your address.</p>
       </div>
 
       <div class="checkout-grid">
@@ -124,15 +128,12 @@
           <div class="form-row single">
             <div class="field">
               <label for="address">Delivery address</label>
-              <textarea id="address" name="address" required placeholder="House / street / landmark — e.g. 'Asokwa, near Melcom'"></textarea>
+              <textarea id="address" name="address" required placeholder="e.g. Atonsu, near Agogo junction, Kumasi"></textarea>
+              <div class="hint" id="distance-hint"></div>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="field">
-              <label for="distance">Distance from Sokoban (km)</label>
-              <input id="distance" name="distance" type="number" min="0" step="0.5" value="5" required>
-            </div>
+          <div class="form-row single">
             <div class="field">
               <label for="notes">Notes to seller <span class="optional">(optional)</span></label>
               <input id="notes" name="notes" type="text" placeholder="e.g. grade / treatment preference">
@@ -147,15 +148,15 @@
             </label>
             <label>
               <input type="radio" name="delivery" value="aboboyaa" checked>
-              <span><b>Aboboyaa</b><small>Up to 25 pieces · within 5 km · from GH₵10</small></span>
+              <span><b>Aboboyaa</b><small>Small loads · short distances</small></span>
             </label>
             <label>
               <input type="radio" name="delivery" value="pickup-truck">
-              <span><b>Small pickup</b><small>Up to 80 pieces · within 25 km · from GH₵30</small></span>
+              <span><b>Small pickup</b><small>Medium loads · mid distances</small></span>
             </label>
             <label>
               <input type="radio" name="delivery" value="truck">
-              <span><b>Truck</b><small>Up to 1,000 pieces · within 200 km · from GH₵60</small></span>
+              <span><b>Truck</b><small>Large loads · up to 100 km</small></span>
             </label>
           </div>
 
@@ -173,10 +174,11 @@
           </div>
           <div class="totals" id="totals" hidden>
             <div class="row"><span>Subtotal</span><span id="subtotal">GH₵0.00</span></div>
-            <div class="row"><span>Delivery (estimated)</span><span id="delivery-fee">GH₵0.00</span></div>
+            <div class="row"><span>Delivery (estimated)</span><span id="delivery-fee">—</span></div>
             <div class="row total"><span>Total (estimated)</span><b id="total">GH₵0.00</b></div>
           </div>
-          <p class="note-small">Final price and delivery fee are confirmed by the seller before dispatch. Payment is secure via Paystack.</p>
+          <p class="note-small">Final delivery fee is confirmed by our system at order placement. Payment is secure via Paystack.</p>
+          <p class="osm-credit">Distance calculation © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
         </aside>
       </div>
     </div>
@@ -188,14 +190,20 @@
       const $ = (s) => document.querySelector(s);
       const getToken = () => localStorage.getItem("bw_token");
 
+      // Server-side vehicle pricing (mirrors what the backend will charge).
+      // These are placeholders until vehicle admin is built — they let the
+      // preview show a number. The REAL charge comes from the backend at
+      // order creation and may differ if vehicles aren't seeded yet.
       const VEHICLES = {
         "pickup":       { base: 0,  rate: 0 },
-        "aboboyaa":     { base: 10, rate: 3 },
-        "pickup-truck": { base: 30, rate: 5 },
-        "truck":        { base: 60, rate: 8 },
+        "aboboyaa":     { base: 20, rate: 3 },
+        "pickup-truck": { base: 40, rate: 5 },
+        "truck":        { base: 80, rate: 8 },
       };
 
       let cart = [];
+      let estimatedDistanceKm = null;   // populated by /orders/estimate-distance
+      let distanceFetchInFlight = null;
 
       function money(v, c = "GH₵") {
         const n = Number(v);
@@ -204,56 +212,39 @@
 
       async function loadCart() {
         const token = getToken();
-        if (!token) {
-          window.location.href = "/login";
-          return;
-        }
-
+        if (!token) { window.location.href = "/login"; return; }
         try {
-          const res = await fetch("/cart/", {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
-          if (res.ok) {
-            cart = await res.json();
-            renderCart();
-          }
-        } catch (err) {
-          console.error("Failed to load cart", err);
-        }
+          const res = await fetch("/cart/", { headers: { "Authorization": `Bearer ${token}` } });
+          if (res.ok) { cart = await res.json(); renderCart(); }
+        } catch (err) { console.error("Failed to load cart", err); }
       }
 
       async function loadUserProfile() {
-          const token = getToken();
-          if (!token) return;
-
-          try {
-              const res = await fetch("/auth/me", {
-                  headers: { "Authorization": `Bearer ${token}` }
-              });
-              if (res.ok) {
-                  const user = await res.json();
-                  if (user.name) document.getElementById("name").value = user.name;
-                  if (user.phone_number) document.getElementById("phone").value = user.phone_number;
-                  if (user.address) document.getElementById("address").value = user.address;
-                  if (user.email) document.getElementById("email").value = user.email;
-              }
-          } catch (err) {
-              console.warn("Could not load user profile", err);
+        const token = getToken();
+        if (!token) return;
+        try {
+          const res = await fetch("/auth/me", { headers: { "Authorization": `Bearer ${token}` } });
+          if (res.ok) {
+            const user = await res.json();
+            if (user.name) $("#name").value = user.name;
+            if (user.phone_number) $("#phone").value = user.phone_number;
+            if (user.address) $("#address").value = user.address;
+            if (user.email) $("#email").value = user.email;
+            if (user.address) fetchDistance();
           }
+        } catch (err) { console.warn("Could not load user profile", err); }
       }
 
       function renderCart() {
         const host = $("#cart-host");
         const totals = $("#totals");
         const submitBtn = $("#submit-btn");
-
         if (!cart.length) {
           host.innerHTML = `<div class="empty-cart"><div class="mark">🪵</div><p>Your cart is empty.</p><p><a href="/" style="color:var(--wood-med);font-weight:700;">Go back to the shop →</a></p></div>`;
           totals.hidden = true;
           submitBtn.disabled = true;
           return;
         }
-
         host.innerHTML = `<div class="cart-list">${cart.map((i) => `
           <div class="cart-item">
             <div class="thumb">${i.image_url ? `<img src="${i.image_url}" alt="">` : "🪵"}</div>
@@ -264,29 +255,81 @@
             <div class="price">${money(i.price_per_piece * i.quantity, i.currency)}</div>
           </div>
         `).join("")}</div>`;
-
         totals.hidden = false;
         recalcTotals();
-        submitBtn.disabled = false;
+        updateSubmitState();
       }
 
       function recalcTotals() {
         if (!cart.length) return;
         const subtotal = cart.reduce((s, i) => s + (i.price_per_piece * i.quantity), 0);
         const method = document.querySelector('input[name="delivery"]:checked')?.value || "pickup";
-        const v = VEHICLES[method] || VEHICLES.pickup;
-        const km = Number($("#distance").value) || 0;
-        const fee = v.base + v.rate * km;
 
+        let fee = 0;
+        if (method !== "pickup" && estimatedDistanceKm !== null) {
+          const v = VEHICLES[method] || VEHICLES.aboboyaa;
+          fee = v.base + v.rate * estimatedDistanceKm;
+        }
         $("#subtotal").textContent = money(subtotal);
-        $("#delivery-fee").textContent = money(fee);
+        $("#delivery-fee").textContent = method === "pickup" ? money(0) : (estimatedDistanceKm === null ? "—" : money(fee));
         $("#total").textContent = money(subtotal + fee);
       }
 
-      document.querySelectorAll('input[name="delivery"]').forEach((r) =>
-        r.addEventListener("change", recalcTotals)
-      );
-      $("#distance").addEventListener("input", recalcTotals);
+      function updateSubmitState() {
+        const btn = $("#submit-btn");
+        const method = document.querySelector('input[name="delivery"]:checked')?.value || "pickup";
+        const needsDistance = method !== "pickup";
+        const hasDistance = estimatedDistanceKm !== null;
+        const hasCart = cart.length > 0;
+        btn.disabled = !(hasCart && (!needsDistance || hasDistance));
+      }
+
+      async function fetchDistance() {
+        const addr = $("#address").value.trim();
+        const hint = $("#distance-hint");
+        const token = getToken();
+        if (!token) return;
+        if (addr.length < 3) { hint.textContent = ""; hint.className = "hint"; estimatedDistanceKm = null; recalcTotals(); updateSubmitState(); return; }
+
+        if (distanceFetchInFlight) distanceFetchInFlight.abort?.();
+        hint.textContent = "Calculating distance…";
+        hint.className = "hint loading";
+        estimatedDistanceKm = null;
+        recalcTotals();
+        updateSubmitState();
+
+        const ctrl = new AbortController();
+        distanceFetchInFlight = ctrl;
+
+        try {
+          const res = await fetch("/orders/estimate-distance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ address: addr }),
+            signal: ctrl.signal,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            hint.textContent = data.detail || `Could not calculate distance (HTTP ${res.status}).`;
+            hint.className = "hint err";
+            return;
+          }
+          estimatedDistanceKm = Number(data.distance_km);
+          hint.textContent = `✓ ${data.distance_km} km from Sokoban — ${data.geocoded_address}`;
+          hint.className = "hint ok";
+          recalcTotals();
+          updateSubmitState();
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          hint.textContent = "Distance check failed. Check your connection.";
+          hint.className = "hint err";
+        } finally {
+          if (distanceFetchInFlight === ctrl) distanceFetchInFlight = null;
+        }
+      }
+
+      $("#address").addEventListener("blur", fetchDistance);
+      document.querySelectorAll('input[name="delivery"]').forEach((r) => r.addEventListener("change", () => { recalcTotals(); updateSubmitState(); }));
 
       $("#order-form").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -298,32 +341,28 @@
         const phone = $("#phone").value.trim();
         const email = $("#email").value.trim();
         const address = $("#address").value.trim();
-        const distance = Number($("#distance").value);
         const method = document.querySelector('input[name="delivery"]:checked').value;
 
-        if (!name || !phone || !email || !address || !Number.isFinite(distance)) {
-          msg.textContent = "Please fill in all required fields, including email for payment.";
+        if (!name || !phone || !email || !address) {
+          msg.textContent = "Please fill in all required fields.";
           msg.classList.add("err");
           return;
         }
-        if (!cart.length) {
-          msg.textContent = "Your cart is empty.";
+        if (method !== "pickup" && estimatedDistanceKm === null) {
+          msg.textContent = "Please wait for the distance check to finish, or choose Pickup.";
           msg.classList.add("err");
           return;
         }
+        if (!cart.length) { msg.textContent = "Your cart is empty."; msg.classList.add("err"); return; }
 
         const payload = {
           customer_name: name,
           customer_phone: phone,
           customer_email: email,
           delivery_address: address,
-          distance_km: distance,
           delivery_method: method,
           notes: $("#notes").value.trim() || null,
-          items: cart.map((i) => ({
-            wood_id: i.wood_id,
-            quantity: i.quantity,
-          })),
+          items: cart.map((i) => ({ wood_id: i.wood_id, quantity: i.quantity })),
         };
 
         $("#submit-btn").disabled = true;
@@ -331,46 +370,27 @@
 
         try {
           const token = getToken();
-
-          // 1. Create the Order
           const res = await fetch("/orders/", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
             body: JSON.stringify(payload),
           });
-
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.detail || `HTTP ${res.status}`);
           }
-
           const orders = await res.json();
-          const orderId = orders[0].order_id; // Get the first order ID (multi-seller)
-
+          const orderId = orders[0].order_id;
           msg.textContent = "Redirecting to Paystack...";
 
-          // 2. Initialize Payment
           const payRes = await fetch("/payments/initialize", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
             body: JSON.stringify({ order_id: orderId }),
           });
-
           const payData = await payRes.json();
-
-          if (!payRes.ok) {
-            throw new Error(payData.detail || "Could not initialize payment");
-          }
-
-          // 3. Redirect to Paystack Checkout
+          if (!payRes.ok) throw new Error(payData.detail || "Could not initialize payment");
           window.location.href = payData.authorization_url;
-
         } catch (err) {
           msg.textContent = err.message || "Could not submit order. Try again.";
           msg.classList.add("err");

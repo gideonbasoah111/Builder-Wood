@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
 
+    # Delivery distance (Nominatim + OpenRouteService)
+    NOMINATIM_USER_AGENT: str = "BuilderWood/1.0 (contact@builderwood.gh)"
+    ORS_API_KEY: str
+
     # SSL certificate
     DB_SSL_CA: str = "builder_wood/ca.pem"
 
