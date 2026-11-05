@@ -7,14 +7,12 @@ Pipeline:
 3. Return distance_km + display_name
 
 Rate limits respected:
-- Nominatim: 1 req/sec, descriptive User-Agent required [citation:4][citation:11]
-- OSRM demo: no hard limit but be reasonable [citation:11]
-
-Note: OSRM public demo server is for development/demo use [citation:2].
-For production scale, self-host OSRM and change OSRM_BASE_URL.
+- Nominatim: 1 req/sec globally, descriptive User-Agent required
+- OSRM public demo: no hard limit but "be reasonable"
 """
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from decimal import Decimal
@@ -27,19 +25,20 @@ from builder_wood.app.config import settings
 from builder_wood.app import models
 
 
-# Sokoban Wood Village, Kumasi — delivery origin.
+# Sokoban Wood Village, Kumasi — delivery origin
 SOKOBAN_LAT = 6.6833
 SOKOBAN_LON = -1.6167
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-
-# OSRM public demo server. For production, self-host OSRM:
-#   docker run -p 5000:5000 osrm/osrm-backend ...
-# Then change this to your server URL.
 OSRM_BASE_URL = "https://router.project-osrm.org"
 
+# Thread-safe Nominatim throttle.
+# Render runs multiple threads even on a single worker, so we need a lock.
+_nominatim_lock = threading.Lock()
 _last_nominatim_call: float = 0.0
 _NOMINATIM_MIN_INTERVAL = 1.0  # seconds
+_NOMINATIM_MAX_RETRIES = 2
+_NOMINATIM_RETRY_DELAY = 3.0  # seconds, if no Retry-After header
 
 
 @dataclass
@@ -56,47 +55,108 @@ class DistanceError(Exception):
 
 
 def _throttle_nominatim() -> None:
+    """Thread-safe throttle: at most 1 call/sec to Nominatim globally."""
     global _last_nominatim_call
-    elapsed = time.monotonic() - _last_nominatim_call
-    if elapsed < _NOMINATIM_MIN_INTERVAL:
-        time.sleep(_NOMINATIM_MIN_INTERVAL - elapsed)
-    _last_nominatim_call = time.monotonic()
+    with _nominatim_lock:
+        elapsed = time.monotonic() - _last_nominatim_call
+        if elapsed < _NOMINATIM_MIN_INTERVAL:
+            time.sleep(_NOMINATIM_MIN_INTERVAL - elapsed)
+        _last_nominatim_call = time.monotonic()
 
 
 def _normalize_address(address: str) -> str:
     return " ".join(address.strip().lower().split())
 
 
-def _geocode(address: str) -> Tuple[float, float, str]:
-    """Nominatim geocoding with 1 req/sec throttle and required User-Agent."""
-    _throttle_nominatim()
-
+def _nominatim_request(address: str) -> dict:
+    """One Nominatim HTTP call with proper headers. Returns parsed JSON list."""
     params = {"q": address, "format": "json", "limit": 1, "addressdetails": 1}
     headers = {"User-Agent": settings.NOMINATIM_USER_AGENT}
 
-    try:
-        resp = httpx.get(NOMINATIM_URL, params=params, headers=headers, timeout=10.0)
-        resp.raise_for_status()
-        data = resp.json()
-    except httpx.HTTPError as exc:
-        raise DistanceError(f"Geocoding service unavailable: {exc}") from exc
+    resp = httpx.get(
+        NOMINATIM_URL, params=params, headers=headers, timeout=10.0
+    )
+    return resp  # caller handles status
 
-    if not data:
-        raise DistanceError(
-            f"Could not find '{address}'. Try adding a town or landmark."
+
+def _geocode(address: str) -> Tuple[float, float, str]:
+    """Nominatim geocoding with retries on 429 and proper 1 req/sec throttle."""
+    last_error: str | None = None
+
+    for attempt in range(_NOMINATIM_MAX_RETRIES + 1):
+        _throttle_nominatim()
+
+        try:
+            resp = _nominatim_request(address)
+        except httpx.HTTPError as exc:
+            last_error = f"Network error: {exc}"
+            if attempt < _NOMINATIM_MAX_RETRIES:
+                time.sleep(_NOMINATIM_RETRY_DELAY)
+                continue
+            raise DistanceError(f"Geocoding service unavailable: {exc}") from exc
+
+        # Rate limited — respect Retry-After if present
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            wait = (
+                float(retry_after) if retry_after else _NOMINATIM_RETRY_DELAY
+            )
+            # Cap the wait so a request doesn't hang forever
+            wait = min(wait, 10.0)
+            if attempt < _NOMINATIM_MAX_RETRIES:
+                time.sleep(wait)
+                continue
+            raise DistanceError(
+                "Geocoding service is rate-limiting requests. "
+                "Please try again in a few seconds."
+            )
+
+        if resp.status_code >= 500:
+            last_error = f"Server error {resp.status_code}"
+            if attempt < _NOMINATIM_MAX_RETRIES:
+                time.sleep(_NOMINATIM_RETRY_DELAY)
+                continue
+            raise DistanceError(
+                f"Geocoding service returned HTTP {resp.status_code}."
+            )
+
+        if resp.status_code != 200:
+            raise DistanceError(
+                f"Geocoding service returned HTTP {resp.status_code}."
+            )
+
+        try:
+            data = resp.json()
+        except Exception as exc:
+            raise DistanceError(
+                "Geocoding service returned invalid JSON."
+            ) from exc
+
+        if not data:
+            raise DistanceError(
+                f"Could not find '{address}'. "
+                f"Try adding the town or a nearby landmark."
+            )
+
+        hit = data[0]
+        return (
+            float(hit["lat"]),
+            float(hit["lon"]),
+            hit.get("display_name", address),
         )
 
-    hit = data[0]
-    return float(hit["lat"]), float(hit["lon"]), hit.get("display_name", address)
+    # Unreachable but keeps type checkers happy
+    raise DistanceError(f"Geocoding failed: {last_error or 'unknown error'}")
 
 
-def _route_km(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float) -> Decimal:
-    """OSRM routing. Coordinates in OSRM URL are lon,lat order."""
+def _route_km(
+    origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float
+) -> Decimal:
     url = (
         f"{OSRM_BASE_URL}/route/v1/driving/"
         f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}"
     )
-    params = {"overview": "false"}  # we only need distance, not geometry
+    params = {"overview": "false"}
 
     try:
         resp = httpx.get(url, params=params, timeout=15.0)
@@ -107,24 +167,28 @@ def _route_km(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: f
             f"Routing service error (HTTP {exc.response.status_code})."
         ) from exc
     except httpx.HTTPError as exc:
-        raise DistanceError(f"Routing service unavailable: {exc}") from exc
+        raise DistanceError(
+            f"Routing service unavailable: {exc}"
+        ) from exc
 
-    # OSRM response: {"code": "Ok", "routes": [{"distance": 12345.6, ...}]}
     if data.get("code") != "Ok":
         raise DistanceError(
-            f"No driving route found to this address. "
-            f"(OSRM: {data.get('code', 'unknown error')})"
+            f"No driving route found. (OSRM: {data.get('code', 'unknown')})"
         )
 
     try:
         meters = data["routes"][0]["distance"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise DistanceError("Routing service returned an unexpected response.") from exc
+        raise DistanceError(
+            "Routing service returned an unexpected response."
+        ) from exc
 
     return Decimal(str(round(meters / 1000.0, 2)))
 
 
-def estimate_distance_from_address(address: str, db: Session) -> DistanceResult:
+def estimate_distance_from_address(
+    address: str, db: Session
+) -> DistanceResult:
     """Geocode + route. Uses the DB cache when possible."""
     if not address or len(address.strip()) < 3:
         raise DistanceError("Please enter a more complete delivery address.")
@@ -150,18 +214,22 @@ def estimate_distance_from_address(address: str, db: Session) -> DistanceResult:
     lat, lon, display = _geocode(address)
     km = _route_km(SOKOBAN_LAT, SOKOBAN_LON, lat, lon)
 
-    # Store in cache (best-effort; don't fail the request if cache write fails)
+    # Persist to cache so repeat lookups never hit Nominatim again
     try:
-        db.add(models.GeocodeCache(
-            address_key=key,
-            lat=Decimal(str(lat)),
-            lon=Decimal(str(lon)),
-            display_name=display[:255],
-            distance_km=km,
-        ))
+        db.add(
+            models.GeocodeCache(
+                address_key=key,
+                lat=Decimal(str(lat)),
+                lon=Decimal(str(lon)),
+                display_name=display[:255],
+                distance_km=km,
+            )
+        )
         db.commit()
-    except Exception:
-        db.rollback()  # concurrent insert — harmless
+    except Exception as exc:
+        # Concurrent insert (unique constraint) — harmless, just roll back.
+        db.rollback()
+        print(f"[distance] cache write failed (ignored): {exc}")
 
     return DistanceResult(
         distance_km=km,

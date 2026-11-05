@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     PAYSTACK_SECRET_KEY: str
 
     # Application URL
-    BASE_URL: str = "http://127.0.0.1:8000"
+    BASE_URL: str = "https://builder-wood-2.onrender.com"
 
     # Aiven MySQL database
     DB_HOST: str = "mysql-15c5d07c-gideonbasoah111-4b8.e.aivencloud.com"
@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
 
     # Delivery distance (Nominatim + OSRM)
-    NOMINATIM_USER_AGENT: str = "BuilderWood/1.0 (contact@builderwood.gh)"
+    NOMINATIM_USER_AGENT: str = (
+        "BuilderWood/1.0 (https://builder-wood-2.onrender.com; "
+        "contact@builderwood.gh)"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
