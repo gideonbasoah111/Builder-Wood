@@ -33,6 +33,7 @@
   function getId(p) { return String(p.wood_id != null ? p.wood_id : p.id); }
   function getToken() { return localStorage.getItem("bw_token"); }
 
+  /* ---- Product fetching ---- */
   function fetchProducts() {
     var params = new URLSearchParams();
     if (state.category) params.set("category", state.category);
@@ -46,20 +47,29 @@
       return res.json();
     }).then(data => {
       var rows = Array.isArray(data) ? data : (data.items || data.results || []);
-      state.products = rows.map(p => ({
-        ...p,
-        display_name: p.display_name || p.local_name || "Timber",
-        local_name: p.local_name || "",
-        category_slug: String(p.category_slug || "").toLowerCase(),
-        category_name: p.category_name || "",
-        seller_id: p.seller_id || null,
-        seller_name: p.seller_name || "Builder Wood",
-        seller_phone: p.seller_phone || "",
-        size_label: p.size_label || "",
-        primary_image_url: p.primary_image_url || "",
-        is_treated: Boolean(p.is_treated),
-        is_featured: Boolean(p.is_featured)
-      }));
+      state.products = rows.map(p => {
+        // The API returns nested objects for category and seller.
+        // Flatten them here so the rest of the file can use simple fields.
+        var catObj    = p.category || {};
+        var sellerObj = p.seller   || {};
+        var images    = Array.isArray(p.images) ? p.images : [];
+
+        return Object.assign({}, p, {
+          display_name: p.display_name || p.local_name || "Timber",
+          local_name:   p.local_name || "",
+          category_slug: String(catObj.slug || p.category_slug || "").toLowerCase(),
+          category_name: catObj.category_name || p.category_name || "",
+          seller_id:     p.seller_id || null,
+          seller_name:   sellerObj.name || p.seller_name || "Builder Wood",
+          seller_phone:  sellerObj.phone_number || p.seller_phone || "",
+          size_label:    p.size_label || "",
+          // Prefer the top-level image_url the API provides; fall back to the
+          // first image in the images array; fall back to empty.
+          image_url:     p.image_url || (images[0] && images[0].image_url) || "",
+          is_treated:    Boolean(p.is_treated),
+          is_featured:   Boolean(p.is_featured)
+        });
+      });
     }).catch(err => {
       console.warn("Woods fetch failed:", err.message);
       state.products = [];
@@ -90,9 +100,11 @@
       var cat = p.category_name || p.trade_name || "Timber";
       var isMyProduct = (p.seller_id && loggedInUserId && String(p.seller_id) === String(loggedInUserId));
 
-      var img = p.primary_image_url
-        ? '<img src="' + esc(p.primary_image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy">'
+      // BUG FIX: use image_url (the field the API actually returns)
+      var img = p.image_url
+        ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy">'
         : '<div class="image-fallback">\ud83e\udeb5</div>';
+
       var badges =
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
@@ -101,6 +113,16 @@
       var waLink = phone
         ? `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(p.seller_name)}, I am interested in buying ${encodeURIComponent(p.display_name)}`
         : '#';
+
+      // BUG FIX: clearer "Out of stock" label on disabled button
+      var addButton;
+      if (isMyProduct) {
+        addButton = '<button class="add-btn" disabled style="background:#ccc; cursor:not-allowed;">Your Item</button>';
+      } else if (stock <= 0) {
+        addButton = '<button class="add-btn" disabled style="background:#ccc; cursor:not-allowed;">Out of stock</button>';
+      } else {
+        addButton = '<button class="add-btn" data-add="' + esc(getId(p)) + '">+ Add</button>';
+      }
 
       return (
         '<article class="product-card" data-id="' + esc(getId(p)) + '">' +
@@ -125,10 +147,7 @@
               '</div>' +
               '<div style="display:flex; gap:5px;">' +
                 '<a href="' + waLink + '" target="_blank" class="add-btn" style="background:var(--green); text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Contact Seller">💬</a>' +
-                (isMyProduct
-                  ? '<button class="add-btn" disabled style="background:#ccc; cursor:not-allowed;">Your Item</button>'
-                  : '<button class="add-btn" data-add="' + esc(getId(p)) + '"' + (stock <= 0 ? " disabled" : "") + '>+ Add</button>'
-                ) +
+                addButton +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -153,6 +172,7 @@
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  /* ---- Cart ---- */
   async function loadCartFromDB() {
     var token = getToken();
     if (!token) { state.cart = []; renderCart(); return; }
@@ -180,7 +200,7 @@
         body: JSON.stringify({ wood_id: Number(id), quantity: 1 })
       });
       if (res.ok) { toast("Added to cart"); loadCartFromDB(); }
-      else { const err = await res.json(); toast(err.detail || "Could not add item"); }
+      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not add item"); }
     } catch (err) { toast("Network error"); }
   }
 
@@ -196,7 +216,7 @@
         body: JSON.stringify({ quantity: newQty })
       });
       if (res.ok) { loadCartFromDB(); }
-      else { const err = await res.json(); toast(err.detail || "Could not update quantity"); loadCartFromDB(); }
+      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not update quantity"); loadCartFromDB(); }
     } catch (err) { toast("Network error"); }
   }
 
@@ -246,11 +266,10 @@
       );
     }).join("");
 
-    // Add "Message Seller" button to the cart
     var firstItem = state.cart[0];
     if (firstItem && firstItem.seller_phone) {
         var phone = firstItem.seller_phone.replace(/\D/g, '');
-        var waLink = `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(firstItem.seller_name)}, I have a question about my cart.`;
+        var waLink = `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(firstItem.seller_name || "seller")}, I have a question about my cart.`;
 
         cartHtml += `
           <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">

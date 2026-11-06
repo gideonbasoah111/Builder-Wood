@@ -2,26 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
   <title>Account — Builder Wood</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    .auth-page { max-width: 480px; margin: 60px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
-    .auth-tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
-    .auth-tab { flex: 1; text-align: center; padding: 12px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+    :root { --tap: 44px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: hidden; }
+
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+
+    /* ---------- page shell ---------- */
+    .auth-page {
+      max-width: 480px; margin: 60px auto; padding: 30px;
+      background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      overflow-wrap: anywhere;
+    }
+    .header-main { flex-wrap: wrap; gap: 12px; }
+    .header-main .catnav-quote { margin-left: auto; }
+    @media (max-width: 480px) {
+      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
+    }
+
+    /* ---------- tabs ---------- */
+    .auth-tabs {
+      display: flex; border-bottom: 1px solid var(--line);
+      margin-bottom: 24px; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .auth-tabs::-webkit-scrollbar { display: none; }
+    .auth-tab {
+      flex: 1 0 auto; text-align: center; padding: 12px 6px;
+      min-height: var(--tap); font-weight: 700; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      white-space: nowrap; -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
     .auth-tab.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+
+    /* ---------- forms ---------- */
     .auth-form { display: none; }
     .auth-form.active { display: block; }
+
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; font-family: inherit; }
-    .submit-btn { width: 100%; background: var(--wood-med); color: white; padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-    .submit-btn:hover { background: var(--wood-dark); }
-    .msg { margin-top: 15px; font-weight: 600; text-align: center; font-size: 14px; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid var(--line-2); border-radius: 8px;
+      font-family: inherit; font-size: 14px;
+      background: #fff; color: var(--ink); outline: 0;
+      transition: border-color .15s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); }
+
+    .submit-btn {
+      width: 100%; min-height: 48px;
+      background: var(--wood-med); color: #fff;
+      padding: 14px; border: none; border-radius: 8px;
+      font-weight: 700; font-size: 15px; cursor: pointer;
+      margin-top: 10px; transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .submit-btn:disabled { opacity: .65; cursor: not-allowed; }
+    @media (hover: hover) { .submit-btn:hover:not(:disabled) { background: var(--wood-dark); } }
+
+    .msg {
+      margin-top: 15px; font-weight: 600; text-align: center;
+      font-size: 14px; overflow-wrap: anywhere; min-height: 1.2em;
+    }
+
+    /* ---------- role selector ---------- */
     .role-selector { display: flex; gap: 10px; margin-bottom: 16px; }
-    .role-option { flex: 1; padding: 12px; border: 1px solid var(--line-2); border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; }
-    .role-option.active { border-color: var(--wood-med); background: var(--parchment); color: var(--wood-med); }
+    .role-option {
+      flex: 1; min-height: 48px; padding: 12px;
+      border: 1px solid var(--line-2); border-radius: 8px;
+      text-align: center; cursor: pointer;
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .role-option.active {
+      border-color: var(--wood-med);
+      background: var(--parchment); color: var(--wood-med);
+    }
+    @media (hover: hover) {
+      .role-option:not(.active):hover { border-color: var(--wood-light); }
+    }
+
+    /* ---------- phones ---------- */
+    @media (max-width: 600px) {
+      .auth-page { margin: 20px 12px; padding: 22px 18px; border-radius: 12px; }
+      .form-group input, .form-group select { font-size: 16px; } /* iOS no-zoom */
+    }
+    @media (max-width: 420px) {
+      .role-selector { flex-direction: column; }
+      .auth-page { margin: 12px 8px; padding: 18px 14px; }
+    }
+    @media (max-width: 360px) {
+      .auth-page { margin: 8px 4px; padding: 16px 12px; }
+      .auth-tab { font-size: 13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -31,184 +124,227 @@
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em></span>
       </a>
-      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Back to shop</a>
     </div>
   </header>
 
   <main class="auth-page">
-    <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-login">Sign In</div>
-      <div class="auth-tab" id="tab-register">Create Account</div>
+    <div class="auth-tabs" role="tablist">
+      <div class="auth-tab active" id="tab-login" role="tab" aria-selected="true" tabindex="0">Sign In</div>
+      <div class="auth-tab" id="tab-register" role="tab" aria-selected="false" tabindex="-1">Create Account</div>
     </div>
 
-    <!-- LOGIN FORM -->
-    <form class="auth-form active" id="login-form">
+    <!-- LOGIN -->
+    <form class="auth-form active" id="login-form" novalidate>
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="username" required placeholder="you@example.com">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" name="username" required
+               placeholder="you@example.com" autocomplete="email">
       </div>
       <div class="form-group">
-        <label>Password</label>
-        <input type="password" name="password" required>
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" name="password" required
+               autocomplete="current-password">
       </div>
       <button type="submit" class="submit-btn">Log In</button>
-      <div class="msg" id="login-msg"></div>
+      <div class="msg" id="login-msg" role="status" aria-live="polite"></div>
     </form>
 
-    <!-- REGISTER FORM -->
-    <form class="auth-form" id="register-form">
+    <!-- REGISTER -->
+    <form class="auth-form" id="register-form" novalidate>
       <div class="form-group">
         <label>I am registering as:</label>
         <div class="role-selector">
-          <div class="role-option active" data-role="customer">Buyer</div>
-          <div class="role-option" data-role="seller">Seller</div>
+          <div class="role-option active" data-role="customer" role="radio" aria-checked="true" tabindex="0">Buyer</div>
+          <div class="role-option" data-role="seller" role="radio" aria-checked="false" tabindex="0">Seller</div>
         </div>
         <input type="hidden" name="role" id="role-input" value="customer">
       </div>
+
       <div class="form-group">
-        <label>Full Name</label>
-        <input type="text" name="name" required>
+        <label for="reg-name">Full Name</label>
+        <input id="reg-name" type="text" name="name" required autocomplete="name">
       </div>
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="email" required>
+        <label for="reg-email">Email</label>
+        <input id="reg-email" type="email" name="email" required autocomplete="email">
       </div>
       <div class="form-group">
-        <label>Phone Number</label>
-        <input type="tel" name="phone_number" required>
+        <label for="reg-phone">Phone Number</label>
+        <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel">
       </div>
       <div class="form-group">
-        <label>Password</label>
-        <input type="password" name="password" required minlength="6">
+        <label for="reg-password">Password</label>
+        <input id="reg-password" type="password" name="password" required minlength="6"
+               autocomplete="new-password">
       </div>
+
       <button type="submit" class="submit-btn">Create Account</button>
-      <div class="msg" id="register-msg"></div>
+      <div class="msg" id="register-msg" role="status" aria-live="polite"></div>
     </form>
   </main>
 
   <script>
-    // --- Tab Switching ---
+    'use strict';
+
     const tabLogin = document.getElementById("tab-login");
     const tabRegister = document.getElementById("tab-register");
     const formLogin = document.getElementById("login-form");
     const formRegister = document.getElementById("register-form");
 
     function showTab(tab) {
-      if (tab === 'login') {
-        tabLogin.classList.add("active");
-        tabRegister.classList.remove("active");
-        formLogin.classList.add("active");
-        formRegister.classList.remove("active");
-      } else {
-        tabRegister.classList.add("active");
-        tabLogin.classList.remove("active");
-        formRegister.classList.add("active");
-        formLogin.classList.remove("active");
-      }
+      const isLogin = tab === "login";
+      tabLogin.classList.toggle("active", isLogin);
+      tabRegister.classList.toggle("active", !isLogin);
+      tabLogin.setAttribute("aria-selected", String(isLogin));
+      tabRegister.setAttribute("aria-selected", String(!isLogin));
+      formLogin.classList.toggle("active", isLogin);
+      formRegister.classList.toggle("active", !isLogin);
     }
 
-    tabLogin.addEventListener("click", () => showTab('login'));
-    tabRegister.addEventListener("click", () => showTab('register'));
+    tabLogin.addEventListener("click", () => showTab("login"));
+    tabRegister.addEventListener("click", () => showTab("register"));
 
-    if (window.location.search.includes("mode=register")) {
-      showTab('register');
-    }
-
-    // --- Role Selector ---
-    const roleOptions = document.querySelectorAll(".role-option");
-    const roleInput = document.getElementById("role-input");
-
-    roleOptions.forEach(opt => {
-      opt.addEventListener("click", () => {
-        roleOptions.forEach(o => o.classList.remove("active"));
-        opt.classList.add("active");
-        roleInput.value = opt.dataset.role;
+    // Keyboard support for tabs
+    [tabLogin, tabRegister].forEach((el) => {
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          el.click();
+        }
       });
     });
 
-    // --- Login Submit ---
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
+    if (window.location.search.includes("mode=register")) showTab("register");
+
+    // --- role selector ---
+    const roleOptions = document.querySelectorAll(".role-option");
+    const roleInput = document.getElementById("role-input");
+
+    function selectRole(role) {
+      roleOptions.forEach((o) => {
+        const active = o.dataset.role === role;
+        o.classList.toggle("active", active);
+        o.setAttribute("aria-checked", String(active));
+      });
+      roleInput.value = role;
+    }
+
+    roleOptions.forEach((opt) => {
+      opt.addEventListener("click", () => selectRole(opt.dataset.role));
+      opt.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectRole(opt.dataset.role);
+        }
+      });
+    });
+
+    // --- helpers ---
+    function setMsg(el, text, colorVar) {
+      el.textContent = text;
+      el.style.color = colorVar || "inherit";
+    }
+
+    async function parseJsonSafe(res) {
+      try { return await res.json(); } catch { return {}; }
+    }
+
+    // --- login ---
+    formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = e.target;
       const msg = document.getElementById("login-msg");
-      msg.textContent = "Logging in...";
-      msg.style.color = "var(--wood-med)";
+      const btn = form.querySelector(".submit-btn");
 
-      const formData = new URLSearchParams();
-      formData.append("username", form.username.value);
-      formData.append("password", form.password.value);
+      if (!form.username.value.trim() || !form.password.value) {
+        setMsg(msg, "Enter your email and password.", "var(--red)");
+        return;
+      }
+
+      btn.disabled = true;
+      setMsg(msg, "Logging in...", "var(--wood-med)");
+
+      const body = new URLSearchParams();
+      body.append("username", form.username.value.trim());
+      body.append("password", form.password.value);
 
       try {
         const res = await fetch("/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: formData
+          body,
         });
+        const data = await parseJsonSafe(res);
 
-        const data = await res.json();
-
-        if (res.ok) {
+        if (res.ok && data.access_token) {
           localStorage.setItem("bw_token", data.access_token);
-          localStorage.setItem("bw_role", data.role);
-          localStorage.setItem("bw_name", data.name);
-          msg.textContent = "Login successful! Redirecting...";
-          msg.style.color = "var(--green)";
+          localStorage.setItem("bw_role", data.role || "");
+          localStorage.setItem("bw_name", data.name || "");
+          localStorage.setItem(
+            "bw_user_id",
+            data.user_id != null ? String(data.user_id) : ""
+          );
 
-          // --- FIX: Always redirect to the shop homepage ---
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 1000);
-
+          setMsg(msg, "Login successful! Redirecting...", "var(--green)");
+          setTimeout(() => { window.location.href = "/"; }, 700);
         } else {
-          msg.textContent = data.detail || "Login failed";
-          msg.style.color = "var(--red)";
+          setMsg(msg, data.detail || "Login failed", "var(--red)");
+          btn.disabled = false;
         }
-      } catch (err) {
-        msg.textContent = "Network error.";
-        msg.style.color = "var(--red)";
+      } catch {
+        setMsg(msg, "Network error. Please try again.", "var(--red)");
+        btn.disabled = false;
       }
     });
 
-    // --- Register Submit ---
-    document.getElementById("register-form").addEventListener("submit", async (e) => {
+    // --- register ---
+    formRegister.addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = e.target;
       const msg = document.getElementById("register-msg");
-      msg.textContent = "Creating account...";
-      msg.style.color = "var(--wood-med)";
+      const btn = form.querySelector(".submit-btn");
 
       const payload = {
-        name: form.name.value,
-        email: form.email.value,
-        phone_number: form.phone_number.value,
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        phone_number: form.phone_number.value.trim(),
         password: form.password.value,
-        role: roleInput.value
+        role: roleInput.value,
       };
+
+      // light client-side check (server still validates)
+      if (!payload.name || !payload.email || !payload.phone_number || payload.password.length < 6) {
+        setMsg(msg, "Please fill in all fields (password ≥ 6 chars).", "var(--red)");
+        return;
+      }
+
+      btn.disabled = true;
+      setMsg(msg, "Creating account...", "var(--wood-med)");
 
       try {
         const res = await fetch("/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
-
-        const data = await res.json();
+        const data = await parseJsonSafe(res);
 
         if (res.ok) {
-          msg.textContent = data.message;
-          msg.style.color = "var(--green)";
-
+          setMsg(msg, data.message || "Account created.", "var(--green)");
           if (payload.role === "customer") {
-            setTimeout(() => showTab('login'), 1500);
+            setTimeout(() => showTab("login"), 1500);
           }
           form.reset();
+          selectRole("customer");
+          btn.disabled = false;
         } else {
-          msg.textContent = data.detail || "Registration failed";
-          msg.style.color = "var(--red)";
+          setMsg(msg, data.detail || "Registration failed", "var(--red)");
+          btn.disabled = false;
         }
-      } catch (err) {
-        msg.textContent = "Network error.";
-        msg.style.color = "var(--red)";
+      } catch {
+        setMsg(msg, "Network error. Please try again.", "var(--red)");
+        btn.disabled = false;
       }
     });
   </script>

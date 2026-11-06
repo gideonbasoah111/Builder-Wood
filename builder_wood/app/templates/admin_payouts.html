@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#3e2723">
+  <meta name="color-scheme" content="light">
   <title>Order received — {{ shop_name | default("Builder Wood") }}</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,22 +13,201 @@
   <link rel="stylesheet" href="/static/styles.css">
 
   <style>
-    .confirm-page { padding: 56px 0 80px; }
-    .confirm-card { max-width: 720px; margin-inline: auto; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 40px 36px; text-align: center; }
+    :root {
+      --tap: 44px;
+      --safe-l: env(safe-area-inset-left, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    .confirm-page {
+      padding: 56px 0 80px;
+      padding-left: max(0px, var(--safe-l));
+      padding-right: max(0px, var(--safe-r));
+      padding-bottom: max(80px, calc(80px + var(--safe-b)));
+    }
+
+    .confirm-card {
+      max-width: 720px;
+      margin-inline: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 40px 36px;
+      text-align: center;
+      overflow-wrap: anywhere;              /* never push viewport wider */
+    }
+
     .confirm-mark { font-size: 52px; margin-bottom: 12px; }
-    .confirm-card h1 { font-family: "Fraunces", serif; font-size: 30px; letter-spacing: -.5px; margin: 0 0 8px; }
-    .confirm-card > p { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
-    .confirm-id { display: inline-block; font-size: 13px; font-weight: 700; color: var(--wood-med); background: var(--parchment-2); padding: 6px 14px; border-radius: 999px; margin-bottom: 28px; }
-    .confirm-table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; }
-    .confirm-table th, .confirm-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
-    .confirm-table th { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-    .confirm-table td { color: var(--ink); vertical-align: middle; }
-    .confirm-totals { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
-    .confirm-totals .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
-    .confirm-totals .row.total { font-size: 16px; font-weight: 800; color: var(--ink); padding-top: 10px; border-top: 1px solid var(--line); }
-    .confirm-totals .row.total b { font-family: "Fraunces", serif; font-size: 20px; color: var(--wood-med); }
-    .confirm-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
-    .confirm-status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; background: var(--parchment-2); color: var(--wood-med); margin-bottom: 6px; }
+
+    .confirm-card h1 {
+      font-family: "Fraunces", serif;
+      font-size: 30px;
+      letter-spacing: -.5px;
+      margin: 0 0 8px;
+    }
+    .confirm-card > p {
+      color: var(--muted);
+      margin: 0 0 24px;
+      font-size: 14px;
+    }
+
+    .confirm-id {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--wood-med);
+      background: var(--parchment-2);
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .confirm-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      background: var(--parchment-2);
+      color: var(--wood-med);
+      margin-bottom: 6px;
+    }
+    .confirm-status .paid   { background:#d4edda; color:#155724; }
+    .confirm-status .failed { background:#f8d7da; color:#721c24; }
+
+    /* ---------- items table ---------- */
+    .confirm-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      text-align: left;
+    }
+    .confirm-table th,
+    .confirm-table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+    }
+    .confirm-table th {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .confirm-table td { color: var(--ink); }
+    .confirm-table .item-name { font-weight: 600; }
+    .confirm-table .item-size { color: var(--muted); }
+    .confirm-table .item-qty  { text-align: center; }
+    .confirm-table .item-price{ text-align: right; font-weight: 600; }
+
+    /* ---------- totals ---------- */
+    .confirm-totals {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .confirm-totals .row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--ink-2);
+      gap: 12px;
+    }
+    .confirm-totals .row.total {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .confirm-totals .row.total b {
+      font-family: "Fraunces", serif;
+      font-size: 20px;
+      color: var(--wood-med);
+    }
+
+    /* ---------- actions ---------- */
+    .confirm-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 32px;
+      flex-wrap: wrap;
+    }
+    .confirm-actions .btn { min-height: var(--tap); }
+
+    /* ---------- tablet ---------- */
+    @media (max-width: 720px) {
+      .confirm-page { padding-top: 32px; }
+      .confirm-card { padding: 28px 22px; }
+      .confirm-card h1 { font-size: 26px; }
+    }
+
+    /* ---------- phone: stacked rows ---------- */
+    @media (max-width: 560px) {
+      .confirm-card { padding: 22px 16px; border-radius: 12px; }
+      .confirm-card h1 { font-size: 22px; }
+      .confirm-card > p { font-size: 13px; }
+
+      .confirm-actions { flex-direction: column; }
+      .confirm-actions .btn { width: 100%; }
+
+      /* hide table header; render each row as a card */
+      .confirm-table thead { display: none; }
+      .confirm-table,
+      .confirm-table tbody,
+      .confirm-table tr,
+      .confirm-table td { display: block; width: 100%; }
+
+      .confirm-table tr {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+      }
+      .confirm-table td {
+        border: none;
+        padding: 4px 0;
+        text-align: left !important;       /* override inline align */
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .confirm-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+      }
+    }
+
+    /* ---------- tiny phones ---------- */
+    @media (max-width: 380px) {
+      .confirm-card { padding: 18px 12px; }
+      .confirm-card h1 { font-size: 20px; }
+      .confirm-totals .row.total b { font-size: 18px; }
+    }
+
+    /* Only animate hover where hover truly exists */
+    @media (hover: hover) {
+      .btn:hover { filter: brightness(0.95); }
+    }
   </style>
 </head>
 <body>
@@ -38,7 +218,10 @@
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Order confirmation</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Continue shopping</a>
+      <a class="catnav-quote" href="/"
+         style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">
+        ← Continue shopping
+      </a>
     </div>
   </header>
 
@@ -53,7 +236,12 @@
 
         <table class="confirm-table" id="items-table">
           <thead>
-            <tr><th>Item</th><th>Size</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th></tr>
+            <tr>
+              <th>Item</th>
+              <th>Size</th>
+              <th style="text-align:center">Qty</th>
+              <th style="text-align:right">Price</th>
+            </tr>
           </thead>
           <tbody id="items-body"></tbody>
         </table>
@@ -67,93 +255,127 @@
         <div class="confirm-actions">
           <a class="btn btn-primary" href="/">Back to shop</a>
           <a class="btn btn-gold" href="#" id="whatsapp-link">Message the seller</a>
-          <button class="btn btn-outline" id="dispute-btn" style="display:none; border-color: var(--red); color: var(--red);" onclick="openDispute()">Report an Issue</button>
+          <button class="btn btn-outline" id="dispute-btn"
+                  style="display:none; border-color: var(--red); color: var(--red);"
+                  onclick="openDispute()">Report an Issue</button>
         </div>
       </div>
     </div>
   </main>
 
   <script>
+    'use strict';
+
     let currentOrderId = null;
 
-    (() => {
+    function escapeHtml(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    (function () {
       const $ = (s) => document.querySelector(s);
       const orderId = window.location.pathname.split("/").pop();
       currentOrderId = orderId;
-      const money = (v) => `GH₵${Number(v || 0).toFixed(2)}`;
+      const money = (v) => "GH₵" + Number(v || 0).toFixed(2);
 
       const token = localStorage.getItem("bw_token");
-      if (!token) { window.location.href = "/login"; }
+      if (!token) { window.location.href = "/login"; return; }
 
-      fetch(`/orders/${orderId}`, { headers: { "Authorization": `Bearer ${token}` } })
+      fetch("/orders/" + orderId, {
+        headers: { Authorization: "Bearer " + token }
+      })
         .then((r) => {
-            if (r.ok) return r.json();
-            if (r.status === 401) { window.location.href = "/login"; throw new Error("Not logged in"); }
-            throw new Error(`HTTP ${r.status}`);
+          if (r.ok) return r.json();
+          if (r.status === 401) {
+            window.location.href = "/login";
+            throw new Error("Not logged in");
+          }
+          throw new Error("HTTP " + r.status);
         })
         .then((order) => {
-          $("#order-id").textContent = `Order #${order.order_id}`;
+          $("#order-id").textContent = "Order #" + order.order_id;
 
           const urlParams = new URLSearchParams(window.location.search);
           const payStatus = urlParams.get("payment");
+          const statusEl = $("#status");
 
           if (payStatus === "success") {
-              $("#status").innerHTML = '<span style="background:#d4edda; color:#155724; padding:4px 8px; border-radius:4px; font-weight:700;">✓ Paid Successfully</span>';
+            statusEl.innerHTML = '<span class="paid">✓ Paid Successfully</span>';
           } else if (payStatus === "failed") {
-              $("#status").innerHTML = '<span style="background:#f8d7da; color:#721c24; padding:4px 8px; border-radius:4px; font-weight:700;">✗ Payment Failed</span>';
+            statusEl.innerHTML = '<span class="failed">✗ Payment Failed</span>';
           } else {
-              $("#status").textContent = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+            const s = String(order.status || "");
+            statusEl.textContent = s.charAt(0).toUpperCase() + s.slice(1);
           }
 
-          // Show dispute button if delivered
           if (order.status === "delivered" || order.status === "shipped") {
-              $("#dispute-btn").style.display = "inline-block";
+            $("#dispute-btn").style.display = "inline-block";
           }
 
           $("#subtotal").textContent = money(order.subtotal);
           $("#delivery").textContent = money(order.delivery_fee);
-          $("#total").textContent = money(order.total_price);
+          $("#total").textContent    = money(order.total_price);
 
           $("#items-body").innerHTML = (order.items || []).map((i) => {
             const sizeText = (i.size_snap && i.size_snap !== "None") ? i.size_snap : "—";
-            return `<tr>
-                <td style="font-weight:600;">${i.wood_name_snap || "Timber"}</td>
-                <td style="color:var(--muted);">${sizeText}</td>
-                <td style="text-align:center;">${i.quantity}</td>
-                <td style="text-align:right; font-weight:600;">${money(i.price_at_purchase * i.quantity)}</td>
-              </tr>`;
+            const name = escapeHtml(i.wood_name_snap || "Timber");
+            const size = escapeHtml(sizeText);
+            const qty  = Number(i.quantity) || 0;
+            const price = money((Number(i.price_at_purchase) || 0) * qty);
+            return (
+              "<tr>" +
+                '<td class="item-name" data-label="Item">'  + name  + "</td>" +
+                '<td class="item-size" data-label="Size">'  + size  + "</td>" +
+                '<td class="item-qty"  data-label="Qty">'   + qty   + "</td>" +
+                '<td class="item-price" data-label="Price">'+ price + "</td>" +
+              "</tr>"
+            );
           }).join("");
 
-          const text = `Hello, about order #${order.order_id} (${money(order.total_price)}) — my delivery address is ${order.delivery_address}.`;
-          $("#whatsapp-link").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+          const text =
+            "Hello, about order #" + order.order_id +
+            " (" + money(order.total_price) + ") — my delivery address is " +
+            (order.delivery_address || "") + ".";
+          $("#whatsapp-link").href = "https://wa.me/?text=" + encodeURIComponent(text);
         })
-        .catch((err) => {
+        .catch(() => {
           $("#order-id").textContent = "Order not found";
           $("#items-table").hidden = true;
           $("#totals").hidden = true;
         });
     })();
 
-    async function openDispute() {
-        const token = localStorage.getItem("bw_token");
-        const reason = prompt("Please describe the issue (damaged, missing, wrong size):");
-        if (!reason) return;
+    window.openDispute = async function () {
+      const token = localStorage.getItem("bw_token");
+      const reason = prompt("Please describe the issue (damaged, missing, wrong size):");
+      if (!reason) return;
 
-        try {
-            const res = await fetch(`/orders/${currentOrderId}/dispute`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ reason: reason })
-            });
-            if (res.ok) {
-                alert("Dispute opened. Our team will review it shortly.");
-                window.location.reload();
-            } else {
-                const err = await res.json();
-                alert(err.detail || "Could not open dispute");
-            }
-        } catch (err) { alert("Network error"); }
-    }
+      try {
+        const res = await fetch("/orders/" + currentOrderId + "/dispute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ reason }),
+        });
+        if (res.ok) {
+          alert("Dispute opened. Our team will review it shortly.");
+          window.location.reload();
+        } else {
+          let detail = "Could not open dispute";
+          try {
+            const err = await res.json();
+            if (err && typeof err.detail === "string") detail = err.detail;
+          } catch (_) { /* ignore */ }
+          alert(detail);
+        }
+      } catch (_) {
+        alert("Network error");
+      }
+    };
   </script>
 </body>
 </html>

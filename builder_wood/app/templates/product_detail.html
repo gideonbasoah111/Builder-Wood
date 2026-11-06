@@ -1,18 +1,16 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#3e2723">
+  <meta name="color-scheme" content="light">
   <meta name="description" content="Explore timber products, compare specifications, check availability and contact sellers on Builder Wood.">
-
   <title>Product Details — Builder Wood</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="/static/styles.css">
 
   <style>
@@ -29,20 +27,19 @@
       --detail-shadow: 0 12px 35px rgba(62, 39, 35, .07);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
+    html, body { overflow-x: hidden; }
 
     body {
       margin: 0;
       background: var(--detail-bg);
       color: var(--detail-dark);
       font-family: "Inter", sans-serif;
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
     }
 
-    button, input, a {
-      font: inherit;
-    }
+    button, input, a { font: inherit; }
 
     button:focus-visible,
     a:focus-visible,
@@ -51,41 +48,22 @@
       outline-offset: 3px;
     }
 
-    .detail-page {
-      padding: 28px 0 76px;
-      min-height: 70vh;
-    }
-
+    .detail-page { padding: 28px 0 76px; min-height: 70vh; }
     .detail-page .container {
       width: min(1180px, calc(100% - 36px));
       margin-inline: auto;
     }
 
     .detail-breadcrumb {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 9px;
-      margin: 0 0 26px;
-      color: var(--detail-muted);
-      font-size: 13px;
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 9px; margin: 0 0 26px;
+      color: var(--detail-muted); font-size: 13px;
     }
-
-    .detail-breadcrumb a,
-    .back-link {
-      color: var(--detail-wood);
-      text-decoration: none;
-      font-weight: 600;
+    .detail-breadcrumb a, .back-link {
+      color: var(--detail-wood); text-decoration: none; font-weight: 600;
     }
-
-    .detail-breadcrumb a:hover,
-    .back-link:hover {
-      color: var(--detail-gold);
-    }
-
-    .breadcrumb-current {
-      overflow-wrap: anywhere;
-    }
+    .detail-breadcrumb a:hover, .back-link:hover { color: var(--detail-gold); }
+    .breadcrumb-current { overflow-wrap: anywhere; }
 
     .detail-grid {
       display: grid;
@@ -94,572 +72,255 @@
       gap: clamp(28px, 5vw, 64px);
     }
 
-    /* Product gallery */
-
-    .detail-gallery {
-      min-width: 0;
-    }
+    .detail-gallery { min-width: 0; }
 
     .main-image {
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
       aspect-ratio: 4 / 3;
       border: 1px solid var(--detail-border);
       border-radius: var(--detail-radius);
       background: #f0e9df;
       box-shadow: var(--detail-shadow);
     }
-
     .main-image img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform .35s ease;
+      display: block; width: 100%; height: 100%;
+      object-fit: cover; transition: transform .35s ease;
     }
-
-    @media (hover: hover) {
-      .main-image:hover img {
-        transform: scale(1.035);
-      }
-    }
+    @media (hover: hover) { .main-image:hover img { transform: scale(1.035); } }
 
     .gallery-count {
-      position: absolute;
-      right: 14px;
-      bottom: 14px;
-      z-index: 1;
-      padding: 7px 11px;
-      border-radius: 30px;
-      background: rgba(35, 24, 20, .78);
-      color: white;
-      font-size: 12px;
+      position: absolute; right: 14px; bottom: 14px; z-index: 1;
+      padding: 7px 11px; border-radius: 30px;
+      background: rgba(35, 24, 20, .78); color: #fff; font-size: 12px;
     }
 
     .thumbnail-row {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
+      display: flex; gap: 10px; overflow-x: auto;
       padding: 15px 2px 5px;
     }
-
     .thumbnail {
-      flex: 0 0 78px;
-      width: 78px;
-      height: 70px;
-      padding: 0;
-      overflow: hidden;
-      border: 2px solid transparent;
-      border-radius: 9px;
-      background: #eee5da;
-      cursor: pointer;
-      opacity: .75;
+      flex: 0 0 78px; width: 78px; height: 70px;
+      padding: 0; overflow: hidden;
+      border: 2px solid transparent; border-radius: 9px;
+      background: #eee5da; cursor: pointer; opacity: .75;
       transition: border-color .2s, opacity .2s;
     }
-
-    .thumbnail img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .thumbnail:hover, .thumbnail.active {
+      border-color: var(--detail-wood); opacity: 1;
     }
 
-    .thumbnail:hover,
-    .thumbnail.active {
-      border-color: var(--detail-wood);
-      opacity: 1;
-    }
-
-    .gallery-note {
-      margin-top: 12px;
-      color: var(--detail-muted);
-      font-size: 12px;
-    }
+    .gallery-note { margin-top: 12px; color: var(--detail-muted); font-size: 12px; }
 
     .product-trust {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 24px;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px; margin-top: 24px;
     }
-
     .trust-item {
-      padding: 14px 10px;
-      border: 1px solid var(--detail-border);
-      border-radius: 10px;
-      background: white;
-      text-align: center;
+      padding: 14px 10px; border: 1px solid var(--detail-border);
+      border-radius: 10px; background: #fff; text-align: center;
     }
-
-    .trust-icon {
-      display: block;
-      margin-bottom: 7px;
-      font-size: 21px;
-    }
-
-    .trust-title {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
+    .trust-icon { display: block; margin-bottom: 7px; font-size: 21px; }
+    .trust-title { display: block; font-size: 12px; font-weight: 700; }
     .trust-text {
-      display: block;
-      margin-top: 4px;
-      color: var(--detail-muted);
-      font-size: 10px;
-      line-height: 1.5;
+      display: block; margin-top: 4px;
+      color: var(--detail-muted); font-size: 10px; line-height: 1.5;
     }
 
-    /* Product information */
-
-    .detail-info {
-      min-width: 0;
-      padding-top: 5px;
-    }
+    .detail-info { min-width: 0; padding-top: 5px; }
 
     .detail-category {
-      display: inline-block;
-      margin-bottom: 13px;
-      color: var(--detail-wood);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
+      display: inline-block; margin-bottom: 13px;
+      color: var(--detail-wood); font-size: 11px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
     }
-
     .detail-title {
       margin: 0;
       font-family: "Fraunces", serif;
       font-size: clamp(30px, 3.4vw, 43px);
-      font-weight: 600;
-      line-height: 1.14;
-      letter-spacing: -.7px;
-      overflow-wrap: anywhere;
+      font-weight: 600; line-height: 1.14;
+      letter-spacing: -.7px; overflow-wrap: anywhere;
     }
-
     .seller-line {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 7px;
-      margin-top: 16px;
-      color: var(--detail-muted);
-      font-size: 13px;
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 7px; margin-top: 16px;
+      color: var(--detail-muted); font-size: 13px;
     }
-
-    .seller-line strong {
-      color: var(--detail-dark);
-    }
-
+    .seller-line strong { color: var(--detail-dark); }
     .seller-avatar {
-      display: grid;
-      width: 32px;
-      height: 32px;
-      place-items: center;
-      flex-shrink: 0;
-      border-radius: 50%;
-      background: #e9ded0;
-      font-size: 15px;
+      display: grid; width: 32px; height: 32px; place-items: center;
+      flex-shrink: 0; border-radius: 50%;
+      background: #e9ded0; font-size: 15px;
     }
 
     .detail-divider {
-      height: 1px;
-      margin: 22px 0;
-      border: 0;
-      background: var(--detail-border);
+      height: 1px; margin: 22px 0; border: 0; background: var(--detail-border);
     }
 
-    .price-label {
-      margin-bottom: 7px;
-      color: var(--detail-muted);
-      font-size: 12px;
-    }
-
-    .price-row {
-      display: flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 9px;
-    }
-
+    .price-label { margin-bottom: 7px; color: var(--detail-muted); font-size: 12px; }
+    .price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; }
     .detail-price {
       color: var(--detail-dark);
       font-family: "Fraunces", serif;
       font-size: clamp(29px, 3vw, 38px);
-      font-weight: 700;
-      line-height: 1.15;
-      overflow-wrap: anywhere;
+      font-weight: 700; line-height: 1.15; overflow-wrap: anywhere;
     }
-
-    .price-unit {
-      color: var(--detail-muted);
-      font-size: 13px;
-    }
+    .price-unit { color: var(--detail-muted); font-size: 13px; }
 
     .stock-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      margin-top: 13px;
-      font-size: 12px;
-      font-weight: 600;
+      display: inline-flex; align-items: center; gap: 7px;
+      margin-top: 13px; font-size: 12px; font-weight: 600;
     }
+    .stock-dot { width: 8px; height: 8px; border-radius: 50%; background: #368052; }
+    .stock-status.out-of-stock { color: var(--detail-danger); }
+    .stock-status.out-of-stock .stock-dot { background: var(--detail-danger); }
+    .stock-status.low-stock { color: #9a6516; }
+    .stock-status.low-stock .stock-dot { background: #d59a2a; }
 
-    .stock-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #368052;
-    }
-
-    .stock-status.out-of-stock {
-      color: var(--detail-danger);
-    }
-
-    .stock-status.out-of-stock .stock-dot {
-      background: var(--detail-danger);
-    }
-
-    .stock-status.low-stock {
-      color: #9a6516;
-    }
-
-    .stock-status.low-stock .stock-dot {
-      background: #d59a2a;
-    }
-
-    .spec-section {
-      margin-top: 25px;
-    }
-
+    .spec-section { margin-top: 25px; }
     .section-heading {
       margin: 0 0 13px;
       font-family: "Fraunces", serif;
-      font-size: 19px;
-      font-weight: 600;
+      font-size: 19px; font-weight: 600;
     }
-
     .spec-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
     }
-
     .spec-item {
-      padding: 13px;
-      border: 1px solid var(--detail-border);
-      border-radius: 10px;
-      background: white;
+      padding: 13px; border: 1px solid var(--detail-border);
+      border-radius: 10px; background: #fff;
     }
-
-    .spec-label {
-      display: block;
-      margin-bottom: 6px;
-      color: var(--detail-muted);
-      font-size: 11px;
-    }
-
-    .spec-value {
-      display: block;
-      font-size: 13px;
-      font-weight: 700;
-      overflow-wrap: anywhere;
-    }
+    .spec-label { display: block; margin-bottom: 6px; color: var(--detail-muted); font-size: 11px; }
+    .spec-value { display: block; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
 
     .detail-desc {
-      margin: 23px 0 0;
-      color: #645951;
-      font-size: 13px;
-      line-height: 1.85;
-      overflow-wrap: anywhere;
+      margin: 23px 0 0; color: #645951;
+      font-size: 13px; line-height: 1.85; overflow-wrap: anywhere;
     }
-
-    .description-heading {
-      margin-bottom: 8px;
-    }
-
-    /* Quantity and shopping actions */
+    .description-heading { margin-bottom: 8px; }
 
     .purchase-box {
-      margin-top: 26px;
-      padding: 19px;
+      margin-top: 26px; padding: 19px;
       border: 1px solid var(--detail-border);
-      border-radius: var(--detail-radius);
-      background: white;
+      border-radius: var(--detail-radius); background: #fff;
     }
-
-    .purchase-label {
-      display: block;
-      margin-bottom: 10px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .purchase-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .purchase-label { display: block; margin-bottom: 10px; font-size: 12px; font-weight: 700; }
+    .purchase-controls { display: flex; align-items: center; gap: 12px; }
 
     .quantity-control {
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-      height: 48px;
-      border: 1px solid var(--detail-border);
-      border-radius: 8px;
-      overflow: hidden;
+      display: flex; align-items: center; flex-shrink: 0;
+      height: 48px; border: 1px solid var(--detail-border);
+      border-radius: 8px; overflow: hidden;
     }
-
     .quantity-btn {
-      width: 35px;
-      height: 100%;
-      border: 0;
-      background: #faf7f2;
-      color: var(--detail-dark);
-      cursor: pointer;
-      font-size: 19px;
+      width: 35px; height: 100%;
+      border: 0; background: #faf7f2; color: var(--detail-dark);
+      cursor: pointer; font-size: 19px;
     }
-
-    .quantity-btn:hover:not(:disabled) {
-      background: #eee3d5;
-    }
-
-    .quantity-btn:disabled {
-      cursor: not-allowed;
-      opacity: .4;
-    }
-
+    .quantity-btn:hover:not(:disabled) { background: #eee3d5; }
+    .quantity-btn:disabled { cursor: not-allowed; opacity: .4; }
     .quantity-input {
-      width: 39px;
-      height: 100%;
-      padding: 0;
-      border: 0;
-      outline: none;
-      background: white;
-      color: var(--detail-dark);
-      text-align: center;
-      font-size: 14px;
-      font-weight: 700;
-      appearance: textfield;
+      width: 39px; height: 100%; padding: 0;
+      border: 0; outline: none; background: #fff;
+      color: var(--detail-dark); text-align: center;
+      font-size: 14px; font-weight: 700; appearance: textfield;
     }
-
     .quantity-input::-webkit-inner-spin-button,
-    .quantity-input::-webkit-outer-spin-button {
-      margin: 0;
-      appearance: none;
-    }
+    .quantity-input::-webkit-outer-spin-button { margin: 0; appearance: none; }
 
     .btn-add {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      flex: 1;
-      min-width: 0;
-      min-height: 48px;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 9px; flex: 1; min-width: 0; min-height: 48px;
       padding: 12px 16px;
-      border: 1px solid var(--detail-wood);
-      border-radius: 8px;
-      background: var(--detail-wood);
-      color: white;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 700;
+      border: 1px solid var(--detail-wood); border-radius: 8px;
+      background: var(--detail-wood); color: #fff;
+      cursor: pointer; font-size: 13px; font-weight: 700;
       transition: background .2s, transform .2s;
     }
-
     .btn-add:hover:not(:disabled) {
-      transform: translateY(-1px);
-      background: var(--detail-dark);
+      transform: translateY(-1px); background: var(--detail-dark);
     }
-
     .btn-add:disabled {
-      border-color: #c9c4bf;
-      background: #c9c4bf;
-      cursor: not-allowed;
+      border-color: #c9c4bf; background: #c9c4bf; cursor: not-allowed;
     }
-
-    .cart-icon {
-      font-size: 17px;
-    }
+    .cart-icon { font-size: 17px; }
 
     .order-total {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-top: 17px;
-      padding-top: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-top: 17px; padding-top: 14px;
       border-top: 1px solid var(--detail-border);
-      color: var(--detail-muted);
-      font-size: 12px;
+      color: var(--detail-muted); font-size: 12px;
     }
-
-    .order-total strong {
-      color: var(--detail-dark);
-      font-size: 17px;
-    }
+    .order-total strong { color: var(--detail-dark); font-size: 17px; }
 
     .purchase-hint {
-      margin: 11px 0 0;
-      color: var(--detail-muted);
-      font-size: 11px;
-      line-height: 1.6;
+      margin: 11px 0 0; color: var(--detail-muted);
+      font-size: 11px; line-height: 1.6;
     }
 
     .btn-wa {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      width: 100%;
-      min-height: 47px;
-      margin-top: 12px;
-      padding: 12px 16px;
-      border: 1px solid #d4e4d5;
-      border-radius: 8px;
-      background: #eff6ef;
-      color: #315b38;
-      text-align: center;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      gap: 9px; width: 100%; min-height: 47px;
+      margin-top: 12px; padding: 12px 16px;
+      border: 1px solid #d4e4d5; border-radius: 8px;
+      background: #eff6ef; color: #315b38;
+      text-align: center; text-decoration: none;
+      font-size: 13px; font-weight: 700;
       transition: background .2s;
     }
-
-    .btn-wa:hover {
-      background: #e0eee0;
-    }
-
-    .btn-wa.disabled {
-      opacity: .5;
-      pointer-events: none;
-    }
+    .btn-wa:hover { background: #e0eee0; }
+    .btn-wa.disabled { opacity: .5; pointer-events: none; }
 
     .detail-message {
       padding: 45px 20px;
       border: 1px solid var(--detail-border);
       border-radius: var(--detail-radius);
-      background: white;
-      text-align: center;
+      background: #fff; text-align: center;
     }
-
-    .message-icon {
-      margin-bottom: 12px;
-      font-size: 35px;
-    }
-
-    .detail-message h2 {
-      margin: 0 0 10px;
-      font-family: "Fraunces", serif;
-    }
-
-    .detail-message p {
-      color: var(--detail-muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
+    .message-icon { margin-bottom: 12px; font-size: 35px; }
+    .detail-message h2 { margin: 0 0 10px; font-family: "Fraunces", serif; }
+    .detail-message p { color: var(--detail-muted); font-size: 13px; line-height: 1.7; }
     .message-retry {
-      margin-top: 12px;
-      padding: 11px 19px;
-      border: 0;
-      border-radius: 7px;
-      background: var(--detail-wood);
-      color: white;
-      cursor: pointer;
-      font-weight: 600;
+      margin-top: 12px; padding: 11px 19px;
+      border: 0; border-radius: 7px;
+      background: var(--detail-wood); color: #fff;
+      cursor: pointer; font-weight: 600;
     }
 
     .toast-message {
-      position: fixed;
-      right: 20px;
-      bottom: 20px;
-      z-index: 1000;
+      position: fixed; right: 20px; bottom: 20px; z-index: 1000;
       width: min(360px, calc(100% - 40px));
       padding: 15px 18px;
       border: 1px solid var(--detail-border);
-      border-radius: 10px;
-      background: white;
+      border-radius: 10px; background: #fff;
       box-shadow: 0 8px 30px rgba(0, 0, 0, .13);
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 13px; line-height: 1.6;
     }
-
-    .toast-message.success {
-      border-left: 4px solid var(--detail-green);
-    }
-
-    .toast-message.error {
-      border-left: 4px solid var(--detail-danger);
-    }
+    .toast-message.success { border-left: 4px solid var(--detail-green); }
+    .toast-message.error { border-left: 4px solid var(--detail-danger); }
 
     .detail-footer-note {
-      margin-top: 30px;
-      color: var(--detail-muted);
-      text-align: center;
-      font-size: 11px;
-      line-height: 1.7;
+      margin-top: 30px; color: var(--detail-muted);
+      text-align: center; font-size: 11px; line-height: 1.7;
     }
 
     @media (max-width: 800px) {
-      .detail-page {
-        padding-top: 20px;
-      }
-
-      .detail-grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 28px;
-      }
-
-      .detail-title {
-        font-size: 33px;
-      }
-
-      .product-trust {
-        margin-top: 17px;
-      }
-
-      .detail-info {
-        padding-top: 0;
-      }
+      .detail-page { padding-top: 20px; }
+      .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+      .detail-title { font-size: 33px; }
+      .product-trust { margin-top: 17px; }
+      .detail-info { padding-top: 0; }
     }
 
     @media (max-width: 420px) {
-      .detail-page .container {
-        width: calc(100% - 24px);
-      }
-
-      .detail-title {
-        font-size: 29px;
-      }
-
-      .purchase-box {
-        padding: 14px;
-      }
-
-      .purchase-controls {
-        gap: 8px;
-      }
-
-      .quantity-btn {
-        width: 29px;
-      }
-
-      .quantity-input {
-        width: 32px;
-      }
-
-      .btn-add {
-        padding-inline: 9px;
-        font-size: 12px;
-      }
-
-      .trust-item {
-        padding: 12px 5px;
-      }
+      .detail-page .container { width: calc(100% - 24px); }
+      .detail-title { font-size: 29px; }
+      .purchase-box { padding: 14px; }
+      .purchase-controls { gap: 8px; }
+      .quantity-btn { width: 29px; }
+      .quantity-input { width: 32px; }
+      .btn-add { padding-inline: 9px; font-size: 12px; }
+      .trust-item { padding: 12px 5px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -678,9 +339,7 @@
         <span class="brand-mark" aria-hidden="true">🪵</span>
         <span class="brand-text">Builder<em>Wood</em></span>
       </a>
-
-      <a class="catnav-quote"
-         href="/"
+      <a class="catnav-quote" href="/"
          style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;text-decoration:none;">
         ← Back to shop
       </a>
@@ -730,68 +389,75 @@
       let isAddingToCart = false;
       let toastTimer = null;
 
-      // Escape database values before placing them in HTML.
+      // ---------- helpers ----------
       function escapeHTML(value) {
         return String(value ?? "").replace(/[&<>"']/g, char => ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;"
+          "&": "&amp;", "<": "&lt;", ">": "&gt;",
+          '"': "&quot;", "'": "&#39;"
         })[char]);
       }
 
-      // Only permit HTTP(S) URLs for product images.
       function safeImageURL(value) {
         if (!value) return placeholderImage;
-
         try {
           const url = new URL(value, window.location.origin);
-
-          if (!["http:", "https:"].includes(url.protocol)) {
-            return placeholderImage;
-          }
-
+          if (!["http:", "https:"].includes(url.protocol)) return placeholderImage;
           return url.href;
-        } catch {
-          return placeholderImage;
-        }
+        } catch { return placeholderImage; }
       }
 
       function money(value, currency = "GH₵") {
         const amount = Number(value);
         const symbol = String(currency || "GH₵").slice(0, 12);
-
         if (!Number.isFinite(amount)) return "Price unavailable";
-
         try {
           return `${symbol}${amount.toLocaleString("en-GH", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 2, maximumFractionDigits: 2
           })}`;
         } catch {
           return `${symbol}${amount.toFixed(2)}`;
         }
       }
 
+      function displayName(product) {
+        if (product.display_name) return product.display_name;
+        const parts = [product.local_name, product.trade_name]
+          .filter(p => p && String(p).trim());
+        return parts.length ? parts.join(" / ") : "Timber product";
+      }
+
+      function sizeLabel(product) {
+        if (product.size_label) return product.size_label;
+        const parts = [];
+        if (product.thickness_in) parts.push(`${product.thickness_in}″`);
+        if (product.width_in)     parts.push(`${product.width_in}″`);
+        if (product.length_ft)    parts.push(`${product.length_ft}ft`);
+        return parts.length ? parts.join(" × ") : "Not specified";
+      }
+
+      function isMyProduct(product) {
+        const loggedInUserId = localStorage.getItem("bw_user_id");
+        return Boolean(
+          product.seller_id &&
+          loggedInUserId &&
+          String(product.seller_id) === String(loggedInUserId)
+        );
+      }
+
       function showToast(message, type = "success") {
         document.getElementById("bw-toast")?.remove();
         clearTimeout(toastTimer);
-
         const toast = document.createElement("div");
         toast.id = "bw-toast";
         toast.className = `toast-message ${type}`;
         toast.setAttribute("role", "status");
         toast.textContent = message;
-
         document.body.appendChild(toast);
-
         toastTimer = setTimeout(() => toast.remove(), 4000);
       }
 
       function showError(title, message, retry = false) {
         container.setAttribute("aria-busy", "false");
-
         container.innerHTML = `
           <div class="detail-message">
             <div class="message-icon" aria-hidden="true">🪵</div>
@@ -802,46 +468,29 @@
               : '<a class="back-link" href="/">← Return to shop</a>'}
           </div>
         `;
-
-        document.getElementById("retry-product")?.addEventListener(
-          "click",
-          loadProduct
-        );
+        document.getElementById("retry-product")?.addEventListener("click", loadProduct);
       }
 
       function normalizeGhanaPhone(value) {
         let phone = String(value || "").replace(/\D/g, "");
-
-        if (phone.startsWith("00")) {
-          phone = phone.slice(2);
-        }
-
-        if (phone.startsWith("233")) {
-          phone = phone.slice(3);
-        } else if (phone.startsWith("0")) {
-          phone = phone.slice(1);
-        }
-
-        // Ghanaian mobile and landline numbers normally have 9
-        // national significant digits.
+        if (phone.startsWith("00")) phone = phone.slice(2);
+        if (phone.startsWith("233")) phone = phone.slice(3);
+        else if (phone.startsWith("0")) phone = phone.slice(1);
         if (!/^\d{9}$/.test(phone)) return "";
-
         return "233" + phone;
       }
 
       function makeWhatsAppURL(product, sellerName, phoneValue) {
         const phone = normalizeGhanaPhone(phoneValue);
-
         if (!phone) return "";
-
         const message =
           `Hello ${sellerName}, I am interested in buying ` +
-          `${product.display_name || "this timber product"} on Builder Wood. ` +
+          `${displayName(product)} on Builder Wood. ` +
           `Could you confirm its availability, dimensions and delivery options?`;
-
         return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       }
 
+      // ---------- gallery ----------
       function renderGallery(product) {
         const images = Array.isArray(product.images)
           ? product.images
@@ -851,49 +500,33 @@
                 if (Boolean(a.is_primary) !== Boolean(b.is_primary)) {
                   return a.is_primary ? -1 : 1;
                 }
-
-                return (Number(a.display_order) || 0) -
-                       (Number(b.display_order) || 0);
+                return (Number(a.display_order) || 0) - (Number(b.display_order) || 0);
               })
           : [];
 
-        const urls = [...new Set(images.map(img =>
-          safeImageURL(img.image_url)
-        ))];
-
+        const urls = [...new Set(images.map(img => safeImageURL(img.image_url)))];
         if (!urls.length) urls.push(placeholderImage);
-
         const initialImage = urls[0];
 
         return `
           <div class="detail-gallery">
             <div class="main-image">
-              <img
-                id="main-product-img"
-                src="${escapeHTML(initialImage)}"
-                alt="${escapeHTML(product.display_name || "Timber product")}"
-                fetchpriority="high"
-              >
-              <span class="gallery-count" id="gallery-count">
-                1 / ${urls.length}
-              </span>
+              <img id="main-product-img"
+                   src="${escapeHTML(initialImage)}"
+                   alt="${escapeHTML(displayName(product))}"
+                   fetchpriority="high">
+              <span class="gallery-count" id="gallery-count">1 / ${urls.length}</span>
             </div>
 
             ${urls.length > 1 ? `
               <div class="thumbnail-row" aria-label="Product images">
                 ${urls.map((url, index) => `
-                  <button
-                    type="button"
-                    class="thumbnail ${index === 0 ? "active" : ""}"
-                    data-image-index="${index}"
-                    aria-label="View product image ${index + 1}"
-                    aria-pressed="${index === 0}"
-                  >
-                    <img
-                      src="${escapeHTML(url)}"
-                      alt=""
-                      loading="lazy"
-                    >
+                  <button type="button"
+                          class="thumbnail ${index === 0 ? "active" : ""}"
+                          data-image-index="${index}"
+                          aria-label="View product image ${index + 1}"
+                          aria-pressed="${index === 0}">
+                    <img src="${escapeHTML(url)}" alt="" loading="lazy">
                   </button>
                 `).join("")}
               </div>
@@ -905,6 +538,101 @@
         `;
       }
 
+      function bindGalleryEvents() {
+        const mainImage = document.getElementById("main-product-img");
+        const counter = document.getElementById("gallery-count");
+        const thumbnails = [...document.querySelectorAll(".thumbnail")];
+
+        if (!mainImage) return;
+
+        mainImage.addEventListener("error", () => {
+          if (mainImage.src !== placeholderImage) mainImage.src = placeholderImage;
+        });
+
+        function setActive(button) {
+          thumbnails.forEach(t => {
+            const active = t === button;
+            t.classList.toggle("active", active);
+            t.setAttribute("aria-pressed", String(active));
+          });
+        }
+
+        function updateCounter(activeButton) {
+          if (!counter) return;
+          const visible = thumbnails.filter(t => !t.hidden);
+          const pos = visible.indexOf(activeButton);
+          counter.textContent = visible.length
+            ? `${pos >= 0 ? pos + 1 : 1} / ${visible.length}`
+            : "1 / 1";
+        }
+
+        thumbnails.forEach(button => {
+          const image = button.querySelector("img");
+
+          image?.addEventListener("error", () => {
+            const wasActive = button.classList.contains("active");
+            button.hidden = true;
+
+            // If the failed thumbnail was the active one, promote the
+            // first still-visible thumbnail so the main image matches
+            // the active state in the row.
+            const fallback =
+              thumbnails.find(t => !t.hidden && t.classList.contains("active")) ||
+              thumbnails.find(t => !t.hidden) ||
+              null;
+
+            if (wasActive && fallback) {
+              setActive(fallback);
+              const fallbackImg = fallback.querySelector("img");
+              if (fallbackImg) mainImage.src = fallbackImg.src;
+            }
+
+            updateCounter(fallback);
+          });
+
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.imageIndex);
+            if (!Number.isInteger(index)) return;
+            if (image?.src) mainImage.src = image.src;
+            setActive(button);
+            updateCounter(button);
+          });
+        });
+
+        updateCounter(thumbnails[0]);
+      }
+
+      // ---------- single source of truth for the add button ----------
+      function syncAddButton() {
+        const button = document.getElementById("add-to-cart-btn");
+        const minus = document.getElementById("quantity-minus");
+        const plus  = document.getElementById("quantity-plus");
+        const input = document.getElementById("product-quantity");
+        if (!button || !currentProduct) return;
+
+        const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
+        const price = Number(currentProduct.price_per_piece);
+        const validPrice = Number.isFinite(price) && price >= 0;
+        const mine = isMyProduct(currentProduct);
+        const out = stock < 1;
+
+        button.disabled = out || mine || !validPrice;
+        button.innerHTML = `
+          <span class="cart-icon" aria-hidden="true">🛒</span>
+          <span>${
+            mine ? "Your product"
+                 : out ? "Out of stock"
+                 : !validPrice ? "Price unavailable"
+                 : "Add to Cart"
+          }</span>
+        `;
+
+        if (minus) minus.disabled = out || mine || currentQuantity <= 1;
+        if (plus)  plus.disabled  = out || mine || currentQuantity >= stock;
+        if (input) input.disabled = out || mine;
+      }
+
+      // ---------- product render ----------
       function renderProduct(product) {
         currentProduct = product;
 
@@ -915,55 +643,30 @@
         const stock = Math.max(0, Number(product.stock_quantity) || 0);
         const currency = product.currency || "GH₵";
 
-        const loggedInUserId = localStorage.getItem("bw_user_id");
-
-        const isMyProduct = Boolean(
-          product.seller_id &&
-          loggedInUserId &&
-          String(product.seller_id) === String(loggedInUserId)
-        );
-
+        const mine = isMyProduct(product);
         const isOutOfStock = stock < 1;
         const isLowStock = stock > 0 && stock <= 5;
-
-        const stockClass = isOutOfStock
-          ? "out-of-stock"
-          : isLowStock
-            ? "low-stock"
-            : "";
-
+        const stockClass = isOutOfStock ? "out-of-stock" : isLowStock ? "low-stock" : "";
         const stockText = isOutOfStock
           ? "Currently out of stock"
           : isLowStock
             ? `Only ${stock} piece${stock === 1 ? "" : "s"} available`
             : `${stock.toLocaleString("en-GH")} pieces available`;
 
-        const phone = seller.phone_number || "";
-        const whatsappURL = makeWhatsAppURL(product, sellerName, phone);
-
-        const description =
-          product.description || "No description provided for this timber.";
-
+        const whatsappURL = makeWhatsAppURL(product, sellerName, seller.phone_number || "");
+        const description = product.description || "No description provided for this timber.";
         const validPrice = Number.isFinite(price) && price >= 0;
 
-        breadcrumb.textContent = product.display_name || "Product details";
-
+        breadcrumb.textContent = displayName(product);
         container.setAttribute("aria-busy", "false");
 
         container.innerHTML = `
           <div class="detail-grid">
-
             ${renderGallery(product)}
 
             <div class="detail-info">
-
-              <span class="detail-category">
-                ${escapeHTML(categoryName)}
-              </span>
-
-              <h1 class="detail-title">
-                ${escapeHTML(product.display_name || "Timber product")}
-              </h1>
+              <span class="detail-category">${escapeHTML(categoryName)}</span>
+              <h1 class="detail-title">${escapeHTML(displayName(product))}</h1>
 
               <div class="seller-line">
                 <span class="seller-avatar" aria-hidden="true">🏪</span>
@@ -973,7 +676,6 @@
               <hr class="detail-divider">
 
               <div class="price-label">Price per piece</div>
-
               <div class="price-row">
                 <span class="detail-price">
                   ${validPrice ? escapeHTML(money(price, currency)) : "Price unavailable"}
@@ -987,98 +689,56 @@
               </div>
 
               <section class="spec-section" aria-labelledby="spec-heading">
-                <h2 class="section-heading" id="spec-heading">
-                  Product specifications
-                </h2>
-
+                <h2 class="section-heading" id="spec-heading">Product specifications</h2>
                 <div class="spec-grid">
                   <div class="spec-item">
                     <span class="spec-label">📏 Size / Dimensions</span>
-                    <span class="spec-value">
-                      ${escapeHTML(product.size_label || "Not specified")}
-                    </span>
+                    <span class="spec-value">${escapeHTML(sizeLabel(product))}</span>
                   </div>
-
                   <div class="spec-item">
                     <span class="spec-label">🪵 Treatment</span>
-                    <span class="spec-value">
-                      ${product.is_treated ? "Treated" : "Untreated"}
-                    </span>
+                    <span class="spec-value">${product.is_treated ? "Treated" : "Untreated"}</span>
                   </div>
-
                   <div class="spec-item">
                     <span class="spec-label">📦 Availability</span>
-                    <span class="spec-value">
-                      ${stock.toLocaleString("en-GH")} pieces
-                    </span>
+                    <span class="spec-value">${stock.toLocaleString("en-GH")} pieces</span>
                   </div>
-
                   <div class="spec-item">
                     <span class="spec-label">🏷️ Category</span>
-                    <span class="spec-value">
-                      ${escapeHTML(categoryName)}
-                    </span>
+                    <span class="spec-value">${escapeHTML(categoryName)}</span>
                   </div>
                 </div>
               </section>
 
               <section class="spec-section" aria-labelledby="description-heading">
-                <h2 class="section-heading description-heading"
-                    id="description-heading">
+                <h2 class="section-heading description-heading" id="description-heading">
                   About this product
                 </h2>
-
-                <p class="detail-desc" style="margin-top:0">
-                  ${escapeHTML(description)}
-                </p>
+                <p class="detail-desc" style="margin-top:0">${escapeHTML(description)}</p>
               </section>
 
               <div class="purchase-box">
-
-                <label class="purchase-label" for="product-quantity">
-                  Select quantity
-                </label>
+                <label class="purchase-label" for="product-quantity">Select quantity</label>
 
                 <div class="purchase-controls">
                   <div class="quantity-control">
-                    <button
-                      type="button"
-                      class="quantity-btn"
-                      id="quantity-minus"
-                      aria-label="Decrease quantity"
-                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
-                    >−</button>
-
-                    <input
-                      class="quantity-input"
-                      id="product-quantity"
-                      type="number"
-                      inputmode="numeric"
-                      min="1"
-                      max="${stock}"
-                      value="1"
-                      aria-label="Quantity in pieces"
-                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
-                    >
-
-                    <button
-                      type="button"
-                      class="quantity-btn"
-                      id="quantity-plus"
-                      aria-label="Increase quantity"
-                      ${isOutOfStock || isMyProduct ? "disabled" : ""}
-                    >+</button>
+                    <button type="button" class="quantity-btn" id="quantity-minus"
+                            aria-label="Decrease quantity"
+                            ${isOutOfStock || mine ? "disabled" : ""}>−</button>
+                    <input class="quantity-input" id="product-quantity" type="number"
+                           inputmode="numeric" min="1" max="${stock}" value="1"
+                           aria-label="Quantity in pieces"
+                           ${isOutOfStock || mine ? "disabled" : ""}>
+                    <button type="button" class="quantity-btn" id="quantity-plus"
+                            aria-label="Increase quantity"
+                            ${isOutOfStock || mine ? "disabled" : ""}>+</button>
                   </div>
 
-                  <button
-                    type="button"
-                    class="btn-add"
-                    id="add-to-cart-btn"
-                    ${isOutOfStock || isMyProduct || !validPrice ? "disabled" : ""}
-                  >
+                  <button type="button" class="btn-add" id="add-to-cart-btn"
+                          ${isOutOfStock || mine || !validPrice ? "disabled" : ""}>
                     <span class="cart-icon" aria-hidden="true">🛒</span>
                     <span>
-                      ${isMyProduct
+                      ${mine
                         ? "Your product"
                         : isOutOfStock
                           ? "Out of stock"
@@ -1101,12 +761,10 @@
                   if applicable, are not included.
                 </p>
 
-                <a
-                  class="btn-wa ${whatsappURL ? "" : "disabled"}"
-                  id="message-seller"
-                  href="${whatsappURL ? escapeHTML(whatsappURL) : "#"}"
-                  ${whatsappURL ? 'target="_blank" rel="noopener noreferrer"' : 'aria-disabled="true"'}
-                >
+                <a class="btn-wa ${whatsappURL ? "" : "disabled"}"
+                   id="message-seller"
+                   href="${whatsappURL ? escapeHTML(whatsappURL) : "#"}"
+                   ${whatsappURL ? 'target="_blank" rel="noopener noreferrer"' : 'aria-disabled="true"'}>
                   <span aria-hidden="true">💬</span>
                   Message Seller on WhatsApp
                 </a>
@@ -1118,55 +776,16 @@
                   </p>
                 ` : ""}
               </div>
-
             </div>
           </div>
         `;
 
         bindGalleryEvents();
         bindPurchaseEvents();
+        syncAddButton();
       }
 
-      function bindGalleryEvents() {
-        const mainImage = document.getElementById("main-product-img");
-        const counter = document.getElementById("gallery-count");
-        const thumbnails = [...document.querySelectorAll(".thumbnail")];
-
-        if (!mainImage) return;
-
-        mainImage.addEventListener("error", () => {
-          if (mainImage.src !== placeholderImage) {
-            mainImage.src = placeholderImage;
-          }
-        });
-
-        thumbnails.forEach(button => {
-          const image = button.querySelector("img");
-
-          image?.addEventListener("error", () => {
-            button.hidden = true;
-          });
-
-          button.addEventListener("click", () => {
-            const index = Number(button.dataset.imageIndex);
-
-            if (!Number.isInteger(index)) return;
-
-            mainImage.src = image.src;
-
-            thumbnails.forEach((thumbnail, i) => {
-              const active = i === index;
-              thumbnail.classList.toggle("active", active);
-              thumbnail.setAttribute("aria-pressed", String(active));
-            });
-
-            if (counter) {
-              counter.textContent = `${index + 1} / ${thumbnails.length}`;
-            }
-          });
-        });
-      }
-
+      // ---------- quantity / purchase ----------
       function bindPurchaseEvents() {
         const quantityInput = document.getElementById("product-quantity");
         const minusButton = document.getElementById("quantity-minus");
@@ -1176,25 +795,16 @@
 
         if (!quantityInput || !currentProduct) return;
 
-        const stock = Math.max(
-          0,
-          Number(currentProduct.stock_quantity) || 0
-        );
-
+        const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
         const price = Number(currentProduct.price_per_piece);
         const currency = currentProduct.currency || "GH₵";
 
         function updateQuantity() {
           let quantity = Number.parseInt(quantityInput.value, 10);
-
           if (!Number.isFinite(quantity)) quantity = 1;
-
           quantity = Math.max(1, Math.min(stock || 1, quantity));
           currentQuantity = quantity;
           quantityInput.value = String(quantity);
-
-          minusButton.disabled = quantity <= 1 || stock < 1;
-          plusButton.disabled = quantity >= stock || stock < 1;
 
           if (totalElement) {
             totalElement.textContent =
@@ -1202,96 +812,109 @@
                 ? money(price * quantity, currency)
                 : "Unavailable";
           }
+
+          syncAddButton();
         }
 
-        minusButton.addEventListener("click", () => {
+        minusButton?.addEventListener("click", () => {
           quantityInput.value = String(currentQuantity - 1);
           updateQuantity();
         });
-
-        plusButton.addEventListener("click", () => {
+        plusButton?.addEventListener("click", () => {
           quantityInput.value = String(currentQuantity + 1);
           updateQuantity();
         });
-
         quantityInput.addEventListener("change", updateQuantity);
         quantityInput.addEventListener("input", () => {
           if (quantityInput.value === "") return;
           updateQuantity();
         });
-
-        addButton.addEventListener("click", () => {
+        addButton?.addEventListener("click", () => {
           addToCart(currentProduct.wood_id, currentQuantity);
         });
 
         updateQuantity();
       }
 
+      // ---------- load ----------
       async function loadProduct() {
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const woodId = pathParts[pathParts.length - 1];
 
         if (!woodId || !/^\d+$/.test(woodId) || Number(woodId) < 1) {
-          showError(
-            "Invalid product",
-            "The product address is invalid. Return to the shop and select a product."
-          );
+          showError("Invalid product",
+            "The product address is invalid. Return to the shop and select a product.");
           return;
         }
 
         container.setAttribute("aria-busy", "true");
 
         try {
-          const response = await fetch(
-            `/woods/${encodeURIComponent(woodId)}`,
-            {
-              method: "GET",
-              headers: { "Accept": "application/json" }
-            }
-          );
+          const response = await fetch(`/woods/${encodeURIComponent(woodId)}`, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+          });
 
           if (response.status === 404) {
-            showError(
-              "Product not found",
-              "This timber product may have been removed or is no longer available."
-            );
+            showError("Product not found",
+              "This timber product may have been removed or is no longer available.");
             return;
           }
-
-          if (!response.ok) {
-            throw new Error(`Request failed: ${response.status}`);
-          }
+          if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
           const product = await response.json();
-
-          if (!product || typeof product !== "object" ||
-              !product.wood_id) {
+          if (!product || typeof product !== "object" || !product.wood_id) {
             throw new Error("Invalid product response");
           }
-
           renderProduct(product);
-
         } catch (error) {
           console.error("Builder Wood product details error:", error);
-
-          showError(
-            "Unable to load product",
-            "Please check your connection and try again.",
-            true
-          );
+          showError("Unable to load product",
+            "Please check your connection and try again.", true);
         }
       }
 
+      // ---------- refresh stock quietly after add-to-cart ----------
+      async function refreshStock() {
+        if (!currentProduct) return;
+        try {
+          const res = await fetch(`/woods/${encodeURIComponent(currentProduct.wood_id)}`, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+          });
+          if (!res.ok) return;
+          const fresh = await res.json();
+          if (fresh && typeof fresh === "object" && fresh.wood_id) {
+            currentProduct.stock_quantity = fresh.stock_quantity;
+            currentProduct.is_available = fresh.is_available;
+            // keep UI in sync without re-rendering the whole page
+            const totalEl = document.getElementById("estimated-total");
+            const price = Number(currentProduct.price_per_piece);
+            const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
+            const currency = currentProduct.currency || "GH₵";
+            const input = document.getElementById("product-quantity");
+            if (input) {
+              input.max = String(Math.max(1, stock));
+              if (Number(input.value) > stock) {
+                input.value = String(Math.max(1, stock));
+                currentQuantity = Math.max(1, stock);
+              }
+            }
+            if (totalEl && Number.isFinite(price) && price >= 0) {
+              totalEl.textContent = money(price * currentQuantity, currency);
+            }
+            syncAddButton();
+          }
+        } catch { /* silent — best-effort */ }
+      }
+
+      // ---------- add to cart ----------
       async function addToCart(woodId, quantity) {
         if (isAddingToCart) return;
 
         if (!token) {
           showToast("Please log in before adding items to your cart.", "error");
-
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 900);
-
+          setTimeout(() => { window.location.href = "/login"; }, 900);
           return;
         }
 
@@ -1300,32 +923,28 @@
           return;
         }
 
-        const stock = Math.max(
-          0,
-          Number(currentProduct.stock_quantity) || 0
-        );
-
-        const price = Number(currentProduct.price_per_piece);
-        const requestedQuantity = Number(quantity);
-
-        if (
-          !Number.isInteger(requestedQuantity) ||
-          requestedQuantity < 1 ||
-          requestedQuantity > stock
-        ) {
-          showToast("Please select a valid quantity within available stock.", "error");
+        if (isMyProduct(currentProduct)) {
+          showToast("You can't add your own product to your cart.", "error");
           return;
         }
 
+        const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
+        const price = Number(currentProduct.price_per_piece);
+        const requestedQuantity = Number(quantity);
+
+        if (!Number.isInteger(requestedQuantity) ||
+            requestedQuantity < 1 ||
+            requestedQuantity > stock) {
+          showToast("Please select a valid quantity within available stock.", "error");
+          return;
+        }
         if (!Number.isFinite(price) || price < 0) {
           showToast("The product price is invalid. Please contact the seller.", "error");
           return;
         }
 
         isAddingToCart = true;
-
         const button = document.getElementById("add-to-cart-btn");
-
         if (button) {
           button.disabled = true;
           button.innerHTML = "<span>Adding to cart...</span>";
@@ -1344,28 +963,26 @@
             })
           });
 
-          if (response.status === 401 || response.status === 403) {
+          if (response.status === 401) {
             showToast("Your session may have expired. Please log in again.", "error");
-
-            setTimeout(() => {
-              window.location.href = "/login";
-            }, 900);
-
+            setTimeout(() => { window.location.href = "/login"; }, 900);
             return;
           }
-
-          if (!response.ok) {
-            let errorMessage = "Could not add this product to your cart.";
-
+          if (response.status === 403) {
+            let detail = "You cannot add this item to your cart.";
             try {
               const data = await response.json();
-              if (typeof data.detail === "string") {
-                errorMessage = data.detail;
-              }
-            } catch {
-              // Keep the fallback message if the response is not JSON.
-            }
-
+              if (typeof data.detail === "string") detail = data.detail;
+            } catch { /* keep fallback */ }
+            showToast(detail, "error");
+            return;
+          }
+          if (!response.ok) {
+            let errorMessage = "Could not add this product to your cart.";
+            try {
+              const data = await response.json();
+              if (typeof data.detail === "string") errorMessage = data.detail;
+            } catch { /* keep fallback */ }
             showToast(errorMessage, "error");
             return;
           }
@@ -1375,46 +992,19 @@
             "success"
           );
 
-          // Stay on the product page so the customer can continue shopping.
-          // Navigate to the cart instead if your application has a dedicated cart URL.
-
+          // Re-check stock so the button reflects what's actually left
+          // if another buyer raced us for the last piece.
+          await refreshStock();
         } catch (error) {
           console.error("Builder Wood add-to-cart error:", error);
           showToast("Network error. Please check your connection and try again.", "error");
-
         } finally {
           isAddingToCart = false;
-
-          const currentButton = document.getElementById("add-to-cart-btn");
-
-          if (currentButton && currentProduct) {
-            const stockNow = Number(currentProduct.stock_quantity) || 0;
-            const loggedInUserId = localStorage.getItem("bw_user_id");
-
-            const isMyProduct = Boolean(
-              currentProduct.seller_id &&
-              loggedInUserId &&
-              String(currentProduct.seller_id) === String(loggedInUserId)
-            );
-
-            currentButton.disabled =
-              stockNow < 1 ||
-              isMyProduct ||
-              !Number.isFinite(Number(currentProduct.price_per_piece));
-
-            currentButton.innerHTML = `
-              <span class="cart-icon" aria-hidden="true">🛒</span>
-              <span>${isMyProduct
-                ? "Your product"
-                : stockNow < 1
-                  ? "Out of stock"
-                  : "Add to Cart"}</span>
-            `;
-          }
+          syncAddButton();
         }
       }
 
-      // Retain compatibility with other scripts that use this function.
+      // Keep compatibility with other scripts that call window.addToCart.
       window.addToCart = (id, quantity = 1) => addToCart(id, quantity);
 
       loadProduct();
