@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 import uuid
+import requests
+from builder_wood.app.config import settings
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -9,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
-from builder_wood.app.auth import get_current_user, get_current_active_seller
+from builder_wood.app.auth import get_current_user, get_current_active_seller, get_current_admin
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -277,3 +279,148 @@ def get_order(order_id: int, db: Session = Depends(get_db),
             and current_user.role != "admin"):
         raise HTTPException(403, "Not authorized")
     return order
+PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
+
+
+def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
+    """Initiate Paystack transfer to the seller. Returns reference."""
+    if order.settlement_status in ("transferring", "settled"):
+        return order.transfer_reference or ""
+    if order.is_funds_released:
+        raise HTTPException(409, "Funds already released.")
+    if not order.seller_payout_amount or order.seller_payout_amount <= 0:
+        raise HTTPException(400, "No payout amount set.")
+
+    seller = db.query(models.User).filter(models.User.user_id == order.seller_id).first()
+    if not seller:
+        raise HTTPException(404, "Seller not found.")
+    if not seller.paystack_recipient_code:
+        raise HTTPException(400, "Seller has not registered a payout account.")
+
+    reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
+    amount_pesewas = int((Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1")))
+
+    try:
+        resp = requests.post(
+            PAYSTACK_TRANSFER_URL,
+            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
+            json={
+                "source": "balance",
+                "amount": amount_pesewas,
+                "recipient": seller.paystack_recipient_code,
+                "reason": f"Builder Wood payout for order #{order.order_id}",
+                "reference": reference,
+            },
+            timeout=20,
+        )
+        data = resp.json()
+    except requests.RequestException as exc:
+        raise HTTPException(502, f"Paystack unreachable: {exc}")
+
+    if not data.get("status"):
+        order.settlement_status = "not_eligible"
+        order.transfer_failed_reason = data.get("message", "unknown")
+        db.commit()
+        raise HTTPException(400, f"Transfer rejected: {data.get('message')}")
+
+    order.settlement_status = "transferring"
+    order.transfer_reference = reference
+    db.commit()
+    return reference
+
+
+@router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
+def buyer_confirm_delivery(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Buyer confirms receipt. Immediately triggers settlement."""
+    order = (
+        db.query(models.Order)
+        .filter(models.Order.order_id == order_id,
+                models.Order.customer_id == current_user.user_id)
+        .first()
+    )
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if order.delivery_status != "delivered":
+        raise HTTPException(400, "Order is not marked as delivered yet.")
+    if order.settlement_status in ("transferring", "settled"):
+        raise HTTPException(400, "Settlement already in progress or complete.")
+
+    order.settlement_status = "eligible"
+    order.settlement_eligible_at = datetime.utcnow()
+    _initiate_seller_transfer(db, order)
+    db.refresh(order)
+
+    return {
+        "order_id": order.order_id,
+        "payment_status": order.payment_status,
+        "delivery_status": order.delivery_status,
+        "settlement_status": order.settlement_status,
+        "settlement_eligible_at": order.settlement_eligible_at,
+        "funds_released_at": order.funds_released_at,
+        "transfer_reference": order.transfer_reference,
+        "seller_payout_amount": order.seller_payout_amount,
+        "platform_commission": order.platform_commission,
+    }
+
+
+@router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
+def admin_release_funds(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin),
+):
+    """Admin manually releases funds (bypasses timer + buyer confirmation)."""
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if order.settlement_status in ("transferring", "settled"):
+        raise HTTPException(400, "Already in progress or settled.")
+    if order.payment_status != "paid":
+        raise HTTPException(400, "Order has not been paid.")
+
+    order.settlement_status = "eligible"
+    order.settlement_eligible_at = datetime.utcnow()
+    _initiate_seller_transfer(db, order)
+    db.refresh(order)
+
+    return {
+        "order_id": order.order_id,
+        "payment_status": order.payment_status,
+        "delivery_status": order.delivery_status,
+        "settlement_status": order.settlement_status,
+        "settlement_eligible_at": order.settlement_eligible_at,
+        "funds_released_at": order.funds_released_at,
+        "transfer_reference": order.transfer_reference,
+        "seller_payout_amount": order.seller_payout_amount,
+        "platform_commission": order.platform_commission,
+    }
+
+
+@router.get("/{order_id}/settlement", response_model=schemas.SettlementStatusOut)
+def get_settlement_status(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if (order.customer_id != current_user.user_id
+            and order.seller_id != current_user.user_id
+            and current_user.role != "admin"):
+        raise HTTPException(403, "Not authorized")
+    return {
+        "order_id": order.order_id,
+        "payment_status": order.payment_status,
+        "delivery_status": order.delivery_status,
+        "settlement_status": order.settlement_status,
+        "settlement_eligible_at": order.settlement_eligible_at,
+        "funds_released_at": order.funds_released_at,
+        "transfer_reference": order.transfer_reference,
+        "seller_payout_amount": order.seller_payout_amount,
+        "platform_commission": order.platform_commission,
+    }

@@ -9,4 +9,21 @@ services:
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: BASE_URL
-        value: https://builder-wood-api.onrender.com
+        value: https://builder-wood-2.onrender.com
+
+  - type: cron
+    name: settle-orders
+    runtime: python
+    plan: free
+    schedule: "0 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m builder_wood.scripts.settle_eligible
+    envVars:
+      - fromService:
+          type: web
+          name: builder-wood-api
+          envVarKey: PAYSTACK_SECRET_KEY
+      - fromService:
+          type: web
+          name: builder-wood-api
+          envVarKey: BASE_URL

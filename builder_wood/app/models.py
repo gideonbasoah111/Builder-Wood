@@ -22,6 +22,12 @@ class User(Base):
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp())
+    # Seller payout account (Paystack)
+    paystack_recipient_code = Column(String(50), nullable=True)
+    payout_bank_name = Column(String(100), nullable=True)
+    payout_account_number = Column(String(20), nullable=True)
+    payout_account_name = Column(String(150), nullable=True)
+
     woods = relationship("Wood", back_populates="seller", foreign_keys="Wood.seller_id", cascade="all, delete-orphan")
     vehicles = relationship("SellerVehicle", back_populates="seller", cascade="all, delete-orphan")
     orders_as_customer = relationship("Order", back_populates="customer", foreign_keys="Order.customer_id")
@@ -157,7 +163,15 @@ class Order(Base):
     auto_confirm_at = Column(TIMESTAMP, nullable=True)
     dispute_reason = Column(Text, nullable=True)
     disputed_at = Column(TIMESTAMP, nullable=True)
+    # Settlement tracking
+    payment_status = Column(String(20), nullable=False, default="unpaid")
+    delivery_status = Column(String(20), nullable=False, default="pending")
+    settlement_status = Column(String(20), nullable=False, default="not_eligible")
+    settlement_eligible_at = Column(TIMESTAMP, nullable=True)
+    funds_released_at = Column(TIMESTAMP, nullable=True)
+    transfer_reference = Column(String(100), nullable=True)
 
+    transfer_failed_reason = Column(Text, nullable=True)
     customer = relationship("User", back_populates="orders_as_customer", foreign_keys=[customer_id])
     seller = relationship("User", back_populates="orders_as_seller", foreign_keys=[seller_id])
     vehicle = relationship("Vehicle", back_populates="orders")

@@ -26,6 +26,7 @@ from builder_wood.app.routers import (
     orders,
     payments,
     seller,
+    seller_payout,
     woods,
 )
 
@@ -101,6 +102,7 @@ app.include_router(payments.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
 app.include_router(woods.router)
+app.include_router(seller_payout.router)
 
 
 # ------------------------------------------------------------------

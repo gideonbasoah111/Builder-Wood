@@ -291,3 +291,34 @@ class ConversationOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# ============================================================
+# SELLER PAYOUT ACCOUNT
+# ============================================================
+class PayoutAccountIn(BaseModel):
+    bank_name: str
+    account_number: str = Field(min_length=10, max_length=20)
+    account_name: str = Field(min_length=3, max_length=150)
+
+
+class PayoutAccountOut(BaseModel):
+    paystack_recipient_code: Optional[str] = None
+    payout_bank_name: Optional[str] = None
+    payout_account_number: Optional[str] = None
+    payout_account_name: Optional[str] = None
+    is_ready: bool = False
+
+
+# ============================================================
+# SETTLEMENT
+# ============================================================
+class SettlementStatusOut(BaseModel):
+    order_id: int
+    payment_status: str
+    delivery_status: str
+    settlement_status: str
+    settlement_eligible_at: Optional[datetime] = None
+    funds_released_at: Optional[datetime] = None
+    transfer_reference: Optional[str] = None
+    seller_payout_amount: Optional[Decimal] = None
+    platform_commission: Optional[Decimal] = None
