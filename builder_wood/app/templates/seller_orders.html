@@ -19,7 +19,6 @@
       padding-right: env(safe-area-inset-right, 0px);
     }
 
-    /* ---------- layout ---------- */
     .dashboard-page {
       max-width: 960px;
       margin: 40px auto;
@@ -42,14 +41,12 @@
     }
     .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
 
-    /* ---------- header back link ---------- */
     .header-main { flex-wrap: wrap; gap: 12px; }
     .header-main .catnav-quote { margin-left: auto; }
     @media (max-width: 480px) {
       .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
     }
 
-    /* ---------- stats ---------- */
     .stats-strip {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -79,7 +76,6 @@
       margin-top: 2px;
     }
 
-    /* ---------- toolbar ---------- */
     .toolbar {
       display: flex;
       justify-content: space-between;
@@ -153,69 +149,17 @@
     }
     .search-box:focus { border-color: var(--wood-med); }
 
-    /* ---------- alerts ---------- */
-    .alert-box {
-      background: #fff;
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      border-left: 5px solid;
-      box-shadow: var(--shadow-sm);
-    }
-    .alert-low { border-left-color: #f0ad4e; background: #fffdf5; }
-    .alert-out { border-left-color: var(--red); background: #fff9f9; }
-
-    .alert-icon {
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      display: grid; place-items: center;
-      flex-shrink: 0;
-    }
-    .alert-low .alert-icon { background: #fdf2e3; color: #d68910; }
-    .alert-out .alert-icon { background: #fdebea; color: var(--red); }
-
-    .alert-content { flex: 1; min-width: 0; }
-    .alert-content h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
-    .alert-low .alert-content h4 { color: #8a5a00; }
-    .alert-out .alert-content h4 { color: #7a1f1a; }
-    .alert-content p { margin: 0 0 12px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
-
-    .alert-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .alert-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      padding: 6px 10px;
-      background: #fff;
-      border-radius: 6px;
-      border: 1px solid var(--line);
+    .msg {
+      margin-top: 15px;
+      font-weight: 600;
+      text-align: center;
+      min-height: 1.2em;
       overflow-wrap: anywhere;
     }
-    .alert-item b { font-weight: 700; white-space: nowrap; }
-    .alert-low .alert-item b { color: #8a5a00; }
-    .alert-out .alert-item b { color: var(--red); }
+    .msg.ok  { color: var(--green); }
+    .msg.err { color: var(--red); }
 
-    .alert-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: var(--tap);
-      padding: 7px 14px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-    .alert-low .alert-btn { background: #f0ad4e; color: #fff; }
-    .alert-out .alert-btn { background: var(--red); color: #fff; }
-
-    /* ---------- order cards ---------- */
+    /* Order cards */
     .order-card {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -259,10 +203,12 @@
       letter-spacing: .02em;
     }
     .status-pending   { background: #fff3cd; color: #856404; }
+    .status-paid      { background: #cce5ff; color: #004085; }
     .status-confirmed { background: #cce5ff; color: #004085; }
     .status-shipped   { background: #d1ecf1; color: #0c5460; }
     .status-delivered { background: #d4edda; color: #155724; }
     .status-cancelled { background: #f8d7da; color: #721c24; }
+    .status-disputed  { background: #f8d7da; color: #721c24; }
 
     .order-body { padding: 20px; }
     .order-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
@@ -314,17 +260,7 @@
     .btn-danger  { background: #b02a37; color: #fff; }
     .btn-sm { padding: 6px 12px; font-size: 11px; min-height: 32px; }
 
-    .msg {
-      margin-top: 15px;
-      font-weight: 600;
-      text-align: center;
-      min-height: 1.2em;
-      overflow-wrap: anywhere;
-    }
-    .msg.ok  { color: var(--green); }
-    .msg.err { color: var(--red); }
-
-    /* ---------- skeleton ---------- */
+    /* Skeleton */
     .skeleton {
       position: relative;
       overflow: hidden;
@@ -333,89 +269,36 @@
       height: 120px;
       margin-bottom: 20px;
     }
-    .skeleton::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      transform: translateX(-100%);
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
-      animation: shimmer 1.2s infinite;
-    }
-    @keyframes shimmer { to { transform: translateX(100%); } }
 
-    /* ---------- modal ---------- */
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(20, 12, 4, .6);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-    .modal-backdrop.show { display: flex; }
-    .modal {
-      background: #fff;
-      border-radius: var(--radius-lg);
-      padding: 28px 24px;
-      max-width: 400px;
-      width: 100%;
+    /* Empty state */
+    .empty-state {
       text-align: center;
-      box-shadow: var(--shadow-lg);
-      overflow-wrap: anywhere;
+      padding: 60px 20px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
     }
-    .modal h3 { font-family: "Fraunces", serif; font-size: 20px; margin: 0 0 10px; }
-    .modal p { color: var(--ink-2); margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
-    .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    .modal-actions .btn { flex: 1 1 120px; min-height: var(--tap); }
-    .btn-cancel  { background: var(--parchment-2); color: var(--ink); }
-    .btn-confirm { background: var(--wood-med); color: #fff; }
+    .empty-state .empty-icon { font-size: 48px; opacity: .6; margin-bottom: 10px; }
+    .empty-state h3 { font-family: Fraunces, serif; margin: 0 0 6px; }
+    .empty-state p { color: var(--muted); margin: 0; font-size: 13px; }
 
-    /* ---------- tablet ---------- */
     @media (max-width: 720px) {
       .dashboard-page { margin: 24px 12px; padding: 22px 18px; border-radius: 12px; }
       .order-body { padding: 16px; }
       .order-head { padding: 12px 16px; }
     }
-
-    /* ---------- phone ---------- */
     @media (max-width: 600px) {
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
-      .nav-tabs { justify-content: flex-start; }
       .filters { padding-bottom: 12px; }
       .search-box { max-width: 100%; flex: 1 1 100%; }
-
-      .stat-card .stat-num { font-size: 20px; }
-
-      .alert-box { padding: 14px 16px; gap: 12px; }
-      .alert-icon { width: 34px; height: 34px; }
     }
-
     @media (max-width: 520px) {
       .order-head { flex-direction: column; align-items: flex-start; }
       .order-head .status { align-self: flex-end; }
-
       .order-item { flex-direction: column; gap: 4px; }
       .order-item > span:last-child { align-self: flex-end; }
-
       .order-actions { flex-direction: column; }
       .order-actions .btn { width: 100%; }
-
-      .modal-actions { flex-direction: column; }
-      .modal-actions .btn { width: 100%; }
-    }
-
-    /* ---------- tiny phones ---------- */
-    @media (max-width: 360px) {
-      .dashboard-page { margin: 12px 8px; padding: 16px 12px; }
-      .dash-header h2 { font-size: 20px; }
-      .order-head h4 { font-size: 14px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .skeleton::after { animation: none; opacity: .45; }
-      *, *::before, *::after { transition-duration: .01ms !important; }
     }
   </style>
 </head>
@@ -454,22 +337,9 @@
       </div>
     </div>
 
-    <div id="alerts-container"></div>
-
     <div id="orders-list" aria-live="polite"></div>
     <div class="msg" id="msg" role="status" aria-live="polite"></div>
   </main>
-
-  <div class="modal-backdrop" id="modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
-      <h3 id="modal-title">Confirm Action</h3>
-      <p id="modal-message">Are you sure you want to do this?</p>
-      <div class="modal-actions">
-        <button class="btn btn-cancel" id="modal-cancel" type="button">Cancel</button>
-        <button class="btn btn-confirm" id="modal-confirm" type="button">Yes, continue</button>
-      </div>
-    </div>
-  </div>
 
   <script>
     "use strict";
@@ -477,12 +347,11 @@
     const token = localStorage.getItem("bw_token");
     if (!token) window.location.replace("/login");
 
-    const msgEl   = document.getElementById("msg");
-    const listEl  = document.getElementById("orders-list");
-    const statsEl = document.getElementById("stats-strip");
-    const searchEl = document.getElementById("search");
+    const msgEl     = document.getElementById("msg");
+    const listEl    = document.getElementById("orders-list");
+    const statsEl   = document.getElementById("stats-strip");
+    const searchEl  = document.getElementById("search");
     const refreshBtn = document.getElementById("refresh-btn");
-    const alertsContainer = document.getElementById("alerts-container");
 
     let allOrders = [];
     let activeFilter = "all";
@@ -504,9 +373,15 @@
     async function api(url, options = {}) {
       const res = await fetch(url, {
         ...options,
-        headers: { "Authorization": `Bearer ${token}`, ...(options.headers || {}) }
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          ...(options.headers || {})
+        }
       });
-      if (res.status === 401) { window.location.replace("/login"); throw new Error("Session expired"); }
+      if (res.status === 401) {
+        window.location.replace("/login");
+        throw new Error("Session expired");
+      }
       if (!res.ok) {
         let detail = "Request failed.";
         try { detail = (await res.json()).detail || detail; } catch {}
@@ -515,56 +390,176 @@
       return res.json();
     }
 
-    /* ---------- accessible modal ---------- */
-    const backdrop = document.getElementById("modal-backdrop");
-    const mTitle   = document.getElementById("modal-title");
-    const mMessage = document.getElementById("modal-message");
-    const mCancel  = document.getElementById("modal-cancel");
-    const mConfirm = document.getElementById("modal-confirm");
+    /* ---------- Render stats ---------- */
+    function renderStats(orders) {
+      const pending = orders.filter(o => ["pending", "paid", "confirmed"].includes(o.status)).length;
+      const shipped = orders.filter(o => o.status === "shipped").length;
+      const delivered = orders.filter(o => o.status === "delivered").length;
+      const revenue = orders
+        .filter(o => ["paid", "confirmed", "shipped", "delivered"].includes(o.status))
+        .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
 
-    let pendingAction = null;
-    let lastFocused = null;
-
-    function showModal(title, message, onConfirm) {
-      mTitle.textContent = title;
-      mMessage.textContent = message;
-      lastFocused = document.activeElement;
-      pendingAction = onConfirm;
-      backdrop.classList.add("show");
-      mConfirm.focus();
+      statsEl.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-num">${orders.length}</div>
+          <div class="stat-label">Total Orders</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${pending}</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${shipped}</div>
+          <div class="stat-label">Shipped</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${delivered}</div>
+          <div class="stat-label">Delivered</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${fmtMoney(revenue)}</div>
+          <div class="stat-label">Revenue</div>
+        </div>
+      `;
     }
 
-    function hideModal() {
-      backdrop.classList.remove("show");
-      pendingAction = null;
-      if (lastFocused) lastFocused.focus();
+    /* ---------- Render orders ---------- */
+    function renderOrders(orders) {
+      if (!orders.length) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h3>No orders yet</h3>
+            <p>When customers buy your wood, orders will appear here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = orders.map(o => {
+        const items = (o.items || []).map(i => `
+          <div class="order-item">
+            <span>${escapeHtml(i.wood_name_snap)} — ${escapeHtml(i.size_snap)}</span>
+            <span>${i.quantity} × ${fmtMoney(i.price_at_purchase)}</span>
+          </div>
+        `).join("");
+
+        const statusClass = `status-${o.status}`;
+
+        return `
+          <div class="order-card" data-order-id="${o.order_id}">
+            <div class="order-head">
+              <h4>
+                Order #${o.order_id}
+                <span class="meta">${new Date(o.order_date || Date.now()).toLocaleDateString()}</span>
+              </h4>
+              <span class="status ${statusClass}">${o.status}</span>
+            </div>
+            <div class="order-body">
+              <div class="order-items">${items}</div>
+              <div class="order-total">
+                <span>Total</span>
+                <span>${fmtMoney(o.total_price)}</span>
+              </div>
+              ${renderActions(o)}
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
-    mCancel.addEventListener("click", hideModal);
-    mConfirm.addEventListener("click", () => {
-      const fn = pendingAction;
-      hideModal();
-      if (fn) fn();
-    });
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) hideModal(); });
-    document.addEventListener("keydown", (e) => {
-      if (!backdrop.classList.contains("show")) return;
-      if (e.key === "Escape") hideModal();
-    });
+    function renderActions(o) {
+      if (o.status === "confirmed" || o.status === "paid") {
+        return `<div class="order-actions">
+          <button class="btn btn-primary btn-sm" onclick="updateStatus(${o.order_id}, 'shipped')">Mark Shipped</button>
+        </div>`;
+      }
+      if (o.status === "shipped") {
+        return `<div class="order-actions">
+          <button class="btn btn-success btn-sm" onclick="updateStatus(${o.order_id}, 'delivered')">Mark Delivered</button>
+        </div>`;
+      }
+      return "";
+    }
 
-    /* ---------- stock alerts ---------- */
-    async function checkStockAlerts() {
+    /* ---------- Filter + search ---------- */
+    function applyFilters() {
+      let filtered = allOrders;
+      if (activeFilter !== "all") {
+        filtered = filtered.filter(o => o.status === activeFilter);
+      }
+      if (searchTerm) {
+        filtered = filtered.filter(o =>
+          String(o.order_id).includes(searchTerm)
+        );
+      }
+      renderOrders(filtered);
+    }
+
+    /* ---------- Load orders ---------- */
+    async function loadOrders() {
+      listEl.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
       try {
-        const items = await api("/seller/low-stock");
-        if (!Array.isArray(items) || items.length === 0) {
-          alertsContainer.innerHTML = "";
-          return;
-        }
+        const orders = await api("/orders/seller/orders");
+        allOrders = Array.isArray(orders) ? orders : [];
+        renderStats(allOrders);
+        applyFilters();
+      } catch (err) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <h3>Could not load orders</h3>
+            <p>${escapeHtml(err.message || "Please try again.")}</p>
+          </div>
+        `;
+        showMsg(err.message || "Failed to load orders", false);
+      }
+    }
 
-        const outOfStock = items.filter(i => Number(i.stock) <= 0);
-        const lowStock = items.filter(i => Number(i.stock) > 0 && Number(i.stock) <= 10);
+    /* ---------- Update order status ---------- */
+    async function updateStatus(orderId, newStatus) {
+      const verb = newStatus === "shipped" ? "mark as shipped" : "mark as delivered";
+      if (!confirm(`Are you sure you want to ${verb} order #${orderId}?`)) return;
 
-        let html = "";
+      try {
+        await api(`/orders/${orderId}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        showMsg(`Order #${orderId} marked as ${newStatus}`, true);
+        await loadOrders();
+      } catch (err) {
+        showMsg(err.message || "Failed to update status", false);
+      }
+    }
 
-        if (outOfStock.length > 0) {
-          const
+    /* ---------- Wire up filters ---------- */
+    document.querySelectorAll(".chip[data-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeFilter = btn.dataset.filter;
+        document.querySelectorAll(".chip[data-filter]").forEach(b => b.setAttribute("aria-pressed", "false"));
+        btn.setAttribute("aria-pressed", "true");
+        applyFilters();
+      });
+    });
+
+    if (searchEl) {
+      searchEl.addEventListener("input", (e) => {
+        searchTerm = e.target.value.trim().toLowerCase();
+        applyFilters();
+      });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", loadOrders);
+    }
+
+    // Global scope exposure for inline onclick handlers
+    window.updateStatus = updateStatus;
+
+    // Initial load
+    loadOrders();
+  </script>
+</body>
+</html>
