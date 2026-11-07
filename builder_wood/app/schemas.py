@@ -322,3 +322,68 @@ class SettlementStatusOut(BaseModel):
     transfer_reference: Optional[str] = None
     seller_payout_amount: Optional[Decimal] = None
     platform_commission: Optional[Decimal] = None
+
+# ============================================================
+# ADMIN FUNDS LEDGER
+# ============================================================
+
+class FundsSummaryOut(BaseModel):
+    total_collected: float
+    total_held: float
+    total_settled: float
+    total_commission_pending: float
+    total_commission_earned: float
+    pending_payouts_count: int
+    failed_transfers_count: int
+
+
+class OrderItemInFundsOut(BaseModel):
+    wood_name: str
+    size: str
+    quantity: int
+    price: float
+
+
+class IncomingOrderOut(BaseModel):
+    order_id: int
+    customer_name: str
+    seller_name: str
+    items: List[OrderItemInFundsOut]
+    total_price: float
+    platform_commission: float
+    seller_payout_amount: float
+    payment_status: str
+    settlement_status: str
+    paid_at: Optional[datetime] = None
+    settlement_eligible_at: Optional[datetime] = None
+
+
+class FundsIncomingOut(BaseModel):
+    orders: List[IncomingOrderOut]
+    totals: dict
+
+
+class SellerFundsOut(BaseModel):
+    seller_id: int
+    seller_name: str
+    orders_pending: int
+    total_owed: float
+    orders_settled: int
+    total_settled: float
+
+
+class FundsBySellerOut(BaseModel):
+    sellers: List[SellerFundsOut]
+
+
+class FailedTransferOut(BaseModel):
+    order_id: int
+    seller_name: str
+    seller_payout_amount: float
+    transfer_reference: Optional[str] = None
+    transfer_failed_reason: Optional[str] = None
+    settlement_status: str
+
+
+class FundsFailedOut(BaseModel):
+    failed_transfers: List[FailedTransferOut]
