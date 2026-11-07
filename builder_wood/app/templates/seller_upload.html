@@ -96,7 +96,23 @@
       .upload-slot:hover { border-color: var(--wood-med); background: var(--parchment); }
     }
     .upload-slot:focus-visible { outline: 3px solid var(--wood-med); outline-offset: 3px; }
-    .upload-slot input[type="file"] { display: none; }
+    /* Keep the native file input interactive on iOS Safari and Android browsers.
+       A transparent full-tile input reliably opens the system photo picker. */
+    .upload-slot input[type="file"] {
+      display: block;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 1;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    .upload-slot .preview-container { pointer-events: none; }
+    .upload-slot .remove-btn { pointer-events: auto; }
     .upload-slot .slot-icon { font-size: 32px; color: var(--wood-light); margin-bottom: 8px; }
     .upload-slot h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
     .upload-slot p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
@@ -235,15 +251,13 @@
 
       <div class="image-upload-section">
         <!-- MAIN -->
-        <div class="upload-slot" tabindex="0" role="button" aria-label="Choose main product photo"
-             onclick="pickFile('main-input')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickFile('main-input');}">
+        <div class="upload-slot">
           <div class="slot-icon">🖼️</div>
           <h4>Main View</h4>
           <p>Cover photo for the shop</p>
-          <span class="slot-hint">Tap to choose or take a photo</span>
-          <input type="file" id="main-input" name="main_image"
-                 accept="image/*" capture="environment" required
+          <span class="slot-hint">Tap to choose from photos or take a new photo</span>
+          <input type="file" id="main-input" name="main_image" aria-label="Choose main product photo"
+                 accept="image/*" required
                  onchange="previewImage(this, 'main-preview')">
           <div class="preview-container" id="main-preview">
             <img src="" alt="Main Preview">
@@ -253,15 +267,13 @@
         </div>
 
         <!-- DIMENSION -->
-        <div class="upload-slot" tabindex="0" role="button" aria-label="Choose dimension photo"
-             onclick="pickFile('dim-input')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickFile('dim-input');}">
+        <div class="upload-slot">
           <div class="slot-icon">📏</div>
           <h4>Dimension</h4>
           <p>Photo showing tape measure</p>
-          <span class="slot-hint">Tap to choose or take a photo</span>
-          <input type="file" id="dim-input" name="dimension_image"
-                 accept="image/*" capture="environment"
+          <span class="slot-hint">Tap to choose from photos or take a new photo</span>
+          <input type="file" id="dim-input" name="dimension_image" aria-label="Choose dimension photo"
+                 accept="image/*"
                  onchange="previewImage(this, 'dim-preview')">
           <div class="preview-container" id="dim-preview">
             <img src="" alt="Dimension Preview">
@@ -271,15 +283,13 @@
         </div>
 
         <!-- DETAILS -->
-        <div class="upload-slot" id="detail-slot" tabindex="0" role="button" aria-label="Choose detail photos"
-             onclick="pickFile('detail-input')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickFile('detail-input');}">
+        <div class="upload-slot" id="detail-slot">
           <div class="count-badge" id="detail-count">+0</div>
           <div class="slot-icon">🔍</div>
           <h4>Details</h4>
           <p>Grain, treated stamp, etc.</p>
           <span class="slot-hint">Select one or more photos</span>
-          <input type="file" id="detail-input" name="detail_images"
+          <input type="file" id="detail-input" name="detail_images" aria-label="Choose one or more detail photos"
                  accept="image/*" multiple
                  onchange="previewMultipleImages(this)">
           <div class="preview-container" id="detail-preview">
@@ -391,12 +401,6 @@
         authWarn.style.display = "block";
         submitBtn.disabled = true;
       }
-
-      /* ---------- file picker helper (works with capture attr) ---------- */
-      window.pickFile = function (inputId) {
-        const input = document.getElementById(inputId);
-        if (input) input.click();
-      };
 
       /* ---------- size + type helpers ---------- */
       function humanSize(bytes) {
