@@ -105,32 +105,26 @@ class WoodBase(BaseModel):
     trade_name: Optional[str] = None
     description: Optional[str] = None
     durability: Optional[str] = None
-
     thickness_in: Decimal
     width_in: Decimal
     length_ft: Decimal
     product_form: str = "Sawn Timber"
     is_treated: bool = False
-
     currency: str = "GHS"
     price_per_piece: Decimal
     stock_quantity: int = 0
-
     category_id: int
     source_market: str = "Sokoban Wood Village"
     source_town: str = "Kumasi"
-
     is_available: bool = True
     is_featured: bool = False
 
 
 class WoodCreate(WoodBase):
-    """Payload a seller sends to create a new wood listing."""
     pass
 
 
 class WoodUpdate(BaseModel):
-    """Partial update for price, stock, availability, etc."""
     local_name: Optional[str] = None
     trade_name: Optional[str] = None
     description: Optional[str] = None
@@ -151,10 +145,7 @@ class WoodStockUpdate(BaseModel):
     stock_quantity: int = Field(ge=0)
 
 
-# ---- Read models used by the frontend ----
 class WoodListOut(BaseModel):
-    """Lightweight shape used by GET /woods (browse grid)."""
-
     wood_id: int
     local_name: str
     trade_name: Optional[str] = None
@@ -166,27 +157,19 @@ class WoodListOut(BaseModel):
     is_treated: bool
     is_featured: bool
     category_id: int
-
-    # ADDED: These are required for the frontend cards
     category_slug: Optional[str] = None
     category_name: Optional[str] = None
-
     primary_image_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class WoodOut(WoodBase):
-    """Full detail shape used by GET /woods/{id}."""
-
     wood_id: int
     seller_id: int
     created_at: datetime
     updated_at: datetime
     images: List[WoodImageOut] = []
-
-    # Exposed as computed strings so the client doesn't have to
-    # build them from thickness/width/length itself.
     size_label: str
     display_name: str
 
@@ -247,6 +230,10 @@ class OrderOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================================
+# DISTANCE + DELIVERY QUOTE
+# ============================================================
 class DistanceEstimateIn(BaseModel):
     address: str = Field(min_length=3)
 
@@ -256,41 +243,6 @@ class DistanceEstimateOut(BaseModel):
     geocoded_address: str
     from_cache: bool = False
 
-
-
-
-# ============================================================
-# CONVERSATIONS / MESSAGES
-# ============================================================
-class ConversationCreate(BaseModel):
-    seller_id: int
-    wood_id: Optional[int] = None
-
-
-class MessageCreate(BaseModel):
-    message_text: str = Field(min_length=1)
-
-
-class MessageOut(BaseModel):
-    message_id: int
-    conversation_id: int
-    sender_id: int
-    message_text: Optional[str]
-    is_read: bool
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ConversationOut(BaseModel):
-    conversation_id: int
-    buyer_id: int
-    seller_id: int
-    wood_id: Optional[int] = None
-    last_message_at: Optional[datetime] = None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 # ============================================================
 # SELLER PAYOUT ACCOUNT
@@ -323,10 +275,10 @@ class SettlementStatusOut(BaseModel):
     seller_payout_amount: Optional[Decimal] = None
     platform_commission: Optional[Decimal] = None
 
+
 # ============================================================
 # ADMIN FUNDS LEDGER
 # ============================================================
-
 class FundsSummaryOut(BaseModel):
     total_collected: float
     total_held: float
@@ -363,13 +315,26 @@ class FundsIncomingOut(BaseModel):
     totals: dict
 
 
+class ReadyOrderOut(BaseModel):
+    order_id: int
+    total_price: float
+    seller_payout_amount: float
+    delivery_address: str
+    auto_confirm_at: Optional[str] = None
+    order_date: Optional[str] = None
+
+
 class SellerFundsOut(BaseModel):
     seller_id: int
     seller_name: str
+    seller_has_recipient: bool
     orders_pending: int
     total_owed: float
+    orders_in_progress: int
+    total_in_progress: float
     orders_settled: int
     total_settled: float
+    ready_orders: List[ReadyOrderOut] = []
 
 
 class FundsBySellerOut(BaseModel):
@@ -387,3 +352,37 @@ class FailedTransferOut(BaseModel):
 
 class FundsFailedOut(BaseModel):
     failed_transfers: List[FailedTransferOut]
+
+
+# ============================================================
+# CONVERSATIONS / MESSAGES
+# ============================================================
+class ConversationCreate(BaseModel):
+    seller_id: int
+    wood_id: Optional[int] = None
+
+
+class MessageCreate(BaseModel):
+    message_text: str = Field(min_length=1)
+
+
+class MessageOut(BaseModel):
+    message_id: int
+    conversation_id: int
+    sender_id: int
+    message_text: Optional[str]
+    is_read: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationOut(BaseModel):
+    conversation_id: int
+    buyer_id: int
+    seller_id: int
+    wood_id: Optional[int] = None
+    last_message_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
