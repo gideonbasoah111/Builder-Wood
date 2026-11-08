@@ -2,679 +2,512 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Admin Dashboard — Builder Wood</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#242019">
+  <meta name="color-scheme" content="light">
+  <title>{{ shop_name | default("Builder Wood") }} — Timber, Ceiling Boards & Wooden Furniture</title>
+  <meta name="description" content="Shop timber, ceiling boards, battens, wooden doors and furniture from Builder Wood at Sokoban Wood Village, Kumasi.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
+  <script defer src="/static/app.js"></script>
+
   <style>
-    .admin-page { max-width: 1240px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
-    .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
-    .admin-header h2 { font-family: Fraunces, serif; margin: 0; }
-    .btn { padding: 10px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-block; cursor: pointer; border: none; }
-    .btn-primary { background: var(--wood-med); color: white; }
-    .btn-danger { background: var(--red); color: white; }
-    .btn-success { background: var(--green); color: white; }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    :root {
+      --tap: 44px;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-l: env(safe-area-inset-left, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
 
-    .user-card { display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
-    .user-info h4 { margin: 0 0 4px; font-size: 16px; }
-    .user-info p { margin: 0; color: var(--muted); font-size: 13px; }
+    *, *::before, *::after { box-sizing: border-box; }
 
-    .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; }
-    .status-pending { background: #fff3cd; color: #856404; }
-    .status-paid { background: #d4edda; color: #155724; }
-    .status-confirmed { background: #cce5ff; color: #004085; }
-    .status-shipped { background: #d1ecf1; color: #0c5460; }
-    .status-delivered { background: #d4edda; color: #155724; }
-    .status-cancelled { background: #f8d7da; color: #721c24; }
-    .status-disputed { background: #f8d7da; color: #721c24; }
-    .status-settled { background: #d1ecf1; color: #0c5460; }
-    .status-transferring { background: #fff3cd; color: #856404; }
-    .status-eligible { background: #d4edda; color: #155724; }
-    .status-not_eligible { background: #e2e3e5; color: #383d41; }
-    .status-unpaid { background: #e2e3e5; color: #383d41; }
-    .status-active { background: #d4edda; color: #155724; }
-    .status-inactive { background: #f8d7da; color: #721c24; }
+    html, body { overflow-x: hidden; }
 
-    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; min-height: 20px; }
-    .msg.err { color: var(--red); }
-    .nav-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 5px; cursor: pointer; border-bottom: 2px solid transparent; }
-    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
-    .empty-text { color: var(--muted); text-align: center; padding: 20px; }
+    /* ---------- sticky announce + header (safe-area aware) ---------- */
+    .announce {
+      padding-top: max(0px, var(--safe-t));
+      padding-left: max(0px, var(--safe-l));
+      padding-right: max(0px, var(--safe-r));
+    }
+    .header { position: sticky; top: 0; z-index: 40; }
 
-    /* Stats */
-    .funds-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card { padding: 20px; border-radius: 12px; border: 1px solid var(--line); background: #fdfaf5; }
-    .stat-card .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-    .stat-card .value { font-family: Fraunces, serif; font-size: 24px; font-weight: 700; color: var(--ink); }
-    .stat-card.held .value { color: var(--wood-med); }
-    .stat-card.earned .value { color: var(--green); }
-    .stat-card.failed .value { color: var(--red); }
+    /* ---------- tap targets & hover gating ---------- */
+    .btn, .cart-btn, .catnav-link, .catnav-all, .chip, .link {
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn { min-height: var(--tap); }
 
-    /* Sub tabs */
-    .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; flex-wrap: wrap; }
-    .sub-tabs button { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; color: var(--ink-2); background: transparent; border: 1px solid transparent; cursor: pointer; }
-    .sub-tabs button.active { background: var(--wood-med); color: #fff; }
+    @media (hover: hover) {
+      .btn-gold:hover   { filter: brightness(1.05); }
+      .btn-primary:hover{ filter: brightness(0.95); }
+      .chip:hover       { border-color: var(--wood-med); }
+    }
 
-    /* Tables */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .data-table thead { background: #fdfaf5; }
-    .data-table th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--line); }
-    .data-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .data-table tr:last-child td { border-bottom: 0; }
-    .data-table .amount { font-family: Fraunces, serif; font-weight: 700; }
-    .data-table .items-cell { font-size: 12px; color: var(--ink-2); }
-    .data-table .totals-row { background: #fdfaf5; font-weight: 700; }
-    .data-table .totals-row td { padding: 14px 12px; }
+    /* ---------- long strings never break layout ---------- */
+    .hero-copy h1,
+    .hero-copy p,
+    .about-copy p,
+    .band-copy p,
+    .service-card-copy p,
+    .contact-list a,
+    .footer-col a,
+    .footer-brand p,
+    .product-grid,
+    .chip-row { overflow-wrap: anywhere; }
 
-    /* Buttons */
-    .btn-release { background: var(--green); color: #fff; padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; white-space: nowrap; transition: background 0.15s; }
-    .btn-release:hover { background: #2d5239; }
-    .btn-release:disabled { background: #c7bfb1; cursor: not-allowed; }
-    .btn-alert { background: #d68910; color: #fff; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; border: none; white-space: nowrap; margin-right: 4px; }
-    .btn-alert:hover { background: #b9770e; }
-    .warning-text { color: var(--red); font-size: 10.5px; font-weight: 600; margin-top: 4px; display: block; }
+    /* ---------- iOS zoom fix for search input ---------- */
+    @media (max-width: 600px) {
+      .search input { font-size: 16px; }
+    }
 
-    /* Cards */
-    .seller-card { padding: 16px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-    .seller-card h4 { margin: 0 0 4px; font-size: 15px; }
-    .seller-card p { margin: 0; color: var(--muted); font-size: 12px; }
-    .seller-card .owed { font-family: Fraunces, serif; font-size: 20px; font-weight: 700; color: var(--wood-med); }
+    /* ---------- catnav: horizontal scroll on narrow ---------- */
+    @media (max-width: 1024px) {
+      .catnav-inner {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 4px;
+      }
+      .catnav-inner::-webkit-scrollbar { display: none; }
+      .catnav-inner > * { flex: 0 0 auto; }
+      .catnav-drop { position: relative; }             /* keep menu anchor */
+      .catnav-quote { margin-left: 0; }
+    }
 
-    .failed-card { padding: 16px; border: 1px solid #f5c6cb; background: #fff5f5; border-radius: 10px; margin-bottom: 10px; }
-    .failed-card h4 { margin: 0 0 6px; font-size: 14px; color: var(--red); }
-    .failed-card p { margin: 4px 0; font-size: 12px; color: var(--ink-2); }
+    /* ---------- hero ---------- */
+    .hero {
+      padding-left: max(0px, var(--safe-l));
+      padding-right: max(0px, var(--safe-r));
+    }
+    .hero-copy h1 { line-height: 1.08; }
 
+    @media (max-width: 960px) {
+      .hero-stamp { display: none; }                   /* clipped copy on phones */
+      .hero { min-height: min(78svh, 720px); }
+    }
+    @media (max-width: 600px) {
+      .hero-copy h1 { font-size: clamp(28px, 8vw, 40px); }
+      .hero-copy p  { font-size: 15px; }
+      .hero-actions  { flex-wrap: wrap; }
+      .hero-actions .btn { flex: 1 1 100%; }
+      .hero-points li { font-size: 13px; }
+    }
+
+    /* ---------- trust ---------- */
     @media (max-width: 900px) {
-      .funds-summary { grid-template-columns: repeat(2, 1fr); }
-      .data-table { font-size: 12px; }
-      .data-table th, .data-table td { padding: 8px 6px; }
-      .data-table .items-cell { display: none; }
+      .trust-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .trust-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ---------- products ---------- */
+    .product-grid { min-width: 0; }
+    .product-grid > * { min-width: 0; }
+
+    /* NOTE: product-grid column counts (5 → 4 → 3 → 2) live in styles.css.
+       Do not override here or the compact grid breaks on phones. */
+
+    @media (max-width: 480px) {
+      /* only the section head + result bar collapse; grid stays 2-up */
+      .section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .result-bar   { flex-wrap: wrap; gap: 8px; }
+    }
+
+    /* ---------- chips: scroll if they overflow ---------- */
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    @media (max-width: 600px) {
+      .chip-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 4px;
+      }
+      .chip-row::-webkit-scrollbar { display: none; }
+      .chip { flex: 0 0 auto; min-height: var(--tap); }
+    }
+
+    /* ---------- about ---------- */
+    @media (max-width: 820px) {
+      .about-grid { grid-template-columns: 1fr; }
+      .about-image img { width: 100%; height: auto; display: block; }
+    }
+
+    /* ---------- services ---------- */
+    @media (max-width: 900px) {
+      .service-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .service-grid { grid-template-columns: 1fr; }
+      .service-art  { min-height: 140px; }
+    }
+
+    /* ---------- band ---------- */
+    @media (max-width: 820px) {
+      .band-grid { grid-template-columns: 1fr; gap: 24px; }
+    }
+
+    /* ---------- contact ---------- */
+    @media (max-width: 720px) {
+      .contact-card { grid-template-columns: 1fr; gap: 20px; }
+      .contact-cta  { width: 100%; justify-content: center; }
+    }
+
+    /* ---------- footer ---------- */
+    @media (max-width: 900px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+    }
+    @media (max-width: 480px) {
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom-inner { flex-direction: column; gap: 6px; text-align: center; }
+    }
+
+    /* ---------- cart drawer: fullscreen on phones ---------- */
+    @media (max-width: 600px) {
+      .drawer {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        padding-bottom: max(16px, var(--safe-b));
+      }
+      .drawer-head h3 { font-size: 18px; }
+    }
+
+    /* ---------- tiny phones ---------- */
+    @media (max-width: 380px) {
+      .hero-actions .btn { padding: 12px 14px; }
+      .section-head h2   { font-size: 22px; }
+      .container         { padding-inline: 14px; }
     }
   </style>
 </head>
 <body>
+  <div class="announce">
+    <div class="container announce-inner">
+      <span class="announce-loc">📍 Sokoban Wood Village, Kumasi</span>
+      <span class="announce-note">Quality timber. Straight from the yard.</span>
+      <span class="announce-links"><a href="#contact">Contact</a><a href="#delivery">Delivery info</a></span>
+    </div>
+  </div>
+
   <header class="header">
     <div class="container header-main">
-      <a class="brand" href="/">
+      <a class="brand" href="/" aria-label="Builder Wood home">
         <span class="brand-mark">🪵</span>
-        <span class="brand-text">Builder<em>Wood</em><small>Admin Control</small></span>
+        <span class="brand-text">Builder<em>Wood</em><small>Timber · Ceilings · Doors</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+
+      <form class="search" id="search-form" role="search" autocomplete="off">
+        <input id="search-input" type="search" placeholder="Search timber, Wawa, Denya, ceiling boards…" aria-label="Search products">
+        <button type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg><span>Search</span></button>
+        <div class="search-hints" id="search-hints"></div>
+      </form>
+
+      <div class="header-actions">
+        <div id="auth-area" class="auth-area">
+          <div id="auth-logged-out" class="auth-logged-out">
+            <a href="/login" class="btn btn-outline">Login</a>
+            <a href="/login?mode=register" class="btn btn-gold auth-signup">Sign Up</a>
+          </div>
+          <div id="auth-logged-in" class="auth-logged-in">
+            <span id="user-greeting" class="user-greeting"></span>
+            <a href="/my-orders" id="buyer-orders-link" class="btn btn-outline">My Orders</a>
+            <a href="/seller/orders" id="dashboard-link" class="btn btn-outline">Dashboard</a>
+            <button id="logout-btn" class="btn btn-outline logout-btn" type="button">Logout</button>
+          </div>
+        </div>
+        <a class="cart-btn" id="cart-open" href="#" aria-label="Open cart">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H6"></path><circle cx="10" cy="20" r="1.3"></circle><circle cx="18" cy="20" r="1.3"></circle></svg>
+          <span class="cart-badge" id="cart-count">0</span>
+        </a>
+      </div>
     </div>
+
+    <nav class="catnav" aria-label="Product categories">
+      <div class="container catnav-inner">
+        <div class="catnav-drop">
+          <button class="catnav-all" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>All categories</button>
+          <div class="catnav-menu">
+            <div class="catnav-group">
+              <h6>Timber types</h6>
+              <a data-cat="hardwood">Hardwood <span>Denya · Odum · Dahoma</span></a>
+              <a data-cat="softwood">Softwood <span>Wawa · Ofram · Kyenkyen</span></a>
+            </div>
+            <div class="catnav-group">
+              <h6>Shop by use</h6>
+              <a data-cat="roofing">Roofing timber <span>Rafters &amp; purlins</span></a>
+              <a data-cat="ceiling">Ceiling &amp; battens <span>Boards and framing</span></a>
+              <a data-cat="flooring">Flooring <span>Timber planks</span></a>
+              <a data-cat="furniture">Furniture wood <span>Mahogany · Sapele</span></a>
+              <a data-cat="interior">Interior &amp; doors <span>Doors and finishes</span></a>
+            </div>
+            <div class="catnav-group">
+              <h6>Popular searches</h6>
+              <a class="species" data-search="Wawa">Wawa <span>Browse stock</span></a>
+              <a class="species" data-search="Esa">Esa <span>Browse stock</span></a>
+              <a class="species" data-search="Denya">Denya <span>Browse stock</span></a>
+              <a class="species" data-search="Odum">Odum <span>Browse stock</span></a>
+              <a class="species" data-search="Cindella">Cindella <span>Browse stock</span></a>
+            </div>
+          </div>
+        </div>
+        <a class="catnav-link" data-cat="hardwood">Hardwood</a>
+        <a class="catnav-link" data-cat="softwood">Softwood</a>
+        <a class="catnav-link" data-cat="roofing">Roofing</a>
+        <a class="catnav-link" data-cat="ceiling">Ceiling &amp; Battens</a>
+        <a class="catnav-link" data-cat="furniture">Furniture</a>
+        <a class="catnav-link" data-cat="interior">Doors</a>
+        <a class="catnav-link" data-cat="flooring">Flooring</a>
+        <a class="catnav-quote" href="#contact">Need a quote? <span>→</span></a>
+      </div>
+    </nav>
   </header>
 
-  <main class="admin-page">
-    <div class="admin-header">
-      <h2>Admin Dashboard</h2>
-      <a href="/seller/upload" class="btn btn-primary">+ Upload My Own Wood</a>
-    </div>
-
-    <div class="nav-tabs">
-      <a class="active" onclick="switchTab('pending')" id="tab-pending">Pending Sellers</a>
-      <a onclick="switchTab('active')" id="tab-active">Active Sellers</a>
-      <a onclick="switchTab('customers')" id="tab-customers">Customers</a>
-      <a onclick="switchTab('orders')" id="tab-orders">📦 Orders</a>
-      <a onclick="switchTab('funds')" id="tab-funds">💰 Funds</a>
-    </div>
-
-    <!-- USERS VIEW -->
-    <div id="users-view">
-      <div id="list-container">
-        <p class="empty-text">Loading...</p>
+  <main>
+    <section class="hero">
+      <div class="hero-photo" role="img" aria-label="Timber planks and wood materials"></div>
+      <div class="hero-overlay"></div>
+      <div class="container hero-copy">
+        <span class="hero-kicker">Your timber marketplace in Kumasi</span>
+        <h1>Build with wood<br>you can count on.</h1>
+        <p>Shop timber, ceiling boards, battens, wooden doors and furniture from sellers at Sokoban Wood Village. Browse available stock and order by the piece.</p>
+        <div class="hero-actions">
+          <a href="#products" class="btn btn-gold">Explore products <span>→</span></a>
+          <a href="#contact" class="btn btn-outline">Talk to our team</a>
+        </div>
+        <ul class="hero-points">
+          <li>✓ Clear product prices</li>
+          <li>✓ Local sellers in Kumasi</li>
+          <li>✓ Pickup and delivery options</li>
+        </ul>
       </div>
-    </div>
+      <div class="hero-stamp"><span>BUILT</span><b>WITH</b><span>QUALITY</span><i>WOOD</i></div>
+    </section>
 
-    <!-- ORDERS VIEW -->
-    <div id="orders-view" style="display:none;">
-      <div class="sub-tabs">
-        <button class="active" onclick="switchOrders('all')" id="orders-tab-all">All Orders</button>
-        <button onclick="switchOrders('awaiting')" id="orders-tab-awaiting">Awaiting Release</button>
-        <button onclick="switchOrders('disputed')" id="orders-tab-disputed">Disputed</button>
+    <section class="trust">
+      <div class="container trust-grid">
+        <div class="trust-cell"><span class="trust-icon">🪵</span><div><b>Timber for every project</b><small>Hardwood, softwood and framing</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">📐</span><div><b>Product details upfront</b><small>Sizes, treatment and stock where available</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">🛻</span><div><b>Flexible collection</b><small>Pickup, Aboboyaa or truck delivery</small></div></div>
+        <div class="trust-cell"><span class="trust-icon">🤝</span><div><b>Local seller support</b><small>Ask about grades, bulk orders and cuts</small></div></div>
       </div>
-      <div id="orders-list-container">
-        <p class="empty-text">Loading...</p>
-      </div>
-    </div>
+    </section>
 
-    <!-- FUNDS VIEW -->
-    <div id="funds-view" style="display:none;">
-      <div class="funds-summary" id="funds-summary">
-        <div class="stat-card"><div class="label">Loading...</div><div class="value">—</div></div>
-      </div>
+    <section class="section section-products" id="products">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Browse the yard</span>
+            <h2 id="catalog-title">Our timber</h2>
+            <p class="section-sub" id="catalog-sub">Find the right materials for your next project.</p>
+          </div>
+          <label class="sort"><span>Sort by</span>
+            <select id="sort-select">
+              <option value="featured">Recommended</option>
+              <option value="price_asc">Price: low to high</option>
+              <option value="price_desc">Price: high to low</option>
+              <option value="name_asc">Name A–Z</option>
+            </select>
+          </label>
+        </div>
 
-      <div class="sub-tabs">
-        <button class="active" onclick="switchFunds('incoming')" id="funds-tab-incoming">💰 Incoming (Held)</button>
-        <button onclick="switchFunds('by-seller')" id="funds-tab-by-seller">Owed to Sellers</button>
-        <button onclick="switchFunds('settled')" id="funds-tab-settled">Settled</button>
-        <button onclick="switchFunds('failed')" id="funds-tab-failed">Failed Transfers</button>
-      </div>
+        <div class="chip-row" id="chip-row">
+          <button class="chip active" data-cat="">All products</button>
+          <button class="chip" data-cat="hardwood">Hardwood</button>
+          <button class="chip" data-cat="softwood">Softwood</button>
+          <button class="chip" data-cat="roofing">Roofing</button>
+          <button class="chip" data-cat="ceiling">Ceiling &amp; battens</button>
+          <button class="chip" data-cat="furniture">Furniture</button>
+          <button class="chip" data-cat="interior">Doors &amp; interior</button>
+          <button class="chip" data-cat="flooring">Flooring</button>
+        </div>
 
-      <div id="funds-list-container">
-        <p class="empty-text">Loading...</p>
+        <div class="result-bar">
+          <span id="result-count">Loading products…</span>
+          <button class="link" id="clear-filters" type="button">Clear filters <span>↺</span></button>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <div class="empty-mark">🪵</div>
+          <h3>No products found</h3>
+          <p>Try another search or clear the selected filters.</p>
+          <button class="btn btn-primary" id="empty-clear" type="button">Show all products</button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="msg" id="msg"></div>
+    <section class="section section-about" id="about">
+      <div class="container about-grid">
+        <div class="about-image">
+          <img src="/static/uploads/products/production_area.JPG" alt="Warm modern interior with wooden furniture" loading="lazy">
+          <div class="about-image-note"><b>From the timber yard</b><span>For builders, makers and homes</span></div>
+        </div>
+        <div class="about-copy">
+          <span class="kicker">About Builder Wood</span>
+          <h2>Good materials make a stronger build.</h2>
+          <p>Builder Wood connects buyers with timber and wood-product sellers at Sokoban Wood Village in Kumasi. Explore listings, compare available details and choose materials for your project.</p>
+          <p>Whether you need a few pieces for a home improvement or a larger order for a construction site, start with the products listed in our store.</p>
+          <a class="btn btn-primary" href="#products">Browse the catalog <span>→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-services">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Shop by project</span>
+            <h2>More than construction timber.</h2>
+            <p class="section-sub">Explore wood products for finishing, furnishing and framing.</p>
+          </div>
+        </div>
+        <div class="service-grid">
+          <article class="service-card">
+            <div class="service-art service-art-ceiling" style="--art:linear-gradient(135deg,#d7b78b,#8b5c2f)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">01 / FINISHING</span>
+              <h3>Ceiling boards &amp; battens</h3>
+              <p>Wooden ceiling boards and support battens for interior finishing and framing.</p>
+              <a class="link" data-cat="ceiling">Shop ceiling products <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-doors" style="--art:linear-gradient(135deg,#a5733f,#4f2a10)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">02 / INTERIOR</span>
+              <h3>Wooden doors</h3>
+              <p>Explore timber options for interior and exterior doors and woodwork.</p>
+              <a class="link" data-cat="interior">Explore doors <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-furniture" style="--art:linear-gradient(135deg,#c48a53,#6a3a15)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">03 / FURNITURE</span>
+              <h3>Furniture wood</h3>
+              <p>Find wood suitable for cabinets, desks, beds, chairs and custom pieces.</p>
+              <a class="link" data-cat="furniture">Shop furniture wood <span>→</span></a>
+            </div>
+          </article>
+          <article class="service-card">
+            <div class="service-art service-art-roofing" style="--art:linear-gradient(135deg,#b07240,#3c2008)"></div>
+            <div class="service-card-copy">
+              <span class="service-number">04 / STRUCTURE</span>
+              <h3>Roofing timber</h3>
+              <p>Browse framing timber for rafters, purlins and other construction needs.</p>
+              <a class="link" data-cat="roofing">Shop roofing timber <span>→</span></a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="delivery">
+      <div class="container band-grid">
+        <div class="band-copy">
+          <span class="kicker kicker-light">From yard to site</span>
+          <h2>Delivery that fits<br><em>your order.</em></h2>
+          <p>Collection and delivery options depend on distance, load size and availability. Confirm the final delivery cost with the seller before placing your order.</p>
+          <a href="#contact" class="btn btn-gold">Ask about delivery <span>→</span></a>
+        </div>
+        <ul class="band-list">
+          <li><span class="d-icon">📍</span><div><b>Pickup at Sokoban</b><small>Collect your order directly from the timber yard.</small></div></li>
+          <li><span class="d-icon">🛺</span><div><b>Aboboyaa</b><small>For small loads and short-distance delivery up to 5 km.</small></div></li>
+          <li><span class="d-icon">🚙</span><div><b>Small pickup</b><small>For suitable medium-sized loads. Confirm capacity and distance.</small></div></li>
+          <li><span class="d-icon">🚛</span><div><b>Truck delivery</b><small>For larger orders and longer routes, subject to availability.</small></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section section-contact" id="contact">
+      <div class="container contact-card">
+        <div>
+          <span class="kicker kicker-light">Need help choosing?</span>
+          <h2>Let's get your project moving.</h2>
+          <p>Ask about available stock, product sizes, bulk orders or delivery before you buy.</p>
+        </div>
+        <ul class="contact-list">
+          <li><b>WhatsApp</b><a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Chat with Builder Wood ↗</a></li>
+          <li><b>Phone</b><a href="tel:0247881337">024 788 1337</a></li>
+          <li><b>Email</b><a href="mailto:builderwood@email.com">builderwood@email.com</a></li>
+          <li><b>Visit</b><span>Sokoban Wood Village, Kumasi</span></li>
+        </ul>
+        <a class="btn btn-gold contact-cta" href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Contact us <span>→</span></a>
+      </div>
+    </section>
   </main>
 
-  <script>
-    const token = localStorage.getItem("bw_token");
-    if (!token) window.location.href = "/login";
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand brand-light" href="/">
+          <span class="brand-mark">🪵</span>
+          <span class="brand-text">Builder<em>Wood</em><small>Timber · Ceilings · Doors</small></span>
+        </a>
+        <p>Quality wood for builders and homes, from Sokoban Wood Village in Kumasi.</p>
+      </div>
+      <div class="footer-col">
+        <h6>Shop products</h6>
+        <a data-cat="hardwood">Hardwood</a>
+        <a data-cat="softwood">Softwood</a>
+        <a data-cat="roofing">Roofing timber</a>
+        <a data-cat="ceiling">Ceiling &amp; battens</a>
+        <a data-cat="furniture">Furniture wood</a>
+        <a data-cat="interior">Doors &amp; interior</a>
+      </div>
+      <div class="footer-col">
+        <h6>Helpful links</h6>
+        <a href="#products">Browse products</a>
+        <a href="#delivery">Delivery information</a>
+        <a href="#about">About Builder Wood</a>
+        <a href="#contact">Contact and quotes</a>
+      </div>
+      <div class="footer-col">
+        <h6>Contact</h6>
+        <a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+        <a href="tel:0247881337">☎ 024 788 1337</a>
+        <a href="mailto:builderwood@email.com">✉ Email us</a>
+        <span class="footer-address">📍 Sokoban, Kumasi</span>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <span>© <span id="year"></span> Builder Wood</span>
+        <span>Sokoban Wood Village · Kumasi, Ghana</span>
+        <span>Timber · Ceilings · Doors · Furniture</span>
+      </div>
+    </div>
+  </footer>
 
-    const msg = document.getElementById("msg");
-    const listContainer = document.getElementById("list-container");
-    const ordersContainer = document.getElementById("orders-list-container");
-    const fundsContainer = document.getElementById("funds-list-container");
-    const usersView = document.getElementById("users-view");
-    const ordersView = document.getElementById("orders-view");
-    const fundsView = document.getElementById("funds-view");
-
-    let currentTab = "pending";
-    let currentOrdersTab = "all";
-    let currentFundsTab = "incoming";
-
-    function fmtGHS(v) {
-      const n = Number(v);
-      return "GH₵" + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
-    }
-
-    function fmtDate(s) {
-      if (!s) return "—";
-      const d = new Date(s);
-      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    }
-
-    function showMsg(text, isError) {
-      msg.textContent = text;
-      msg.className = isError ? "msg err" : "msg";
-      clearTimeout(showMsg._t);
-      showMsg._t = setTimeout(() => { msg.textContent = ""; }, 8000);
-    }
-
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll(".nav-tabs a").forEach(a => a.classList.remove("active"));
-      document.getElementById("tab-" + tab).classList.add("active");
-
-      usersView.style.display = (tab === "orders" || tab === "funds") ? "none" : "block";
-      ordersView.style.display = tab === "orders" ? "block" : "none";
-      fundsView.style.display = tab === "funds" ? "block" : "none";
-
-      if (tab === "orders") loadOrders();
-      else if (tab === "funds") { loadFundsSummary(); loadFundsData(); }
-      else loadData();
-    }
-
-    function switchOrders(sub) {
-      currentOrdersTab = sub;
-      document.querySelectorAll("#orders-view .sub-tabs button").forEach(b => b.classList.remove("active"));
-      document.getElementById("orders-tab-" + sub).classList.add("active");
-      loadOrders();
-    }
-
-    function switchFunds(sub) {
-      currentFundsTab = sub;
-      document.querySelectorAll("#funds-view .sub-tabs button").forEach(b => b.classList.remove("active"));
-      document.getElementById("funds-tab-" + sub).classList.add("active");
-      loadFundsData();
-    }
-
-    // ============================================================
-    // USERS
-    // ============================================================
-    async function loadData() {
-      listContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      let endpoint = "";
-      if (currentTab === "pending") endpoint = "/admin/pending-sellers";
-      if (currentTab === "active") endpoint = "/admin/active-sellers";
-      if (currentTab === "customers") endpoint = "/admin/customers";
-
-      try {
-        const res = await fetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
-        if (!res.ok) throw new Error("Failed");
-        const users = await res.json();
-
-        if (users.length === 0) {
-          listContainer.innerHTML = '<p class="empty-text">No users found in this category.</p>';
-          return;
-        }
-
-        listContainer.innerHTML = users.map(u => {
-          let badge = "", actionBtn = "";
-          if (currentTab === "pending") {
-            badge = `<span class="status-badge status-pending">Pending</span>`;
-            actionBtn = `<button class="btn btn-success btn-sm" onclick="toggleUser(${u.user_id})">Approve</button>`;
-          } else if (currentTab === "active") {
-            badge = `<span class="status-badge status-active">Active</span>`;
-            actionBtn = `<button class="btn btn-danger btn-sm" onclick="toggleUser(${u.user_id})">Deactivate</button>`;
-          } else {
-            badge = `<span class="status-badge status-active">Customer</span>`;
-          }
-          return `
-            <div class="user-card">
-              <div class="user-info">
-                <h4>${u.name} ${badge}</h4>
-                <p>${u.email} · ${u.phone_number || 'No phone'}</p>
-                ${u.company_name ? `<p style="margin-top:4px; font-size:12px; color:var(--wood-med);">${u.company_name}</p>` : ""}
-              </div>
-              <div>${actionBtn}</div>
-            </div>
-          `;
-        }).join("");
-      } catch (err) {
-        listContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading data.</p>`;
-      }
-    }
-
-    async function toggleUser(id) {
-      if (!confirm("Are you sure you want to change this user's status?")) return;
-      try {
-        const res = await fetch(`/admin/users/${id}/toggle-active`, {
-          method: "PATCH",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (res.ok) {
-          showMsg("User status updated successfully!", false);
-          loadData();
-        } else {
-          const err = await res.json();
-          showMsg(err.detail || "Failed to update user.", true);
-        }
-      } catch (err) {
-        showMsg("Network error.", true);
-      }
-    }
-
-    // ============================================================
-    // ORDERS (monitoring)
-    // ============================================================
-    async function loadOrders() {
-      ordersContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      try {
-        if (currentOrdersTab === "all") await renderAllOrders();
-        else if (currentOrdersTab === "awaiting") await renderAwaitingRelease();
-        else if (currentOrdersTab === "disputed") await renderDisputed();
-      } catch (err) {
-        ordersContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading orders: ${err.message}</p>`;
-      }
-    }
-
-    async function renderAllOrders() {
-      const res = await fetch("/admin/orders/all", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const orders = await res.json();
-      if (!orders.length) {
-        ordersContainer.innerHTML = '<p class="empty-text">No orders yet.</p>';
-        return;
-      }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} ${i.size} × ${i.quantity}`).join("<br>")}</td>
-          <td><span class="status-badge status-${o.status}">${o.status}</span></td>
-          <td><span class="status-badge status-${o.payment_status}">${o.payment_status}</span></td>
-          <td><span class="status-badge status-${o.delivery_status}">${o.delivery_status}</span></td>
-          <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
-          <td class="amount">${fmtGHS(o.total_price)}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.order_date)}</td>
-          <td>${renderOrderActions(o)}</td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Order</th><th>Customer</th><th>Seller</th><th>Items</th>
-              <th>Status</th><th>Payment</th><th>Delivery</th><th>Settlement</th>
-              <th>Total</th><th>Seller Owed</th><th>Date</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
-    function renderOrderActions(o) {
-      const canRelease = o.payment_status === "paid"
-                       && o.delivery_status === "delivered"
-                       && o.settlement_status !== "settled"
-                       && o.settlement_status !== "transferring";
-
-      const alerts = `
-        <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'delivery_delayed')" title="Alert seller about delay">⏰ Delay</button>
-        <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'not_confirming')" title="Ask seller to confirm">❓ Confirm</button>
-      `;
-
-      const release = canRelease
-        ? `<button class="btn-release" onclick="releaseFunds(${o.order_id})">Release</button>`
-        : "";
-
-      return `<div style="display:flex; gap:4px; flex-wrap:wrap;">${alerts}${release}</div>`;
-    }
-
-    async function renderAwaitingRelease() {
-      const res = await fetch("/admin/orders/awaiting-release", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const orders = await res.json();
-      if (!orders.length) {
-        ordersContainer.innerHTML = '<p class="empty-text">No orders awaiting release. ✅</p>';
-        return;
-      }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.auto_confirm_at)}</td>
-          <td>
-            ${!o.seller_has_recipient ? '<span class="warning-text">⚠ No payout account</span>' : ''}
-            <button class="btn-release" onclick="releaseFunds(${o.order_id})"
-              ${!o.seller_has_recipient ? 'disabled' : ''}>
-              Release Funds
-            </button>
-          </td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr><th>Order</th><th>Customer</th><th>Seller</th><th>Amount to Release</th><th>Eligible Since</th><th>Action</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
-    async function renderDisputed() {
-      const res = await fetch("/admin/orders/disputes", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const orders = await res.json();
-      if (!orders.length) {
-        ordersContainer.innerHTML = '<p class="empty-text">No active disputes. ✅</p>';
-        return;
-      }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.buyer_id}</td>
-          <td>${o.seller_id}</td>
-          <td>${o.reason || "—"}</td>
-          <td class="amount">${fmtGHS(o.total)}</td>
-          <td>
-            <button class="btn btn-success btn-sm" onclick="resolveDispute(${o.order_id}, 'release')">Release to Seller</button>
-            <button class="btn btn-danger btn-sm" onclick="resolveDispute(${o.order_id}, 'refund')">Refund Buyer</button>
-          </td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr><th>Order</th><th>Buyer ID</th><th>Seller ID</th><th>Reason</th><th>Total</th><th>Action</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
-    async function resolveDispute(orderId, action) {
-      const verb = action === "release" ? "release funds to seller" : "refund the buyer (cancel order)";
-      if (!confirm(`Are you sure you want to ${verb} for order #${orderId}?`)) return;
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/resolve-dispute?action=${action}`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showMsg(`Dispute resolved: ${data.new_status}`, false);
-          loadOrders();
-        } else {
-          showMsg(`Error: ${data.detail}`, true);
-        }
-      } catch (err) {
-        showMsg(`Network error: ${err.message}`, true);
-      }
-    }
-
-    // ============================================================
-    // FUNDS
-    // ============================================================
-    async function loadFundsSummary() {
-      const host = document.getElementById("funds-summary");
-      try {
-        const res = await fetch("/admin/funds/summary", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error("Failed");
-        const d = await res.json();
-        host.innerHTML = `
-          <div class="stat-card held">
-            <div class="label">Held in Escrow</div>
-            <div class="value">${fmtGHS(d.total_held)}</div>
-          </div>
-          <div class="stat-card">
-            <div class="label">Commission Pending</div>
-            <div class="value">${fmtGHS(d.total_commission_pending)}</div>
-          </div>
-          <div class="stat-card earned">
-            <div class="label">Commission Earned</div>
-            <div class="value">${fmtGHS(d.total_commission_earned)}</div>
-          </div>
-          <div class="stat-card failed">
-            <div class="label">Failed Transfers</div>
-            <div class="value">${d.failed_transfers_count}</div>
-          </div>
-        `;
-      } catch (err) {
-        host.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading summary.</p>`;
-      }
-    }
-
-    async function loadFundsData() {
-      fundsContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      try {
-        if (currentFundsTab === "incoming") await renderIncoming();
-        else if (currentFundsTab === "settled") await renderSettled();
-        else if (currentFundsTab === "by-seller") await renderBySeller();
-        else if (currentFundsTab === "failed") await renderFailed();
-      } catch (err) {
-        fundsContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading funds data.</p>`;
-      }
-    }
-
-    async function renderIncoming() {
-      const res = await fetch("/admin/funds/incoming", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!data.orders.length) {
-        fundsContainer.innerHTML = '<p class="empty-text">No funds currently held. ✅</p>';
-        return;
-      }
-      const rows = data.orders.map(o => {
-        const canRelease = o.delivery_status === "delivered"
-                         && o.settlement_status !== "settled"
-                         && o.settlement_status !== "transferring";
-        return `
-          <tr>
-            <td>#${o.order_id}</td>
-            <td>${o.customer_name}</td>
-            <td>${o.seller_name}</td>
-            <td class="items-cell">${o.items.map(i => `${i.wood_name} ${i.size} × ${i.quantity}`).join("<br>")}</td>
-            <td class="amount">${fmtGHS(o.total_price)}</td>
-            <td class="amount">${fmtGHS(o.platform_commission)}</td>
-            <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-            <td>${fmtDate(o.paid_at)}</td>
-            <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
-            <td>
-              <button class="btn-release" onclick="releaseFunds(${o.order_id})"
-                ${!canRelease ? 'disabled title="Order must be delivered before release"' : ''}>
-                Release Funds
-              </button>
-              ${!canRelease ? '<span class="warning-text">Awaiting delivery</span>' : ''}
-            </td>
-          </tr>
-        `;
-      }).join("");
-      fundsContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Order</th><th>Customer</th><th>Seller</th><th>Items</th>
-              <th>Paid</th><th>Commission</th><th>Seller Owed</th>
-              <th>Paid On</th><th>Status</th><th>Action</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-          <tfoot>
-            <tr class="totals-row">
-              <td colspan="4">Total Held</td>
-              <td class="amount">${fmtGHS(data.totals.total_held)}</td>
-              <td class="amount">${fmtGHS(data.totals.total_commission_pending)}</td>
-              <td class="amount">${fmtGHS(data.totals.total_owed_to_sellers)}</td>
-              <td colspan="3"></td>
-            </tr>
-          </tfoot>
-        </table>
-      `;
-    }
-
-    async function renderSettled() {
-      const res = await fetch("/admin/funds/settled", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!data.orders.length) {
-        fundsContainer.innerHTML = '<p class="empty-text">No settled transfers yet.</p>';
-        return;
-      }
-      const rows = data.orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} × ${i.quantity}`).join("<br>")}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.settlement_eligible_at)}</td>
-        </tr>
-      `).join("");
-      fundsContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr><th>Order</th><th>Seller</th><th>Items</th><th>Amount Paid</th><th>Settled On</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
-    async function renderBySeller() {
-      const res = await fetch("/admin/funds/by-seller", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!data.sellers.length) {
-        fundsContainer.innerHTML = '<p class="empty-text">No sellers registered.</p>';
-        return;
-      }
-      fundsContainer.innerHTML = data.sellers.map(s => `
-        <div class="seller-card">
-          <div>
-            <h4>${s.seller_name}</h4>
-            <p>${s.orders_pending} pending · ${s.orders_settled} settled</p>
-          </div>
-          <div style="text-align:right;">
-            <div class="owed">${fmtGHS(s.total_owed)}</div>
-            <div style="color:var(--muted); font-size:11px; margin-top:2px;">owed</div>
-            <div style="color:var(--muted); font-size:11px; margin-top:4px;">Total paid: ${fmtGHS(s.total_settled)}</div>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    async function renderFailed() {
-      const res = await fetch("/admin/funds/failed", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!data.failed_transfers.length) {
-        fundsContainer.innerHTML = '<p class="empty-text">No failed transfers. ✅</p>';
-        return;
-      }
-      fundsContainer.innerHTML = data.failed_transfers.map(f => `
-        <div class="failed-card">
-          <h4>Order #${f.order_id} — ${fmtGHS(f.seller_payout_amount)}</h4>
-          <p><strong>Seller:</strong> ${f.seller_name}</p>
-          <p><strong>Reference:</strong> ${f.transfer_reference || "—"}</p>
-          <p><strong>Reason:</strong> ${f.transfer_failed_reason || "Unknown"}</p>
-        </div>
-      `).join("");
-    }
-
-    // ============================================================
-    // ACTIONS — Release Funds + Alert Seller
-    // ============================================================
-    async function releaseFunds(orderId) {
-      if (!confirm(`Release funds for order #${orderId}?\n\nThis will send the seller's share to their Paystack account. This cannot be undone.`)) {
-        return;
-      }
-
-      showMsg("Initiating transfer...", false);
-
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/release-funds-v2`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          showMsg(`✅ Transfer initiated (ref: ${data.reference}). Order will settle once Paystack confirms.`, false);
-          if (currentTab === "funds") { loadFundsSummary(); loadFundsData(); }
-          if (currentTab === "orders") loadOrders();
-        } else {
-          showMsg(`❌ ${data.detail || "Release failed"}`, true);
-        }
-      } catch (err) {
-        showMsg(`❌ Network error: ${err.message}`, true);
-      }
-    }
-
-    async function alertSeller(orderId, reason) {
-      const reasonText = reason === "delivery_delayed"
-        ? "delivery delay"
-        : "not confirming the order";
-      if (!confirm(`Send an alert to the seller about "${reasonText}" for order #${orderId}?`)) return;
-
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/alert-seller?reason=${reason}`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showMsg("✅ Alert sent to seller.", false);
-        } else {
-          showMsg(`❌ ${data.detail || "Failed to send alert"}`, true);
-        }
-      } catch (err) {
-        showMsg(`❌ Network error: ${err.message}`, true);
-      }
-    }
-
-    window.releaseFunds = releaseFunds;
-    window.alertSeller = alertSeller;
-    window.resolveDispute = resolveDispute;
-
-    // Initial load
-    loadData();
-  </script>
+  <div class="backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="cart-drawer" aria-hidden="true" aria-label="Shopping cart">
+    <header class="drawer-head">
+      <h3>Your cart <span id="drawer-count">(0)</span></h3>
+      <button class="close-button" id="cart-close" type="button" aria-label="Close cart">×</button>
+    </header>
+    <div class="drawer-body" id="cart-items">
+      <div class="cart-empty"><span>🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>
+    </div>
+    <footer class="drawer-foot">
+      <div class="subtotal-row"><span>Estimated subtotal</span><strong id="cart-subtotal">GH₵0.00</strong></div>
+      <p class="drawer-note">Delivery and final prices are confirmed with the seller.</p>
+      <button class="btn btn-primary full" id="checkout-button" type="button">Review order <span>→</span></button>
+      <span class="drawer-msg" id="cart-message" role="status"></span>
+    </footer>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
