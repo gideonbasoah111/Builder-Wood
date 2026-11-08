@@ -16,9 +16,6 @@ _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 _templates = Jinja2Templates(directory=_TEMPLATES_DIR)
 
 
-# ---------------------------------------------------------------------------
-# Admin dashboard page (HTML)
-# ---------------------------------------------------------------------------
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def admin_dashboard_page(request: Request):
@@ -34,88 +31,142 @@ def admin_dashboard_page(request: Request):
 def get_pending_sellers(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     return db.query(models.User).filter(models.User.role == "seller", models.User.is_active == False).all()
 
+
 @router.get("/active-sellers", response_model=List[schemas.UserOut])
 def get_active_sellers(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     return db.query(models.User).filter(models.User.role == "seller", models.User.is_active == True).all()
+
 
 @router.get("/customers", response_model=List[schemas.UserOut])
 def get_customers(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     return db.query(models.User).filter(models.User.role == "customer").all()
 
+
 @router.patch("/users/{user_id}/toggle-active", response_model=schemas.UserOut)
 def toggle_user_active(user_id: int, db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     user = db.query(models.User).filter(models.User.user_id == user_id).first()
-    if not user: raise HTTPException(404, "User not found")
-    if user.role == "admin": raise HTTPException(400, "Cannot deactivate admin")
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.role == "admin":
+        raise HTTPException(400, "Cannot deactivate admin")
     user.is_active = not user.is_active
     db.commit()
     db.refresh(user)
     return user
 
 
-# --- PAYOUTS ---
-@router.get("/orders/pending-payouts")
-def get_pending_payouts(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
-    orders = db.query(models.Order).filter(models.Order.status == "delivered", models.Order.is_funds_released == False).all()
-    return [{"order_id": o.order_id, "seller_id": o.seller_id, "payout": float(o.seller_payout_amount or 0), "total": float(o.total_price)} for o in orders]
-
-@router.post("/orders/{order_id}/release-funds")
-def release_funds(order_id: int, db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
-    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
-    if not order: raise HTTPException(404, "Order not found")
-    if order.status != "delivered": raise HTTPException(400, "Must be delivered")
-    if order.is_funds_released: raise HTTPException(400, "Already released")
-    order.is_funds_released = True
-    db.commit()
-    return {"status": "success"}
-
-# --- DISPUTES ---
-@router.get("/orders/disputes")
-def get_disputed_orders(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
-    orders = db.query(models.Order).filter(models.Order.status == "disputed").all()
-    return [{"order_id": o.order_id, "buyer_id": o.customer_id, "seller_id": o.seller_id, "reason": o.dispute_reason, "total": float(o.total_price)} for o in orders]
-
-@router.post("/orders/{order_id}/resolve-dispute")
-def resolve_dispute(order_id: int, action: str, db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
-    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
-    if not order or order.status != "disputed": raise HTTPException(404, "Active dispute not found")
-
-    if action == "refund":
-        order.status = "cancelled"
-        for item in order.items:
-            wood = db.query(models.Wood).filter(models.Wood.wood_id == item.wood_id).first()
-            if wood: wood.stock_quantity += item.quantity
-    elif action == "release":
-        order.status = "delivered"
-        order.is_funds_released = True
-    else:
-        raise HTTPException(400, "Invalid action")
-
-    db.add(models.OrderStatusHistory(order_id=order.order_id, old_status="disputed", new_status=order.status, changed_by=admin.user_id))
-    db.commit()
-    return {"status": "success", "new_status": order.status}
-
-
-# ============================================================
-# FUNDS LEDGER
-# ============================================================
-
-@router.get("/funds/summary", response_model=schemas.FundsSummaryOut)
-def funds_summary(
+# --- ORDERS ---
+@router.get("/orders/all")
+def get_all_orders(
+    limit: int = 100,
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """Aggregate numbers: money collected, held, settled, commission."""
-    paid_orders = (
+    orders = (
         db.query(models.Order)
-        .filter(models.Order.payment_status == "paid")
+        .order_by(models.Order.order_date.desc())
+        .limit(limit)
         .all()
     )
+    result = []
+    for o in orders:
+        customer = db.query(models.User).filter(models.User.user_id == o.customer_id).first()
+        seller = db.query(models.User).filter(models.User.user_id == o.seller_id).first()
+        result.append({
+            "order_id": o.order_id,
+            "customer_name": customer.name if customer else "Unknown",
+            "seller_name": seller.name if seller else "Unknown",
+            "seller_id": o.seller_id,
+            "customer_id": o.customer_id,
+            "status": o.status,
+            "payment_status": o.payment_status,
+            "delivery_status": o.delivery_status,
+            "settlement_status": o.settlement_status,
+            "total_price": float(o.total_price),
+            "seller_payout_amount": float(o.seller_payout_amount or 0),
+            "platform_commission": float(o.platform_commission or 0),
+            "order_date": o.order_date.isoformat() if o.order_date else None,
+            "auto_confirm_at": o.auto_confirm_at.isoformat() if o.auto_confirm_at else None,
+            "funds_released_at": o.funds_released_at.isoformat() if o.funds_released_at else None,
+            "transfer_reference": o.transfer_reference,
+            "transfer_failed_reason": o.transfer_failed_reason,
+            "items": [
+                {
+                    "wood_name": i.wood_name_snap,
+                    "size": i.size_snap,
+                    "quantity": i.quantity,
+                    "price": float(i.price_at_purchase),
+                }
+                for i in o.items
+            ],
+        })
+    return result
 
+
+@router.get("/orders/awaiting-release")
+def get_orders_awaiting_release(
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    orders = (
+        db.query(models.Order)
+        .filter(
+            models.Order.payment_status == "paid",
+            models.Order.delivery_status == "delivered",
+            models.Order.settlement_status != "settled",
+            models.Order.settlement_status != "transferring",
+        )
+        .order_by(models.Order.auto_confirm_at.asc())
+        .all()
+    )
+    result = []
+    for o in orders:
+        customer = db.query(models.User).filter(models.User.user_id == o.customer_id).first()
+        seller = db.query(models.User).filter(models.User.user_id == o.seller_id).first()
+        result.append({
+            "order_id": o.order_id,
+            "customer_name": customer.name if customer else "Unknown",
+            "seller_name": seller.name if seller else "Unknown",
+            "seller_payout_amount": float(o.seller_payout_amount or 0),
+            "total_price": float(o.total_price),
+            "auto_confirm_at": o.auto_confirm_at.isoformat() if o.auto_confirm_at else None,
+            "seller_has_recipient": bool(seller and seller.paystack_recipient_code),
+        })
+    return result
+
+
+@router.post("/orders/{order_id}/release-funds-v2")
+def admin_release_funds_v2(
+    order_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    from builder_wood.app.routers.orders import _initiate_seller_transfer
+
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if order.payment_status != "paid":
+        raise HTTPException(400, "Order has not been paid.")
+    if order.delivery_status != "delivered":
+        raise HTTPException(400, "Order must be marked delivered by the seller first.")
+
+    reference = _initiate_seller_transfer(db, order)
+    return {
+        "status": "transfer_initiated",
+        "order_id": order.order_id,
+        "reference": reference,
+        "message": "Funds will be released once Paystack confirms the transfer.",
+    }
+
+
+# --- FUNDS LEDGER ---
+@router.get("/funds/summary", response_model=schemas.FundsSummaryOut)
+def funds_summary(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
+    paid_orders = db.query(models.Order).filter(models.Order.payment_status == "paid").all()
     held = [o for o in paid_orders if o.settlement_status != "settled"]
     settled = [o for o in paid_orders if o.settlement_status == "settled"]
     failed = [o for o in paid_orders if o.transfer_failed_reason]
-
     return {
         "total_collected": float(sum(o.total_price for o in paid_orders)),
         "total_held": float(sum(o.total_price for o in held)),
@@ -128,11 +179,7 @@ def funds_summary(
 
 
 @router.get("/funds/incoming", response_model=schemas.FundsIncomingOut)
-def funds_incoming(
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """All paid orders where seller hasn't been settled yet."""
+def funds_incoming(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     orders = (
         db.query(models.Order)
         .filter(
@@ -142,27 +189,23 @@ def funds_incoming(
         .order_by(models.Order.order_date.desc())
         .all()
     )
-
     result = []
     for o in orders:
         customer = db.query(models.User).filter(models.User.user_id == o.customer_id).first()
         seller = db.query(models.User).filter(models.User.user_id == o.seller_id).first()
-
-        items = [
-            {
-                "wood_name": i.wood_name_snap,
-                "size": i.size_snap,
-                "quantity": i.quantity,
-                "price": float(i.price_at_purchase),
-            }
-            for i in o.items
-        ]
-
         result.append({
             "order_id": o.order_id,
             "customer_name": customer.name if customer else "Unknown",
             "seller_name": seller.name if seller else "Unknown",
-            "items": items,
+            "items": [
+                {
+                    "wood_name": i.wood_name_snap,
+                    "size": i.size_snap,
+                    "quantity": i.quantity,
+                    "price": float(i.price_at_purchase),
+                }
+                for i in o.items
+            ],
             "total_price": float(o.total_price),
             "platform_commission": float(o.platform_commission or 0),
             "seller_payout_amount": float(o.seller_payout_amount or 0),
@@ -171,7 +214,6 @@ def funds_incoming(
             "paid_at": o.order_date,
             "settlement_eligible_at": o.settlement_eligible_at,
         })
-
     return {
         "orders": result,
         "totals": {
@@ -183,11 +225,7 @@ def funds_incoming(
 
 
 @router.get("/funds/settled", response_model=schemas.FundsIncomingOut)
-def funds_settled(
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """All paid orders where seller has been settled."""
+def funds_settled(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     orders = (
         db.query(models.Order)
         .filter(
@@ -197,27 +235,23 @@ def funds_settled(
         .order_by(models.Order.funds_released_at.desc())
         .all()
     )
-
     result = []
     for o in orders:
         customer = db.query(models.User).filter(models.User.user_id == o.customer_id).first()
         seller = db.query(models.User).filter(models.User.user_id == o.seller_id).first()
-
-        items = [
-            {
-                "wood_name": i.wood_name_snap,
-                "size": i.size_snap,
-                "quantity": i.quantity,
-                "price": float(i.price_at_purchase),
-            }
-            for i in o.items
-        ]
-
         result.append({
             "order_id": o.order_id,
             "customer_name": customer.name if customer else "Unknown",
             "seller_name": seller.name if seller else "Unknown",
-            "items": items,
+            "items": [
+                {
+                    "wood_name": i.wood_name_snap,
+                    "size": i.size_snap,
+                    "quantity": i.quantity,
+                    "price": float(i.price_at_purchase),
+                }
+                for i in o.items
+            ],
             "total_price": float(o.total_price),
             "platform_commission": float(o.platform_commission or 0),
             "seller_payout_amount": float(o.seller_payout_amount or 0),
@@ -226,43 +260,21 @@ def funds_settled(
             "paid_at": o.order_date,
             "settlement_eligible_at": o.funds_released_at,
         })
-
-    return {
-        "orders": result,
-        "totals": {
-            "total_held": 0,
-            "total_commission_pending": 0,
-            "total_owed_to_sellers": 0,
-        },
-    }
+    return {"orders": result, "totals": {"total_held": 0, "total_commission_pending": 0, "total_owed_to_sellers": 0}}
 
 
 @router.get("/funds/by-seller", response_model=schemas.FundsBySellerOut)
-def funds_by_seller(
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """Grouped by seller: how much each is owed vs. paid."""
-    sellers = (
-        db.query(models.User)
-        .filter(models.User.role == "seller")
-        .order_by(models.User.name)
-        .all()
-    )
-
+def funds_by_seller(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
+    sellers = db.query(models.User).filter(models.User.role == "seller").order_by(models.User.name).all()
     result = []
     for s in sellers:
         paid = (
             db.query(models.Order)
-            .filter(
-                models.Order.seller_id == s.user_id,
-                models.Order.payment_status == "paid",
-            )
+            .filter(models.Order.seller_id == s.user_id, models.Order.payment_status == "paid")
             .all()
         )
         pending = [o for o in paid if o.settlement_status != "settled"]
         settled = [o for o in paid if o.settlement_status == "settled"]
-
         result.append({
             "seller_id": s.user_id,
             "seller_name": s.name,
@@ -271,16 +283,11 @@ def funds_by_seller(
             "orders_settled": len(settled),
             "total_settled": float(sum(o.seller_payout_amount or 0 for o in settled)),
         })
-
     return {"sellers": result}
 
 
 @router.get("/funds/failed", response_model=schemas.FundsFailedOut)
-def funds_failed(
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """Transfers that failed and need admin attention."""
+def funds_failed(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     orders = (
         db.query(models.Order)
         .filter(
@@ -290,7 +297,6 @@ def funds_failed(
         .order_by(models.Order.order_date.desc())
         .all()
     )
-
     result = []
     for o in orders:
         seller = db.query(models.User).filter(models.User.user_id == o.seller_id).first()
@@ -302,5 +308,51 @@ def funds_failed(
             "transfer_failed_reason": o.transfer_failed_reason,
             "settlement_status": o.settlement_status or "not_eligible",
         })
-
     return {"failed_transfers": result}
+
+
+# --- DISPUTES ---
+@router.get("/orders/disputes")
+def get_disputed_orders(db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
+    orders = db.query(models.Order).filter(models.Order.status == "disputed").all()
+    return [
+        {
+            "order_id": o.order_id,
+            "buyer_id": o.customer_id,
+            "seller_id": o.seller_id,
+            "reason": o.dispute_reason,
+            "total": float(o.total_price),
+        }
+        for o in orders
+    ]
+
+
+@router.post("/orders/{order_id}/resolve-dispute")
+def resolve_dispute(
+    order_id: int,
+    action: str,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order or order.status != "disputed":
+        raise HTTPException(404, "Active dispute not found")
+
+    if action == "refund":
+        order.status = "cancelled"
+        for item in order.items:
+            wood = db.query(models.Wood).filter(models.Wood.wood_id == item.wood_id).first()
+            if wood:
+                wood.stock_quantity += item.quantity
+    elif action == "release":
+        order.status = "delivered"
+        order.is_funds_released = True
+    else:
+        raise HTTPException(400, "Invalid action")
+
+    db.add(models.OrderStatusHistory(
+        order_id=order.order_id, old_status="disputed",
+        new_status=order.status, changed_by=admin.user_id,
+    ))
+    db.commit()
+    return {"status": "success", "new_status": order.status}

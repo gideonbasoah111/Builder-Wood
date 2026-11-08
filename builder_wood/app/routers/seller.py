@@ -351,3 +351,11 @@ def seller_orders_page(request: Request):
         name="seller_orders.html",
         context={"shop_name": settings.APP_NAME},
     )
+
+@router.get("/payout", response_class=HTMLResponse, include_in_schema=False)
+def seller_payout_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="seller_payout.html",
+        context={"shop_name": settings.APP_NAME},
+    )

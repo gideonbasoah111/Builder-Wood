@@ -2,9 +2,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 import uuid
-import requests
-from builder_wood.app.config import settings
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -12,12 +11,14 @@ from sqlalchemy.orm import Session, joinedload
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_user, get_current_active_seller, get_current_admin
+from builder_wood.app.config import settings
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 MIN_DISTANCE_KM = Decimal("1.0")
 COMMISSION_RATE = Decimal("0.05")
+PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
 
 
 class OrderItemIn(BaseModel):
@@ -51,12 +52,16 @@ class OrderItemOut(BaseModel):
     quantity: int
     price_at_purchase: Decimal
 
-    class Config: from_attributes = True
+    class Config:
+        from_attributes = True
 
 
 class OrderOut(BaseModel):
     order_id: int
     status: str
+    payment_status: Optional[str] = None
+    delivery_status: Optional[str] = None
+    settlement_status: Optional[str] = None
     total_pieces: int
     subtotal: Decimal
     delivery_fee: Decimal
@@ -64,14 +69,14 @@ class OrderOut(BaseModel):
     currency: str
     vehicle_id: Optional[int]
     delivery_address: str
-    order_date: datetime | None = None
+    order_date: Optional[datetime] = None
     items: List[OrderItemOut] = []
 
-    class Config: from_attributes = True
+    class Config:
+        from_attributes = True
 
 
 def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, preferred_method: str):
-    """Pick a vehicle and compute delivery fee. Raises on no-match (no silent upgrade)."""
     if preferred_method == "pickup":
         return None, Decimal("0.00")
 
@@ -94,20 +99,67 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
             if preferred_substr.lower() not in v.name.lower():
                 continue
             if total_pieces > v.max_pieces:
-                raise HTTPException(400,
-                    f"{v.name} carries up to {v.max_pieces} pieces, order has {total_pieces}.")
+                raise HTTPException(400, f"{v.name} can carry up to {v.max_pieces} pieces, but this order has {total_pieces}.")
             if distance_km > v.max_distance_km:
-                raise HTTPException(400,
-                    f"{v.name} delivers up to {v.max_distance_km} km, address is {distance_km} km.")
+                raise HTTPException(400, f"{v.name} can deliver up to {v.max_distance_km} km, but your address is {distance_km} km away.")
             return v, _fee(v)
 
-    candidates = [v for v in active
-                  if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km]
+    candidates = [
+        v for v in active
+        if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km
+    ]
     if not candidates:
-        raise HTTPException(400,
-            f"No vehicle can deliver {total_pieces} pieces over {distance_km} km.")
+        raise HTTPException(400, f"No vehicle can deliver {total_pieces} pieces over {distance_km} km.")
     v = min(candidates, key=lambda x: x.max_pieces)
     return v, _fee(v)
+
+
+def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
+    """Initiate a Paystack transfer to the seller."""
+    if order.settlement_status in ("transferring", "settled"):
+        raise HTTPException(400, "Settlement already in progress or complete.")
+    if order.is_funds_released:
+        raise HTTPException(400, "Funds already released.")
+    if not order.seller_payout_amount or order.seller_payout_amount <= 0:
+        raise HTTPException(400, "No payout amount set on this order.")
+
+    seller = db.query(models.User).filter(models.User.user_id == order.seller_id).first()
+    if not seller:
+        raise HTTPException(404, "Seller not found.")
+    if not seller.paystack_recipient_code:
+        raise HTTPException(400, "Seller has not registered a payout account. Ask them to add bank or mobile money details.")
+
+    reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
+    amount_pesewas = int((Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1")))
+
+    try:
+        resp = requests.post(
+            PAYSTACK_TRANSFER_URL,
+            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
+            json={
+                "source": "balance",
+                "amount": amount_pesewas,
+                "recipient": seller.paystack_recipient_code,
+                "reason": f"Builder Wood payout for order #{order.order_id}",
+                "reference": reference,
+            },
+            timeout=20,
+        )
+        data = resp.json()
+    except requests.RequestException as exc:
+        raise HTTPException(502, f"Paystack unreachable: {exc}")
+
+    if not data.get("status"):
+        order.settlement_status = "not_eligible"
+        order.transfer_failed_reason = data.get("message", "Unknown transfer error")
+        db.commit()
+        raise HTTPException(400, f"Transfer rejected: {data.get('message')}")
+
+    order.settlement_status = "transferring"
+    order.transfer_reference = reference
+    order.transfer_failed_reason = None
+    db.commit()
+    return reference
 
 
 @router.post("/estimate-distance", response_model=schemas.DistanceEstimateOut)
@@ -124,25 +176,39 @@ def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends
 
 
 @router.get("/seller/orders", response_model=List[OrderOut])
-def get_seller_orders(db: Session = Depends(get_db),
-                      current_seller: models.User = Depends(get_current_active_seller)):
-    return (db.query(models.Order).options(joinedload(models.Order.items))
-            .filter(models.Order.seller_id == current_seller.user_id)
-            .order_by(models.Order.order_date.desc()).all())
+def get_seller_orders(
+    db: Session = Depends(get_db),
+    current_seller: models.User = Depends(get_current_active_seller),
+):
+    return (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.seller_id == current_seller.user_id)
+        .order_by(models.Order.order_date.desc())
+        .all()
+    )
 
 
 @router.get("/my-orders", response_model=List[OrderOut])
-def get_my_orders(db: Session = Depends(get_db),
-                  current_user: models.User = Depends(get_current_user)):
-    return (db.query(models.Order).options(joinedload(models.Order.items))
-            .filter(models.Order.customer_id == current_user.user_id)
-            .order_by(models.Order.order_date.desc()).all())
+def get_my_orders(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.customer_id == current_user.user_id)
+        .order_by(models.Order.order_date.desc())
+        .all()
+    )
 
 
 @router.post("/", response_model=List[OrderOut], status_code=201)
-def create_order(payload: OrderCreateIn, db: Session = Depends(get_db),
-                 current_user: models.User = Depends(get_current_user)):
-    # Server-side distance — never trust the client
+def create_order(
+    payload: OrderCreateIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     if payload.delivery_method == "pickup":
         effective_distance = Decimal("0")
     else:
@@ -154,10 +220,15 @@ def create_order(payload: OrderCreateIn, db: Session = Depends(get_db),
 
     items_by_seller = {}
     for line in payload.items:
-        wood = (db.query(models.Wood)
-                .filter(models.Wood.wood_id == line.wood_id,
-                        models.Wood.is_available.is_(True),
-                        models.Wood.deleted_at.is_(None)).first())
+        wood = (
+            db.query(models.Wood)
+            .filter(
+                models.Wood.wood_id == line.wood_id,
+                models.Wood.is_available.is_(True),
+                models.Wood.deleted_at.is_(None),
+            )
+            .first()
+        )
         if not wood:
             raise HTTPException(404, "Wood not found")
         if wood.stock_quantity < line.quantity:
@@ -205,12 +276,14 @@ def create_order(payload: OrderCreateIn, db: Session = Depends(get_db),
 
         db.add(models.OrderStatusHistory(
             order_id=order.order_id, old_status=None,
-            new_status="pending", changed_by=None))
+            new_status="pending", changed_by=None,
+        ))
         db.add(models.PaymentTransaction(
             order_id=order.order_id,
             reference=f"BW-{order.order_id}-{uuid.uuid4().hex[:6].upper()}",
             provider="paystack", amount=total_price,
-            currency="GHS", status="pending"))
+            currency="GHS", status="pending",
+        ))
         created_orders.append(order)
 
     if payload.delivery_address:
@@ -220,137 +293,70 @@ def create_order(payload: OrderCreateIn, db: Session = Depends(get_db),
     db.query(models.CartItem).filter(models.CartItem.user_id == current_user.user_id).delete()
     db.commit()
 
-    return (db.query(models.Order).options(joinedload(models.Order.items))
-            .filter(models.Order.order_id.in_([o.order_id for o in created_orders])).all())
+    return (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.order_id.in_([o.order_id for o in created_orders]))
+        .all()
+    )
 
 
 @router.patch("/{order_id}/status", response_model=OrderOut)
-def update_order_status(order_id: int, payload: OrderStatusUpdateIn,
-                        db: Session = Depends(get_db),
-                        current_seller: models.User = Depends(get_current_active_seller)):
-    order = (db.query(models.Order)
-             .filter(models.Order.order_id == order_id,
-                     models.Order.seller_id == current_seller.user_id).first())
-    if not order:
-        raise HTTPException(404, "Order not found")
-    old_status = order.status
-    order.status = payload.status
-    if payload.status == "delivered":
-        order.auto_confirm_at = datetime.utcnow() + timedelta(hours=48)
-    db.add(models.OrderStatusHistory(order_id=order.order_id, old_status=old_status,
-                                     new_status=payload.status, changed_by=current_seller.user_id))
-    db.commit()
-    return (db.query(models.Order).options(joinedload(models.Order.items))
-            .filter(models.Order.order_id == order.order_id).first())
-
-
-@router.post("/{order_id}/dispute")
-def open_dispute(order_id: int, payload: DisputeIn,
-                 db: Session = Depends(get_db),
-                 current_user: models.User = Depends(get_current_user)):
-    order = (db.query(models.Order)
-             .filter(models.Order.order_id == order_id,
-                     models.Order.customer_id == current_user.user_id).first())
-    if not order:
-        raise HTTPException(404, "Order not found")
-    if order.status not in ["paid", "confirmed", "shipped", "delivered"]:
-        raise HTTPException(400, "Cannot dispute this order")
-    if order.is_funds_released:
-        raise HTTPException(400, "Funds already released")
-    order.status = "disputed"
-    order.dispute_reason = payload.reason
-    order.disputed_at = datetime.utcnow()
-    order.auto_confirm_at = None
-    db.add(models.OrderStatusHistory(order_id=order.order_id, old_status="delivered",
-                                     new_status="disputed", changed_by=current_user.user_id))
-    db.commit()
-    return {"status": "success", "message": "Dispute opened."}
-
-
-@router.get("/{order_id}", response_model=OrderOut)
-def get_order(order_id: int, db: Session = Depends(get_db),
-              current_user: models.User = Depends(get_current_user)):
-    order = (db.query(models.Order).options(joinedload(models.Order.items))
-             .filter(models.Order.order_id == order_id).first())
-    if not order:
-        raise HTTPException(404, "Order not found")
-    if (order.customer_id != current_user.user_id
-            and order.seller_id != current_user.user_id
-            and current_user.role != "admin"):
-        raise HTTPException(403, "Not authorized")
-    return order
-PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
-
-
-def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
-    """Initiate Paystack transfer to the seller. Returns reference."""
-    if order.settlement_status in ("transferring", "settled"):
-        return order.transfer_reference or ""
-    if order.is_funds_released:
-        raise HTTPException(409, "Funds already released.")
-    if not order.seller_payout_amount or order.seller_payout_amount <= 0:
-        raise HTTPException(400, "No payout amount set.")
-
-    seller = db.query(models.User).filter(models.User.user_id == order.seller_id).first()
-    if not seller:
-        raise HTTPException(404, "Seller not found.")
-    if not seller.paystack_recipient_code:
-        raise HTTPException(400, "Seller has not registered a payout account.")
-
-    reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
-    amount_pesewas = int((Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1")))
-
-    try:
-        resp = requests.post(
-            PAYSTACK_TRANSFER_URL,
-            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
-            json={
-                "source": "balance",
-                "amount": amount_pesewas,
-                "recipient": seller.paystack_recipient_code,
-                "reason": f"Builder Wood payout for order #{order.order_id}",
-                "reference": reference,
-            },
-            timeout=20,
-        )
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise HTTPException(502, f"Paystack unreachable: {exc}")
-
-    if not data.get("status"):
-        order.settlement_status = "not_eligible"
-        order.transfer_failed_reason = data.get("message", "unknown")
-        db.commit()
-        raise HTTPException(400, f"Transfer rejected: {data.get('message')}")
-
-    order.settlement_status = "transferring"
-    order.transfer_reference = reference
-    db.commit()
-    return reference
-
-
-@router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
-def buyer_confirm_delivery(
+def update_order_status(
     order_id: int,
+    payload: OrderStatusUpdateIn,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_seller: models.User = Depends(get_current_active_seller),
 ):
-    """Buyer confirms receipt. Immediately triggers settlement."""
     order = (
         db.query(models.Order)
-        .filter(models.Order.order_id == order_id,
-                models.Order.customer_id == current_user.user_id)
+        .filter(
+            models.Order.order_id == order_id,
+            models.Order.seller_id == current_seller.user_id,
+        )
         .first()
     )
     if not order:
-        raise HTTPException(404, "Order not found.")
-    if order.delivery_status != "delivered":
-        raise HTTPException(400, "Order is not marked as delivered yet.")
-    if order.settlement_status in ("transferring", "settled"):
-        raise HTTPException(400, "Settlement already in progress or complete.")
+        raise HTTPException(404, "Order not found")
 
-    order.settlement_status = "eligible"
-    order.settlement_eligible_at = datetime.utcnow()
+    old_status = order.status
+    order.status = payload.status
+
+    if payload.status == "shipped":
+        order.delivery_status = "shipped"
+    if payload.status == "delivered":
+        order.delivery_status = "delivered"
+        order.auto_confirm_at = datetime.utcnow() + timedelta(hours=48)
+        order.settlement_status = "eligible"
+        order.settlement_eligible_at = order.auto_confirm_at
+
+    db.add(models.OrderStatusHistory(
+        order_id=order.order_id, old_status=old_status,
+        new_status=payload.status, changed_by=current_seller.user_id,
+    ))
+    db.commit()
+    return (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.order_id == order.order_id)
+        .first()
+    )
+
+
+@router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
+def admin_release_funds(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin),
+):
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if order.payment_status != "paid":
+        raise HTTPException(400, "Order has not been paid.")
+    if order.delivery_status != "delivered":
+        raise HTTPException(400, "Seller has not marked this order as delivered yet.")
+
     _initiate_seller_transfer(db, order)
     db.refresh(order)
 
@@ -367,20 +373,26 @@ def buyer_confirm_delivery(
     }
 
 
-@router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
-def admin_release_funds(
+@router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
+def buyer_confirm_delivery(
     order_id: int,
     db: Session = Depends(get_db),
-    current_admin: models.User = Depends(get_current_admin),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """Admin manually releases funds (bypasses timer + buyer confirmation)."""
-    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.order_id == order_id,
+            models.Order.customer_id == current_user.user_id,
+        )
+        .first()
+    )
     if not order:
         raise HTTPException(404, "Order not found.")
+    if order.delivery_status != "delivered":
+        raise HTTPException(400, "Order is not marked as delivered yet.")
     if order.settlement_status in ("transferring", "settled"):
-        raise HTTPException(400, "Already in progress or settled.")
-    if order.payment_status != "paid":
-        raise HTTPException(400, "Order has not been paid.")
+        raise HTTPException(400, "Settlement already in progress or complete.")
 
     order.settlement_status = "eligible"
     order.settlement_eligible_at = datetime.utcnow()
@@ -424,3 +436,59 @@ def get_settlement_status(
         "seller_payout_amount": order.seller_payout_amount,
         "platform_commission": order.platform_commission,
     }
+
+
+@router.post("/{order_id}/dispute")
+def open_dispute(
+    order_id: int,
+    payload: DisputeIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.order_id == order_id,
+            models.Order.customer_id == current_user.user_id,
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status not in ["paid", "confirmed", "shipped", "delivered"]:
+        raise HTTPException(400, "Cannot dispute this order")
+    if order.is_funds_released:
+        raise HTTPException(400, "Funds already released")
+
+    order.status = "disputed"
+    order.dispute_reason = payload.reason
+    order.disputed_at = datetime.utcnow()
+    order.auto_confirm_at = None
+
+    db.add(models.OrderStatusHistory(
+        order_id=order.order_id, old_status="delivered",
+        new_status="disputed", changed_by=current_user.user_id,
+    ))
+    db.commit()
+    return {"status": "success", "message": "Dispute opened."}
+
+
+@router.get("/{order_id}", response_model=OrderOut)
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    order = (
+        db.query(models.Order)
+        .options(joinedload(models.Order.items))
+        .filter(models.Order.order_id == order_id)
+        .first()
+    )
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if (order.customer_id != current_user.user_id
+            and order.seller_id != current_user.user_id
+            and current_user.role != "admin"):
+        raise HTTPException(403, "Not authorized")
+    return order
