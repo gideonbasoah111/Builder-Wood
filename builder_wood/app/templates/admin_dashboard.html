@@ -2,116 +2,200 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
   <title>Admin Dashboard — Builder Wood</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    /* Force header link to be on top and clickable */
-    header.header { z-index: 9999 !important; position: sticky; top: 0; }
-    header.header .header-main { position: relative; z-index: 10000; }
-    header.header .catnav-quote {
-      position: relative; z-index: 10001;
-      pointer-events: auto !important;
-      cursor: pointer;
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 10px 16px; border-radius: 8px;
-      transition: background 0.15s;
-      text-decoration: none;
-    }
-    header.header .catnav-quote:hover {
-      background: rgba(255,255,255,0.12);
-      color: #fff !important;
+    :root {
+      --tap: 44px;
+      --safe-l: env(safe-area-inset-left, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
     }
 
-    .admin-page { max-width: 1240px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
-    .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body { margin: 0; }
+
+    .admin-page {
+      width: 100%;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 30px;
+      padding-left: max(30px, calc(30px + var(--safe-l)));
+      padding-right: max(30px, calc(30px + var(--safe-r)));
+      padding-bottom: max(30px, calc(30px + var(--safe-b)));
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
     .admin-header h2 { font-family: Fraunces, serif; margin: 0; }
-    .btn { padding: 10px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-block; cursor: pointer; border: none; }
-    .btn-primary { background: var(--wood-med); color: white; }
-    .btn-danger { background: var(--red); color: white; }
-    .btn-success { background: var(--green); color: white; }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
 
-    .user-card { display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
-    .user-info h4 { margin: 0 0 4px; font-size: 16px; }
-    .user-info p { margin: 0; color: var(--muted); font-size: 13px; }
+    /* ---------- buttons ---------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--tap);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary { background: var(--wood-med); color: #fff; }
+    .btn-danger  { background: var(--red);       color: #fff; }
+    .btn-success { background: var(--green);     color: #fff; }
+    .btn-sm      { min-height: 36px; padding: 6px 12px; font-size: 13px; }
 
-    .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; }
-    .status-pending { background: #fff3cd; color: #856404; }
-    .status-paid { background: #d4edda; color: #155724; }
-    .status-confirmed { background: #cce5ff; color: #004085; }
-    .status-shipped { background: #d1ecf1; color: #0c5460; }
-    .status-delivered { background: #d4edda; color: #155724; }
-    .status-cancelled { background: #f8d7da; color: #721c24; }
-    .status-disputed { background: #f8d7da; color: #721c24; }
-    .status-settled { background: #d1ecf1; color: #0c5460; }
-    .status-transferring { background: #fff3cd; color: #856404; }
-    .status-eligible { background: #d4edda; color: #155724; }
-    .status-not_eligible { background: #e2e3e5; color: #383d41; }
-    .status-unpaid { background: #e2e3e5; color: #383d41; }
-    .status-active { background: #d4edda; color: #155724; }
+    @media (hover: hover) {
+      .btn-primary:hover { background: var(--wood-dark, #3e2c24); }
+      .btn-danger:hover  { filter: brightness(0.92); }
+      .btn-success:hover { filter: brightness(0.92); }
+    }
+
+    /* ---------- tabs ---------- */
+    .nav-tabs {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;              /* Firefox */
+      -ms-overflow-style: none;           /* old Edge */
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+    .nav-tabs a {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-weight: 600;
+      text-decoration: none;
+      padding: 12px 6px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-tabs a.active {
+      color: var(--wood-med);
+      border-bottom-color: var(--wood-med);
+    }
+
+    /* ---------- user cards ---------- */
+    .user-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      min-width: 0;                       /* allow children to shrink */
+    }
+    .user-info { min-width: 0; flex: 1 1 auto; }
+    .user-info h4 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      word-break: break-word;
+    }
+    .user-info p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .user-info .company {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--wood-med);
+      overflow-wrap: anywhere;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .status-pending  { background: #fff3cd; color: #856404; }
+    .status-active   { background: #d4edda; color: #155724; }
     .status-inactive { background: #f8d7da; color: #721c24; }
 
-    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; min-height: 20px; }
-    .msg.err { color: var(--red); }
-    .nav-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 5px; cursor: pointer; border-bottom: 2px solid transparent; }
-    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
-    .empty-text { color: var(--muted); text-align: center; padding: 20px; }
+    .msg {
+      margin-top: 15px;
+      font-weight: 600;
+      color: var(--green);
+      text-align: center;
+      min-height: 1.2em;
+    }
+    .empty-text {
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+    }
 
-    .funds-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card { padding: 20px; border-radius: 12px; border: 1px solid var(--line); background: #fdfaf5; }
-    .stat-card .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-    .stat-card .value { font-family: Fraunces, serif; font-size: 24px; font-weight: 700; color: var(--ink); }
-    .stat-card.held .value { color: var(--wood-med); }
-    .stat-card.earned .value { color: var(--green); }
-    .stat-card.failed .value { color: var(--red); }
+    /* ---------- tablets ---------- */
+    @media (max-width: 720px) {
+      .admin-page {
+        margin: 20px 12px;
+        padding: 20px 16px;
+        border-radius: 12px;
+      }
+      .admin-header { padding-bottom: 16px; margin-bottom: 16px; }
+    }
 
-    .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; flex-wrap: wrap; }
-    .sub-tabs button { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; color: var(--ink-2); background: transparent; border: 1px solid transparent; cursor: pointer; }
-    .sub-tabs button.active { background: var(--wood-med); color: #fff; }
+    /* ---------- phones ---------- */
+    @media (max-width: 520px) {
+      .admin-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .admin-header h2 { font-size: 22px; }
+      .admin-header .btn { width: 100%; }
 
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .data-table thead { background: #fdfaf5; }
-    .data-table th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--line); }
-    .data-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .data-table tr:last-child td { border-bottom: 0; }
-    .data-table .amount { font-family: Fraunces, serif; font-weight: 700; }
-    .data-table .items-cell { font-size: 12px; color: var(--ink-2); }
-    .data-table .totals-row { background: #fdfaf5; font-weight: 700; }
-    .data-table .totals-row td { padding: 14px 12px; }
+      .user-card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .user-card .btn {
+        width: 100%;
+      }
 
-    .btn-release { background: var(--green); color: #fff; padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; white-space: nowrap; transition: background 0.15s; }
-    .btn-release:hover { background: #2d5239; }
-    .btn-release:disabled { background: #c7bfb1; cursor: not-allowed; }
-    .btn-alert { background: #d68910; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; border: none; white-space: nowrap; margin-right: 4px; }
-    .btn-alert:hover { background: #b9770e; }
-    .warning-text { color: var(--red); font-size: 10.5px; font-weight: 600; margin-top: 4px; display: block; }
+      .nav-tabs { gap: 14px; }
+    }
 
-    .seller-group { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-    .seller-group-head { padding: 16px 20px; background: #fdfaf5; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .seller-group-head h4 { margin: 0 0 4px; font-size: 16px; font-family: Fraunces, serif; }
-    .seller-group-head p { margin: 0; font-size: 12px; color: var(--muted); }
-    .seller-group-head .totals { text-align: right; }
-    .seller-group-head .totals .owed { font-family: Fraunces, serif; font-size: 22px; font-weight: 700; color: var(--wood-med); }
-    .seller-group-head .totals small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .seller-group-body { padding: 0; }
-    .ready-order-row { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .ready-order-row:last-child { border-bottom: 0; }
-    .ready-order-info { flex: 1; min-width: 200px; }
-    .ready-order-info h5 { margin: 0 0 4px; font-size: 14px; font-weight: 700; }
-    .ready-order-info p { margin: 0; font-size: 12px; color: var(--muted); }
-    .ready-order-amount { font-family: Fraunces, serif; font-size: 18px; font-weight: 700; color: var(--wood-med); white-space: nowrap; }
-
-    .failed-card { padding: 16px; border: 1px solid #f5c6cb; background: #fff5f5; border-radius: 10px; margin-bottom: 10px; }
-    .failed-card h4 { margin: 0 0 6px; font-size: 14px; color: var(--red); }
-    .failed-card p { margin: 4px 0; font-size: 12px; color: var(--ink-2); }
-
-    @media (max-width: 900px) {
-      .funds-summary { grid-template-columns: repeat(2, 1fr); }
-      .data-table { font-size: 12px; }
-      .data-table th, .data-table td { padding: 8px 6px; }
-      .data-table .items-cell { display: none; }
+    /* ---------- very narrow (small phones) ---------- */
+    @media (max-width: 360px) {
+      .admin-page { padding: 16px 12px; }
+      .user-info h4 { font-size: 15px; }
     }
   </style>
 </head>
@@ -122,7 +206,7 @@
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Admin Control</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="color:var(--gold-2);font-weight:700;">← Back to shop</a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
     </div>
   </header>
 
@@ -132,442 +216,145 @@
       <a href="/seller/upload" class="btn btn-primary">+ Upload My Own Wood</a>
     </div>
 
-    <div class="nav-tabs">
-      <a class="active" onclick="switchTab('pending')" id="tab-pending">Pending Sellers</a>
-      <a onclick="switchTab('active')" id="tab-active">Active Sellers</a>
-      <a onclick="switchTab('customers')" id="tab-customers">Customers</a>
-      <a onclick="switchTab('orders')" id="tab-orders">📦 Orders</a>
-      <a onclick="switchTab('funds')" id="tab-funds">💰 Funds</a>
+    <div class="nav-tabs" role="tablist">
+      <a class="active" id="tab-pending"   role="tab" onclick="switchTab('pending')">Pending Sellers</a>
+      <a id="tab-active"    role="tab" onclick="switchTab('active')">Active Sellers</a>
+      <a id="tab-customers" role="tab" onclick="switchTab('customers')">Customers</a>
     </div>
 
-    <div id="users-view">
-      <div id="list-container"><p class="empty-text">Loading...</p></div>
+    <div id="list-container">
+      <p class="empty-text">Loading...</p>
     </div>
 
-    <div id="orders-view" style="display:none;">
-      <div class="sub-tabs">
-        <button class="active" onclick="switchOrders('all')" id="orders-tab-all">All Orders</button>
-        <button onclick="switchOrders('awaiting')" id="orders-tab-awaiting">Awaiting Release</button>
-        <button onclick="switchOrders('disputed')" id="orders-tab-disputed">Disputed</button>
-      </div>
-      <div id="orders-list-container"><p class="empty-text">Loading...</p></div>
-    </div>
-
-    <div id="funds-view" style="display:none;">
-      <div class="funds-summary" id="funds-summary">
-        <div class="stat-card"><div class="label">Loading...</div><div class="value">—</div></div>
-      </div>
-
-      <div class="sub-tabs">
-        <button onclick="switchFunds('incoming')" id="funds-tab-incoming">💰 Incoming (Held)</button>
-        <button class="active" onclick="switchFunds('by-seller')" id="funds-tab-by-seller">Owed to Sellers</button>
-        <button onclick="switchFunds('settled')" id="funds-tab-settled">Settled</button>
-        <button onclick="switchFunds('failed')" id="funds-tab-failed">Failed Transfers</button>
-      </div>
-
-      <div id="funds-list-container"><p class="empty-text">Loading...</p></div>
-    </div>
-
-    <div class="msg" id="msg"></div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
   </main>
 
   <script>
-    const token = localStorage.getItem("bw_token");
-    if (!token) window.location.href = "/login";
+    (function () {
+      const token = localStorage.getItem("bw_token");
+      if (!token) { window.location.href = "/login"; return; }
 
-    const msg = document.getElementById("msg");
-    const listContainer = document.getElementById("list-container");
-    const ordersContainer = document.getElementById("orders-list-container");
-    const fundsContainer = document.getElementById("funds-list-container");
-    const usersView = document.getElementById("users-view");
-    const ordersView = document.getElementById("orders-view");
-    const fundsView = document.getElementById("funds-view");
+      const msg = document.getElementById("msg");
+      const listContainer = document.getElementById("list-container");
+      let currentTab = "pending";
 
-    let currentTab = "pending";
-    let currentOrdersTab = "all";
-    let currentFundsTab = "by-seller";  // DEFAULT: Owed to Sellers
+      const ENDPOINTS = {
+        pending:   "/admin/pending-sellers",
+        active:    "/admin/active-sellers",
+        customers: "/admin/customers",
+      };
 
-    function fmtGHS(v) {
-      const n = Number(v);
-      return "GH₵" + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
-    }
-    function fmtDate(s) {
-      if (!s) return "—";
-      const d = new Date(s);
-      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    }
-    function showMsg(text, isError) {
-      msg.textContent = text;
-      msg.className = isError ? "msg err" : "msg";
-      clearTimeout(showMsg._t);
-      showMsg._t = setTimeout(() => { msg.textContent = ""; }, 8000);
-    }
+      function setMsg(text, color) {
+        msg.textContent = text;
+        msg.style.color = color;
+      }
 
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll(".nav-tabs a").forEach(a => a.classList.remove("active"));
-      document.getElementById("tab-" + tab).classList.add("active");
+      function escapeHtml(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+      }
 
-      usersView.style.display = (tab === "orders" || tab === "funds") ? "none" : "block";
-      ordersView.style.display = tab === "orders" ? "block" : "none";
-      fundsView.style.display = tab === "funds" ? "block" : "none";
+      window.switchTab = function (tab) {
+        currentTab = tab;
+        document.querySelectorAll(".nav-tabs a").forEach((a) => a.classList.remove("active"));
+        const activeTab = document.getElementById("tab-" + tab);
+        if (activeTab) activeTab.classList.add("active");
+        loadData();
+      };
 
-      if (tab === "orders") loadOrders();
-      else if (tab === "funds") { loadFundsSummary(); loadFundsData(); }
-      else loadData();
-    }
+      async function loadData() {
+        listContainer.innerHTML = '<p class="empty-text">Loading...</p>';
+        setMsg("", "");
 
-    function switchOrders(sub) {
-      currentOrdersTab = sub;
-      document.querySelectorAll("#orders-view .sub-tabs button").forEach(b => b.classList.remove("active"));
-      document.getElementById("orders-tab-" + sub).classList.add("active");
-      loadOrders();
-    }
+        try {
+          const res = await fetch(ENDPOINTS[currentTab], {
+            headers: { Authorization: "Bearer " + token },
+          });
 
-    function switchFunds(sub) {
-      currentFundsTab = sub;
-      document.querySelectorAll("#funds-view .sub-tabs button").forEach(b => b.classList.remove("active"));
-      document.getElementById("funds-tab-" + sub).classList.add("active");
-      loadFundsData();
-    }
-
-    async function loadData() {
-      listContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      let endpoint = "";
-      if (currentTab === "pending") endpoint = "/admin/pending-sellers";
-      if (currentTab === "active") endpoint = "/admin/active-sellers";
-      if (currentTab === "customers") endpoint = "/admin/customers";
-      try {
-        const res = await fetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
-        if (!res.ok) throw new Error("Failed");
-        const users = await res.json();
-        if (users.length === 0) {
-          listContainer.innerHTML = '<p class="empty-text">No users found.</p>';
-          return;
-        }
-        listContainer.innerHTML = users.map(u => {
-          let badge = "", actionBtn = "";
-          if (currentTab === "pending") {
-            badge = `<span class="status-badge status-pending">Pending</span>`;
-            actionBtn = `<button class="btn btn-success btn-sm" onclick="toggleUser(${u.user_id})">Approve</button>`;
-          } else if (currentTab === "active") {
-            badge = `<span class="status-badge status-active">Active</span>`;
-            actionBtn = `<button class="btn btn-danger btn-sm" onclick="toggleUser(${u.user_id})">Deactivate</button>`;
-          } else {
-            badge = `<span class="status-badge status-active">Customer</span>`;
+          if (res.status === 401) {
+            window.location.href = "/login";
+            return;
           }
-          return `
-            <div class="user-card">
-              <div class="user-info">
-                <h4>${u.name} ${badge}</h4>
-                <p>${u.email} · ${u.phone_number || 'No phone'}</p>
-              </div>
-              <div>${actionBtn}</div>
-            </div>
-          `;
-        }).join("");
-      } catch (err) {
-        listContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading data.</p>`;
-      }
-    }
+          if (!res.ok) throw new Error("HTTP " + res.status);
 
-    async function toggleUser(id) {
-      if (!confirm("Change this user's status?")) return;
-      try {
-        const res = await fetch(`/admin/users/${id}/toggle-active`, {
-          method: "PATCH", headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (res.ok) { showMsg("User updated!", false); loadData(); }
-        else { const e = await res.json(); showMsg(e.detail || "Failed", true); }
-      } catch { showMsg("Network error.", true); }
-    }
+          const users = await res.json();
 
-    async function loadOrders() {
-      ordersContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      try {
-        if (currentOrdersTab === "all") await renderAllOrders();
-        else if (currentOrdersTab === "awaiting") await renderAwaitingRelease();
-        else if (currentOrdersTab === "disputed") await renderDisputed();
-      } catch (err) {
-        ordersContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error: ${err.message}</p>`;
-      }
-    }
+          if (!Array.isArray(users) || users.length === 0) {
+            listContainer.innerHTML =
+              '<p class="empty-text">No users found in this category.</p>';
+            return;
+          }
 
-    async function renderAllOrders() {
-      const res = await fetch("/admin/orders/all", { headers: { "Authorization": `Bearer ${token}` } });
-      const orders = await res.json();
-      if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No orders yet.</p>'; return; }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} ${i.size} × ${i.quantity}`).join("<br>")}</td>
-          <td><span class="status-badge status-${o.status}">${o.status}</span></td>
-          <td><span class="status-badge status-${o.payment_status}">${o.payment_status}</span></td>
-          <td><span class="status-badge status-${o.delivery_status}">${o.delivery_status}</span></td>
-          <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
-          <td class="amount">${fmtGHS(o.total_price)}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.order_date)}</td>
-          <td>
-            <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'delivery_delayed')" title="Alert delay">⏰</button>
-            <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'not_confirming')" title="Ask confirm">❓</button>
-          </td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Order</th><th>Customer</th><th>Seller</th><th>Items</th>
-              <th>Status</th><th>Payment</th><th>Delivery</th><th>Settlement</th>
-              <th>Total</th><th>Owed</th><th>Date</th><th>Alert</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
+          listContainer.innerHTML = users.map((u) => {
+            let badge = "";
+            let actionBtn = "";
 
-    async function renderAwaitingRelease() {
-      const res = await fetch("/admin/orders/awaiting-release", { headers: { "Authorization": `Bearer ${token}` } });
-      const orders = await res.json();
-      if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No orders awaiting release. ✅</p>'; return; }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.auto_confirm_at)}</td>
-          <td>
-            ${!o.seller_has_recipient ? '<span class="warning-text">⚠ No payout account</span>' : ''}
-            <button class="btn-release" onclick="releaseFunds(${o.order_id})"
-              ${!o.seller_has_recipient ? 'disabled' : ''}>Release</button>
-          </td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead><tr><th>Order</th><th>Customer</th><th>Seller</th><th>Amount</th><th>Eligible Since</th><th>Action</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
+            if (currentTab === "pending") {
+              badge = '<span class="status-badge status-pending">Pending</span>';
+              actionBtn =
+                '<button class="btn btn-success btn-sm" onclick="toggleUser(' +
+                Number(u.user_id) +
+                ')">Approve</button>';
+            } else if (currentTab === "active") {
+              badge = '<span class="status-badge status-active">Active</span>';
+              actionBtn =
+                '<button class="btn btn-danger btn-sm" onclick="toggleUser(' +
+                Number(u.user_id) +
+                ')">Deactivate</button>';
+            } else {
+              badge = '<span class="status-badge status-active">Customer</span>';
+            }
 
-    async function renderDisputed() {
-      const res = await fetch("/admin/orders/disputes", { headers: { "Authorization": `Bearer ${token}` } });
-      const orders = await res.json();
-      if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No active disputes. ✅</p>'; return; }
-      const rows = orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.buyer_id}</td>
-          <td>${o.seller_id}</td>
-          <td>${o.reason || "—"}</td>
-          <td class="amount">${fmtGHS(o.total)}</td>
-          <td>
-            <button class="btn btn-success btn-sm" onclick="resolveDispute(${o.order_id}, 'release')">Release</button>
-            <button class="btn btn-danger btn-sm" onclick="resolveDispute(${o.order_id}, 'refund')">Refund</button>
-          </td>
-        </tr>
-      `).join("");
-      ordersContainer.innerHTML = `
-        <table class="data-table">
-          <thead><tr><th>Order</th><th>Buyer</th><th>Seller</th><th>Reason</th><th>Total</th><th>Action</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
+            const company = u.company_name
+              ? '<p class="company">' + escapeHtml(u.company_name) + "</p>"
+              : "";
 
-    async function resolveDispute(orderId, action) {
-      if (!confirm(`Resolve dispute #${orderId}? Action: ${action}`)) return;
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/resolve-dispute?action=${action}`, {
-          method: "POST", headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok) { showMsg(`Resolved: ${data.new_status}`, false); loadOrders(); }
-        else showMsg(`Error: ${data.detail}`, true);
-      } catch { showMsg("Network error", true); }
-    }
-
-    async function loadFundsSummary() {
-      const host = document.getElementById("funds-summary");
-      try {
-        const res = await fetch("/admin/funds/summary", { headers: { "Authorization": `Bearer ${token}` } });
-        const d = await res.json();
-        host.innerHTML = `
-          <div class="stat-card held"><div class="label">Held in Escrow</div><div class="value">${fmtGHS(d.total_held)}</div></div>
-          <div class="stat-card"><div class="label">Commission Pending</div><div class="value">${fmtGHS(d.total_commission_pending)}</div></div>
-          <div class="stat-card earned"><div class="label">Commission Earned</div><div class="value">${fmtGHS(d.total_commission_earned)}</div></div>
-          <div class="stat-card failed"><div class="label">Failed Transfers</div><div class="value">${d.failed_transfers_count}</div></div>
-        `;
-      } catch { host.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading.</p>`; }
-    }
-
-    async function loadFundsData() {
-      fundsContainer.innerHTML = '<p class="empty-text">Loading...</p>';
-      try {
-        if (currentFundsTab === "incoming") await renderIncoming();
-        else if (currentFundsTab === "by-seller") await renderBySeller();
-        else if (currentFundsTab === "settled") await renderSettled();
-        else if (currentFundsTab === "failed") await renderFailed();
-      } catch { fundsContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error.</p>`; }
-    }
-
-    async function renderIncoming() {
-      const res = await fetch("/admin/funds/incoming", { headers: { "Authorization": `Bearer ${token}` } });
-      const data = await res.json();
-      if (!data.orders.length) { fundsContainer.innerHTML = '<p class="empty-text">No funds held. ✅</p>'; return; }
-      const rows = data.orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} × ${i.quantity}`).join("<br>")}</td>
-          <td class="amount">${fmtGHS(o.total_price)}</td>
-          <td class="amount">${fmtGHS(o.platform_commission)}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.paid_at)}</td>
-          <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
-        </tr>
-      `).join("");
-      fundsContainer.innerHTML = `
-        <p style="color:var(--muted);font-size:12.5px;margin-bottom:12px;">ℹ️ Paid orders not yet delivered. Release happens in <strong>Owed to Sellers</strong> once delivery is confirmed.</p>
-        <table class="data-table">
-          <thead><tr><th>Order</th><th>Customer</th><th>Seller</th><th>Items</th><th>Paid</th><th>Commission</th><th>Owed</th><th>Paid On</th><th>Status</th></tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr class="totals-row">
-            <td colspan="4">Total Held</td>
-            <td class="amount">${fmtGHS(data.totals.total_held)}</td>
-            <td class="amount">${fmtGHS(data.totals.total_commission_pending)}</td>
-            <td class="amount">${fmtGHS(data.totals.total_owed_to_sellers)}</td>
-            <td colspan="2"></td>
-          </tr></tfoot>
-        </table>
-      `;
-    }
-
-    async function renderBySeller() {
-      const res = await fetch("/admin/funds/by-seller", { headers: { "Authorization": `Bearer ${token}` } });
-      const data = await res.json();
-      if (!data.sellers.length) { fundsContainer.innerHTML = '<p class="empty-text">No sellers.</p>'; return; }
-
-      const hasAnyReady = data.sellers.some(s => s.ready_orders && s.ready_orders.length > 0);
-      if (!hasAnyReady) {
-        fundsContainer.innerHTML = `
-          <p class="empty-text">No delivered orders awaiting release. ✅</p>
-          <p style="color:var(--muted);font-size:12px;text-align:center;margin-top:8px;">
-            When a seller marks an order as <strong>delivered</strong>, it will appear here for you to release funds.
-          </p>
-        `;
-        return;
-      }
-
-      fundsContainer.innerHTML = data.sellers
-        .filter(s => s.ready_orders && s.ready_orders.length > 0)
-        .map(s => `
-          <div class="seller-group">
-            <div class="seller-group-head">
-              <div>
-                <h4>${s.seller_name}</h4>
-                <p>${s.orders_pending} ready · ${s.orders_in_progress} in progress · ${s.orders_settled} settled</p>
-                ${!s.seller_has_recipient ? '<p style="color:var(--red);margin-top:4px;">⚠ No payout account registered</p>' : ''}
-              </div>
-              <div class="totals">
-                <div class="owed">${fmtGHS(s.total_owed)}</div>
-                <small>ready to release</small>
-              </div>
-            </div>
-            <div class="seller-group-body">
-              ${s.ready_orders.map(o => `
-                <div class="ready-order-row">
-                  <div class="ready-order-info">
-                    <h5>Order #${o.order_id}</h5>
-                    <p>${o.delivery_address} · Ordered ${fmtDate(o.order_date)}</p>
-                  </div>
-                  <div class="ready-order-amount">${fmtGHS(o.seller_payout_amount)}</div>
-                  <button class="btn-release" onclick="releaseFunds(${o.order_id})"
-                    ${!s.seller_has_recipient ? 'disabled title="No payout account"' : ''}>Release Funds</button>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `).join("");
-    }
-
-    async function renderSettled() {
-      const res = await fetch("/admin/funds/settled", { headers: { "Authorization": `Bearer ${token}` } });
-      const data = await res.json();
-      if (!data.orders.length) { fundsContainer.innerHTML = '<p class="empty-text">No settled transfers yet.</p>'; return; }
-      const rows = data.orders.map(o => `
-        <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} × ${i.quantity}`).join("<br>")}</td>
-          <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
-          <td>${fmtDate(o.settlement_eligible_at)}</td>
-        </tr>
-      `).join("");
-      fundsContainer.innerHTML = `
-        <table class="data-table">
-          <thead><tr><th>Order</th><th>Seller</th><th>Items</th><th>Amount</th><th>Settled On</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
-    async function renderFailed() {
-      const res = await fetch("/admin/funds/failed", { headers: { "Authorization": `Bearer ${token}` } });
-      const data = await res.json();
-      if (!data.failed_transfers.length) { fundsContainer.innerHTML = '<p class="empty-text">No failed transfers. ✅</p>'; return; }
-      fundsContainer.innerHTML = data.failed_transfers.map(f => `
-        <div class="failed-card">
-          <h4>Order #${f.order_id} — ${fmtGHS(f.seller_payout_amount)}</h4>
-          <p><strong>Seller:</strong> ${f.seller_name}</p>
-          <p><strong>Reference:</strong> ${f.transfer_reference || "—"}</p>
-          <p><strong>Reason:</strong> ${f.transfer_failed_reason || "Unknown"}</p>
-        </div>
-      `).join("");
-    }
-
-    async function releaseFunds(orderId) {
-      if (!confirm(`Release funds for order #${orderId}?\n\nSends money to seller's Paystack account. Cannot be undone.`)) return;
-      showMsg("Initiating transfer...", false);
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/release-funds-v2`, {
-          method: "POST", headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showMsg(`✅ Transfer initiated (ref: ${data.reference})`, false);
-          loadFundsSummary();
-          loadFundsData();
-        } else {
-          showMsg(`❌ ${data.detail || "Failed"}`, true);
+            return (
+              '<div class="user-card">' +
+                '<div class="user-info">' +
+                  "<h4>" + escapeHtml(u.name) + " " + badge + "</h4>" +
+                  "<p>" + escapeHtml(u.email) + " · " +
+                    escapeHtml(u.phone_number || "No phone") + "</p>" +
+                  company +
+                "</div>" +
+                (actionBtn ? "<div>" + actionBtn + "</div>" : "") +
+              "</div>"
+            );
+          }).join("");
+        } catch (err) {
+          listContainer.innerHTML =
+            '<p class="empty-text" style="color:var(--red);">Error loading data.</p>';
         }
-      } catch (err) { showMsg(`❌ ${err.message}`, true); }
-    }
+      }
 
-    async function alertSeller(orderId, reason) {
-      const label = reason === "delivery_delayed" ? "delay" : "confirm";
-      if (!confirm(`Send ${label} alert to seller for order #${orderId}?`)) return;
-      try {
-        const res = await fetch(`/admin/orders/${orderId}/alert-seller?reason=${reason}`, {
-          method: "POST", headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (res.ok) showMsg("✅ Alert sent (notifications coming soon)", false);
-        else showMsg("❌ Failed", true);
-      } catch { showMsg("❌ Network error", true); }
-    }
+      window.toggleUser = async function (id) {
+        if (!confirm("Are you sure you want to change this user's status?")) return;
 
-    window.releaseFunds = releaseFunds;
-    window.alertSeller = alertSeller;
-    window.resolveDispute = resolveDispute;
+        try {
+          const res = await fetch("/admin/users/" + id + "/toggle-active", {
+            method: "PATCH",
+            headers: { Authorization: "Bearer " + token },
+          });
 
-    loadData();
+          if (res.ok) {
+            setMsg("User status updated successfully!", "var(--green)");
+            loadData();
+          } else {
+            let detail = "Failed to update user.";
+            try {
+              const err = await res.json();
+              if (err && typeof err.detail === "string") detail = err.detail;
+            } catch (_) { /* ignore */ }
+            setMsg(detail, "var(--red)");
+          }
+        } catch (err) {
+          setMsg("Network error.", "var(--red)");
+        }
+      };
+
+      loadData();
+    })();
   </script>
 </body>
 </html>
