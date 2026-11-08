@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payout Account — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .dashboard-page { max-width: 700px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .field input, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; }
+    .field input:focus, .field select:focus { border-color: var(--wood-med); outline: 0; }
+    .field .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+    .submit-btn { width: 100%; padding: 14px; border-radius: 10px; background: var(--wood-med); color: #fff; font-weight: 800; font-size: 14px; border: none; cursor: pointer; margin-top: 12px; }
+    .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .msg { margin-top: 14px; text-align: center; font-size: 13px; font-weight: 600; min-height: 20px; }
+    .msg.ok { color: var(--green); }
+    .msg.err { color: var(--red); }
+    .status-banner { padding: 14px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; }
+    .status-ready { background: #d4edda; color: #155724; border-left: 4px solid var(--green); }
+    .status-missing { background: #fff3cd; color: #856404; border-left: 4px solid #f0ad4e; }
+    .form-section { display: none; }
+    .form-section.active { display: block; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .nav-tabs a { padding: 10px 6px; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <div class="dash-header">
+      <h2>Payout Account</h2>
+    </div>
+
+    <div class="nav-tabs">
+      <a href="/seller/upload">Upload Wood</a>
+      <a href="/seller/products">My Products</a>
+      <a href="/seller/orders">My Orders</a>
+      <a href="/seller/payout" class="active">Payout Account</a>
+    </div>
+
+    <div id="status-banner"></div>
+
+    <div id="form-container">
+      <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">
+        Register your bank account or mobile money number to receive payments when orders are completed.
+      </p>
+
+      <div class="field">
+        <label>Payout Method</label>
+        <select id="payout-type">
+          <option value="mobile_money">Mobile Money</option>
+          <option value="bank">Bank Account</option>
+        </select>
+      </div>
+
+      <!-- Mobile Money form -->
+      <div id="form-momo" class="form-section active">
+        <div class="field">
+          <label>Network</label>
+          <select id="momo-telco">
+            <option value="">Loading networks...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Mobile Number</label>
+          <input id="momo-number" type="tel" placeholder="0244123456" />
+          <div class="hint">Enter the number registered with your mobile money account</div>
+        </div>
+        <div class="field">
+          <label>Account Holder Name</label>
+          <input id="momo-name" type="text" placeholder="Full name on the mobile money account" />
+        </div>
+      </div>
+
+      <!-- Bank form -->
+      <div id="form-bank" class="form-section">
+        <div class="field">
+          <label>Bank</label>
+          <select id="bank-code">
+            <option value="">Loading banks...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Account Number</label>
+          <input id="bank-number" type="text" placeholder="1234567890" />
+        </div>
+        <div class="field">
+          <label>Account Holder Name</label>
+          <input id="bank-name" type="text" placeholder="Full name on the bank account" />
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" type="button">Save Payout Account</button>
+      <div class="msg" id="msg"></div>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.replace("/login");
+
+    const typeSelect = document.getElementById("payout-type");
+    const momoForm = document.getElementById("form-momo");
+    const bankForm = document.getElementById("form-bank");
+    const submitBtn = document.getElementById("submit-btn");
+    const msg = document.getElementById("msg");
+    const banner = document.getElementById("status-banner");
+
+    let optionsLoaded = false;
+
+    // Load existing account info
+    async function loadCurrent() {
+      try {
+        const res = await fetch("/seller/payout/account", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (d.is_ready) {
+          banner.innerHTML = `<div class="status-banner status-ready">✅ Payout account registered — ${d.payout_account_name} (${d.payout_account_number}). You're ready to receive payments.</div>`;
+          document.getElementById("form-container").style.display = "none";
+        } else {
+          banner.innerHTML = `<div class="status-banner status-missing">⚠️ No payout account yet. You won't receive funds until you register one.</div>`;
+        }
+      } catch (e) { console.warn(e); }
+    }
+
+    // Load Paystack options (banks + telcos)
+    async function loadOptions() {
+      if (optionsLoaded) return;
+      try {
+        const res = await fetch("/seller/payout/options", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const telcoSel = document.getElementById("momo-telco");
+        telcoSel.innerHTML = '<option value="">Select network</option>' +
+          data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
+
+        const bankSel = document.getElementById("bank-code");
+        bankSel.innerHTML = '<option value="">Select bank</option>' +
+          data.banks.map(b => `<option value="${b.code}">${b.name}</option>`).join("");
+
+        optionsLoaded = true;
+      } catch (e) { console.warn(e); }
+    }
+
+    // Toggle forms
+    typeSelect.addEventListener("change", (e) => {
+      momoForm.classList.toggle("active", e.target.value === "mobile_money");
+      bankForm.classList.toggle("active", e.target.value === "bank");
+    });
+
+    // Submit
+    submitBtn.addEventListener("click", async () => {
+      msg.textContent = "";
+      const type = typeSelect.value;
+      let payload;
+
+      if (type === "mobile_money") {
+        const telco = document.getElementById("momo-telco").value;
+        const number = document.getElementById("momo-number").value.trim();
+        const name = document.getElementById("momo-name").value.trim();
+        if (!telco || !number || !name) {
+          msg.textContent = "Please fill all mobile money fields.";
+          msg.className = "msg err";
+          return;
+        }
+        payload = { type, account_number: number, account_name: name, telco_code: telco };
+      } else {
+        const code = document.getElementById("bank-code").value;
+        const number = document.getElementById("bank-number").value.trim();
+        const name = document.getElementById("bank-name").value.trim();
+        if (!code || !number || !name) {
+          msg.textContent = "Please fill all bank fields.";
+          msg.className = "msg err";
+          return;
+        }
+        payload = { type, account_number: number, account_name: name, bank_code: code };
+      }
+
+      submitBtn.disabled = true;
+      msg.textContent = "Registering with Paystack...";
+      msg.className = "msg";
+
+      try {
+        const res = await fetch("/seller/payout/account", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.is_ready) {
+          msg.textContent = "✅ Payout account saved successfully!";
+          msg.className = "msg ok";
+          setTimeout(() => loadCurrent(), 1000);
+        } else {
+          msg.textContent = "❌ " + (data.detail || "Failed to register");
+          msg.className = "msg err";
+          submitBtn.disabled = false;
+        }
+      } catch (e) {
+        msg.textContent = "❌ Network error";
+        msg.className = "msg err";
+        submitBtn.disabled = false;
+      }
+    });
+
+    loadCurrent();
+    loadOptions();
+  </script>
+</body>
+</html>
