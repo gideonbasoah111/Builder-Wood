@@ -104,8 +104,9 @@
     .product-grid { min-width: 0; }
     .product-grid > * { min-width: 0; }
 
+    /* FIX: removed .product-grid { grid-template-columns: 1fr; }
+       so styles.css controls the mobile 2-column Jumia layout */
     @media (max-width: 480px) {
-      .product-grid { grid-template-columns: 1fr; }
       .section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
       .result-bar   { flex-wrap: wrap; gap: 8px; }
     }
