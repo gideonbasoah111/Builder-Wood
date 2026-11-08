@@ -48,8 +48,6 @@
     }).then(data => {
       var rows = Array.isArray(data) ? data : (data.items || data.results || []);
       state.products = rows.map(p => {
-        // The API returns nested objects for category and seller.
-        // Flatten them here so the rest of the file can use simple fields.
         var catObj    = p.category || {};
         var sellerObj = p.seller   || {};
         var images    = Array.isArray(p.images) ? p.images : [];
@@ -63,8 +61,6 @@
           seller_name:   sellerObj.name || p.seller_name || "Builder Wood",
           seller_phone:  sellerObj.phone_number || p.seller_phone || "",
           size_label:    p.size_label || "",
-          // Prefer the top-level image_url the API provides; fall back to the
-          // first image in the images array; fall back to empty.
           image_url:     p.image_url || (images[0] && images[0].image_url) || "",
           is_treated:    Boolean(p.is_treated),
           is_featured:   Boolean(p.is_featured)
@@ -100,7 +96,6 @@
       var cat = p.category_name || p.trade_name || "Timber";
       var isMyProduct = (p.seller_id && loggedInUserId && String(p.seller_id) === String(loggedInUserId));
 
-      // BUG FIX: use image_url (the field the API actually returns)
       var img = p.image_url
         ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy">'
         : '<div class="image-fallback">\ud83e\udeb5</div>';
@@ -114,7 +109,6 @@
         ? `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(p.seller_name)}, I am interested in buying ${encodeURIComponent(p.display_name)}`
         : '#';
 
-      // BUG FIX: clearer "Out of stock" label on disabled button
       var addButton;
       if (isMyProduct) {
         addButton = '<button class="add-btn" disabled style="background:#ccc; cursor:not-allowed;">Your Item</button>';
@@ -239,6 +233,20 @@
     $("#cart-count").textContent = count;
     $("#drawer-count").textContent = `(${count})`;
     $("#cart-subtotal").textContent = money(subtotal);
+
+    // Update floating cart pill
+    var floatPill = document.getElementById("floating-cart");
+    var floatCount = document.getElementById("floating-cart-count");
+    var floatTotal = document.getElementById("floating-cart-total");
+    if (floatPill && floatCount && floatTotal) {
+      if (count > 0) {
+        floatCount.textContent = count;
+        floatTotal.textContent = money(subtotal);
+        floatPill.classList.add("visible");
+      } else {
+        floatPill.classList.remove("visible");
+      }
+    }
 
     var host = $("#cart-items");
     if (!state.cart.length) {
@@ -389,6 +397,15 @@
     window.location.href = "/checkout";
   });
 
+  // Wire floating cart pill
+  var floatingCartBtn = document.getElementById("floating-cart");
+  if (floatingCartBtn) {
+    floatingCartBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      openCart();
+    });
+  }
+
   var yearEl = $("#year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
@@ -433,7 +450,33 @@
     });
   }
 
+  async function refreshUserData() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch("/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        localStorage.setItem("bw_name", user.name || "");
+        localStorage.setItem("bw_role", user.role || "");
+        localStorage.setItem("bw_user_id", user.user_id != null ? String(user.user_id) : "");
+        updateAuthUI();
+      } else if (res.status === 401) {
+        localStorage.removeItem("bw_token");
+        localStorage.removeItem("bw_role");
+        localStorage.removeItem("bw_name");
+        localStorage.removeItem("bw_user_id");
+        updateAuthUI();
+      }
+    } catch (err) {
+      console.warn("Could not refresh user data:", err);
+    }
+  }
+
   updateAuthUI();
+  refreshUserData();
   loadCartFromDB();
   fetchProducts();
 })();

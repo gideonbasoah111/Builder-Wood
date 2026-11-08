@@ -26,7 +26,6 @@
 
     html, body { overflow-x: hidden; }
 
-    /* ---------- sticky announce + header (safe-area aware) ---------- */
     .announce {
       padding-top: max(0px, var(--safe-t));
       padding-left: max(0px, var(--safe-l));
@@ -34,7 +33,6 @@
     }
     .header { position: sticky; top: 0; z-index: 40; }
 
-    /* ---------- tap targets & hover gating ---------- */
     .btn, .cart-btn, .catnav-link, .catnav-all, .chip, .link {
       -webkit-tap-highlight-color: transparent;
     }
@@ -46,7 +44,6 @@
       .chip:hover       { border-color: var(--wood-med); }
     }
 
-    /* ---------- long strings never break layout ---------- */
     .hero-copy h1,
     .hero-copy p,
     .about-copy p,
@@ -58,12 +55,10 @@
     .product-grid,
     .chip-row { overflow-wrap: anywhere; }
 
-    /* ---------- iOS zoom fix for search input ---------- */
     @media (max-width: 600px) {
       .search input { font-size: 16px; }
     }
 
-    /* ---------- catnav: horizontal scroll on narrow ---------- */
     @media (max-width: 1024px) {
       .catnav-inner {
         display: flex;
@@ -77,11 +72,10 @@
       }
       .catnav-inner::-webkit-scrollbar { display: none; }
       .catnav-inner > * { flex: 0 0 auto; }
-      .catnav-drop { position: relative; }             /* keep menu anchor */
+      .catnav-drop { position: relative; }
       .catnav-quote { margin-left: 0; }
     }
 
-    /* ---------- hero ---------- */
     .hero {
       padding-left: max(0px, var(--safe-l));
       padding-right: max(0px, var(--safe-r));
@@ -89,7 +83,7 @@
     .hero-copy h1 { line-height: 1.08; }
 
     @media (max-width: 960px) {
-      .hero-stamp { display: none; }                   /* clipped copy on phones */
+      .hero-stamp { display: none; }
       .hero { min-height: min(78svh, 720px); }
     }
     @media (max-width: 600px) {
@@ -100,7 +94,6 @@
       .hero-points li { font-size: 13px; }
     }
 
-    /* ---------- trust ---------- */
     @media (max-width: 900px) {
       .trust-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -108,20 +101,15 @@
       .trust-grid { grid-template-columns: 1fr; }
     }
 
-    /* ---------- products ---------- */
     .product-grid { min-width: 0; }
     .product-grid > * { min-width: 0; }
 
-    /* NOTE: product-grid column counts (5 → 4 → 3 → 2) live in styles.css.
-       Do not override here or the compact grid breaks on phones. */
-
     @media (max-width: 480px) {
-      /* only the section head + result bar collapse; grid stays 2-up */
+      .product-grid { grid-template-columns: 1fr; }
       .section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
       .result-bar   { flex-wrap: wrap; gap: 8px; }
     }
 
-    /* ---------- chips: scroll if they overflow ---------- */
     .chip-row {
       display: flex;
       flex-wrap: wrap;
@@ -139,13 +127,11 @@
       .chip { flex: 0 0 auto; min-height: var(--tap); }
     }
 
-    /* ---------- about ---------- */
     @media (max-width: 820px) {
       .about-grid { grid-template-columns: 1fr; }
       .about-image img { width: 100%; height: auto; display: block; }
     }
 
-    /* ---------- services ---------- */
     @media (max-width: 900px) {
       .service-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -154,18 +140,15 @@
       .service-art  { min-height: 140px; }
     }
 
-    /* ---------- band ---------- */
     @media (max-width: 820px) {
       .band-grid { grid-template-columns: 1fr; gap: 24px; }
     }
 
-    /* ---------- contact ---------- */
     @media (max-width: 720px) {
       .contact-card { grid-template-columns: 1fr; gap: 20px; }
       .contact-cta  { width: 100%; justify-content: center; }
     }
 
-    /* ---------- footer ---------- */
     @media (max-width: 900px) {
       .footer-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
     }
@@ -174,7 +157,6 @@
       .footer-bottom-inner { flex-direction: column; gap: 6px; text-align: center; }
     }
 
-    /* ---------- cart drawer: fullscreen on phones ---------- */
     @media (max-width: 600px) {
       .drawer {
         width: 100vw !important;
@@ -186,7 +168,6 @@
       .drawer-head h3 { font-size: 18px; }
     }
 
-    /* ---------- tiny phones ---------- */
     @media (max-width: 380px) {
       .hero-actions .btn { padding: 12px 14px; }
       .section-head h2   { font-size: 22px; }
@@ -508,6 +489,14 @@
       <span class="drawer-msg" id="cart-message" role="status"></span>
     </footer>
   </aside>
+
+  <!-- Floating cart pill — appears when cart has items -->
+  <a href="#" class="floating-cart" id="floating-cart" aria-label="Open cart">
+    <span class="floating-cart-icon">🛒</span>
+    <span class="floating-cart-count" id="floating-cart-count">0</span>
+    <span class="floating-cart-total" id="floating-cart-total">GH₵0.00</span>
+  </a>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

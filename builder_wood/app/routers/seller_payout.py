@@ -7,6 +7,12 @@ Supports two recipient types:
 
 Both use Paystack /transferrecipient to create a recipient_code that
 _initiate_seller_transfer() uses for payouts.
+
+Endpoints:
+- GET  /seller/payout/account          (auth) — fetch current payout account
+- POST /seller/payout/account          (auth) — register or update payout account
+- GET  /seller/payout/options          (auth) — banks + MoMo telcos for form
+- GET  /seller/payout/options-public   (public) — same, for register form
 """
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +20,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from builder_wood.app import models, schemas
+from builder_wood.app import models
 from builder_wood.app.auth import get_current_active_seller
 from builder_wood.app.config import settings
 from builder_wood.app.database import get_db
@@ -29,30 +35,12 @@ class PayoutAccountIn(BaseModel):
     type: str = Field(..., pattern="^(bank|mobile_money)$")
     account_number: str = Field(..., min_length=6, max_length=20)
     account_name: str = Field(..., min_length=3, max_length=150)
-    bank_code: Optional[str] = None  # required for bank
-    telco_code: Optional[str] = None  # required for mobile_money
+    bank_code: Optional[str] = None
+    telco_code: Optional[str] = None
 
 
-@router.get("/account")
-def get_payout_account(
-    db: Session = Depends(get_db),
-    current_seller: models.User = Depends(get_current_active_seller),
-):
-    seller = db.query(models.User).filter(
-        models.User.user_id == current_seller.user_id
-    ).first()
-    return {
-        "paystack_recipient_code": seller.paystack_recipient_code,
-        "payout_bank_name": seller.payout_bank_name,
-        "payout_account_number": seller.payout_account_number,
-        "payout_account_name": seller.payout_account_name,
-        "is_ready": bool(seller.paystack_recipient_code),
-    }
-
-
-@router.get("/options")
-def get_payout_options():
-    """Returns banks and mobile money telcos for the seller form."""
+def _fetch_payout_options() -> dict:
+    """Shared logic — fetch banks + MoMo telcos from Paystack."""
     secret = settings.PAYSTACK_SECRET_KEY
     if not secret:
         raise HTTPException(500, "Paystack not configured")
@@ -90,6 +78,37 @@ def get_payout_options():
     }
 
 
+@router.get("/account")
+def get_payout_account(
+    db: Session = Depends(get_db),
+    current_seller: models.User = Depends(get_current_active_seller),
+):
+    seller = db.query(models.User).filter(
+        models.User.user_id == current_seller.user_id
+    ).first()
+    return {
+        "paystack_recipient_code": seller.paystack_recipient_code,
+        "payout_bank_name": seller.payout_bank_name,
+        "payout_account_number": seller.payout_account_number,
+        "payout_account_name": seller.payout_account_name,
+        "is_ready": bool(seller.paystack_recipient_code),
+    }
+
+
+@router.get("/options")
+def get_payout_options(
+    current_seller: models.User = Depends(get_current_active_seller),
+):
+    """Returns banks and mobile money telcos for the seller form (auth required)."""
+    return _fetch_payout_options()
+
+
+@router.get("/options-public")
+def get_payout_options_public():
+    """Returns banks and mobile money telcos (public — for register form)."""
+    return _fetch_payout_options()
+
+
 @router.post("/account")
 def set_payout_account(
     payload: PayoutAccountIn,
@@ -104,7 +123,6 @@ def set_payout_account(
         models.User.user_id == current_seller.user_id
     ).first()
 
-    # Validate required fields based on type
     if payload.type == "bank":
         if not payload.bank_code:
             raise HTTPException(400, "bank_code is required for bank account")

@@ -19,9 +19,8 @@
       padding-right: env(safe-area-inset-right, 0px);
     }
 
-    /* ---------- page shell ---------- */
     .auth-page {
-      max-width: 480px; margin: 60px auto; padding: 30px;
+      max-width: 520px; margin: 60px auto; padding: 30px;
       background: #fff; border: 1px solid var(--line);
       border-radius: var(--radius-lg);
       overflow-wrap: anywhere;
@@ -32,7 +31,6 @@
       .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
     }
 
-    /* ---------- tabs ---------- */
     .auth-tabs {
       display: flex; border-bottom: 1px solid var(--line);
       margin-bottom: 24px; overflow-x: auto;
@@ -48,7 +46,6 @@
     }
     .auth-tab.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
 
-    /* ---------- forms ---------- */
     .auth-form { display: none; }
     .auth-form.active { display: block; }
 
@@ -63,46 +60,25 @@
     }
     .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); }
 
-    /* ---------- password field with eye toggle ---------- */
+    /* Password eye toggle */
     .password-field { position: relative; }
     .password-field input { padding-right: 48px; }
     .password-toggle {
-      position: absolute;
-      right: 6px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: transparent;
-      border: 0;
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 16px;
-      color: var(--muted);
-      border-radius: 6px;
-      transition: background 0.15s, color 0.15s;
-      -webkit-tap-highlight-color: transparent;
-      line-height: 1;
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      background: transparent; border: 0; padding: 6px 10px;
+      cursor: pointer; font-size: 16px; color: var(--muted);
+      border-radius: 6px; transition: background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent; line-height: 1;
     }
     .password-toggle:hover { color: var(--wood-med); background: var(--parchment); }
     .password-toggle:focus-visible { outline: 2px solid var(--wood-med); outline-offset: 2px; }
 
-    /* ---------- forgot password link ---------- */
-    .forgot-password-row {
-      text-align: right;
-      margin-top: -8px;
-      margin-bottom: 12px;
-    }
+    .forgot-password-row { text-align: right; margin-top: -8px; margin-bottom: 12px; }
     .forgot-password-link {
-      font-size: 12.5px;
-      color: var(--wood-med);
-      text-decoration: none;
-      font-weight: 600;
+      font-size: 12.5px; color: var(--wood-med); text-decoration: none; font-weight: 600;
     }
-    .forgot-password-link:hover {
-      color: var(--wood-dark);
-      text-decoration: underline;
-    }
+    .forgot-password-link:hover { color: var(--wood-dark); text-decoration: underline; }
 
-    /* ---------- submit button ---------- */
     .submit-btn {
       width: 100%; min-height: 48px;
       background: var(--wood-med); color: #fff;
@@ -119,7 +95,6 @@
       font-size: 14px; overflow-wrap: anywhere; min-height: 1.2em;
     }
 
-    /* ---------- role selector ---------- */
     .role-selector { display: flex; gap: 10px; margin-bottom: 16px; }
     .role-option {
       flex: 1; min-height: 48px; padding: 12px;
@@ -138,10 +113,10 @@
       .role-option:not(.active):hover { border-color: var(--wood-light); }
     }
 
-    /* ---------- seller-only fields ---------- */
+    /* Seller fields section */
     .seller-fields {
       display: none;
-      padding: 12px;
+      padding: 14px;
       background: var(--parchment);
       border-radius: 8px;
       margin-bottom: 16px;
@@ -156,13 +131,58 @@
       line-height: 1.5;
     }
 
-    /* ---------- phones ---------- */
+    /* Payout section inside seller fields */
+    .payout-section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--line-2);
+    }
+    .payout-section h4 {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+    .payout-section .hint {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin: 0 0 12px;
+      line-height: 1.4;
+    }
+
+    .payout-type-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .payout-type-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--line-2);
+      border-radius: 8px;
+      background: #fff;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .payout-type-btn.active {
+      border-color: var(--wood-med);
+      background: var(--wood-med);
+      color: #fff;
+    }
+
+    .payout-form { display: none; }
+    .payout-form.active { display: block; }
+
     @media (max-width: 600px) {
       .auth-page { margin: 20px 12px; padding: 22px 18px; border-radius: 12px; }
       .form-group input, .form-group select { font-size: 16px; }
     }
     @media (max-width: 420px) {
       .role-selector { flex-direction: column; }
+      .payout-type-toggle { flex-direction: column; }
       .auth-page { margin: 12px 8px; padding: 18px 14px; }
     }
     @media (max-width: 360px) {
@@ -240,10 +260,10 @@
         <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel">
       </div>
 
-      <!-- Seller-only fields -->
+      <!-- Seller-only fields (company/location/payout) -->
       <div class="seller-fields" id="seller-fields">
         <p class="seller-fields-note">
-          These details will appear on your seller profile. You can update them later.
+          These details will appear on your seller profile and are used for payouts. You can update them later in your dashboard.
         </p>
         <div class="form-group">
           <label for="reg-company">Company / Shop Name</label>
@@ -254,6 +274,56 @@
           <label for="reg-location">Location</label>
           <input id="reg-location" type="text" name="location"
                  placeholder="e.g. Sokoban Wood Village, Kumasi" autocomplete="address-level2">
+        </div>
+
+        <!-- Payout account section -->
+        <div class="payout-section">
+          <h4>💰 Payout Account</h4>
+          <p class="hint">
+            Where should Builder Wood send your money when orders are completed?
+            This is required before you can receive payouts.
+          </p>
+
+          <div class="payout-type-toggle">
+            <button type="button" class="payout-type-btn active" data-payout-type="mobile_money">📱 Mobile Money</button>
+            <button type="button" class="payout-type-btn" data-payout-type="bank">🏦 Bank Account</button>
+          </div>
+
+          <!-- Mobile money form -->
+          <div class="payout-form active" id="payout-momo">
+            <div class="form-group">
+              <label for="payout-momo-network">Network</label>
+              <select id="payout-momo-network">
+                <option value="">Loading networks...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="payout-momo-number">Mobile Number</label>
+              <input id="payout-momo-number" type="tel" placeholder="0244123456">
+            </div>
+            <div class="form-group">
+              <label for="payout-momo-name">Account Holder Name</label>
+              <input id="payout-momo-name" type="text" placeholder="Full name on the MoMo account">
+            </div>
+          </div>
+
+          <!-- Bank form -->
+          <div class="payout-form" id="payout-bank">
+            <div class="form-group">
+              <label for="payout-bank-name">Bank</label>
+              <select id="payout-bank-name">
+                <option value="">Loading banks...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="payout-bank-number">Account Number</label>
+              <input id="payout-bank-number" type="text" placeholder="1234567890">
+            </div>
+            <div class="form-group">
+              <label for="payout-bank-holder">Account Holder Name</label>
+              <input id="payout-bank-holder" type="text" placeholder="Full name on the bank account">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -334,14 +404,18 @@
       });
       roleInput.value = role;
 
-      // Show/hide seller fields based on selected role
       if (role === "seller") {
         sellerFields.classList.add("show");
+        loadPayoutOptions();
       } else {
         sellerFields.classList.remove("show");
-        // Clear seller fields when switching back to customer
+        // Clear seller fields
         document.getElementById("reg-company").value = "";
         document.getElementById("reg-location").value = "";
+        document.getElementById("payout-momo-number").value = "";
+        document.getElementById("payout-momo-name").value = "";
+        document.getElementById("payout-bank-number").value = "";
+        document.getElementById("payout-bank-holder").value = "";
       }
     }
 
@@ -354,6 +428,71 @@
         }
       });
     });
+
+    // --- Payout type toggle ---
+    const payoutTypeBtns = document.querySelectorAll(".payout-type-btn");
+    const payoutMomoForm = document.getElementById("payout-momo");
+    const payoutBankForm = document.getElementById("payout-bank");
+    let currentPayoutType = "mobile_money";
+
+    payoutTypeBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentPayoutType = btn.dataset.payoutType;
+        payoutTypeBtns.forEach((b) => b.classList.toggle("active", b === btn));
+        payoutMomoForm.classList.toggle("active", currentPayoutType === "mobile_money");
+        payoutBankForm.classList.toggle("active", currentPayoutType === "bank");
+      });
+    });
+
+    // --- Load payout options (networks + banks) from API ---
+    let payoutOptionsLoaded = false;
+
+    async function loadPayoutOptions() {
+      if (payoutOptionsLoaded) return;
+
+      try {
+        // Get a temporary admin token for the options endpoint
+        // (payout options are a public read — no auth needed if endpoint allows)
+        const res = await fetch("/seller/payout/options-public");
+        if (!res.ok) {
+          console.warn("Payout options endpoint not available yet");
+          return;
+        }
+        const data = await res.json();
+
+        const networkSel = document.getElementById("payout-momo-network");
+        if (data.mobile_money && data.mobile_money.length) {
+          networkSel.innerHTML = '<option value="">Select network</option>' +
+            data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
+        } else {
+          // Fallback: hardcoded telco codes
+          networkSel.innerHTML = `
+            <option value="">Select network</option>
+            <option value="MTN">MTN Mobile Money</option>
+            <option value="VOD">Telecel Cash</option>
+            <option value="ATL">AirtelTigo Money</option>
+          `;
+        }
+
+        const bankSel = document.getElementById("payout-bank-name");
+        if (data.banks && data.banks.length) {
+          bankSel.innerHTML = '<option value="">Select bank</option>' +
+            data.banks.map(b => `<option value="${b.code}">${b.name}</option>`).join("");
+        }
+
+        payoutOptionsLoaded = true;
+      } catch (err) {
+        console.warn("Could not load payout options:", err);
+        // Fallback networks
+        const networkSel = document.getElementById("payout-momo-network");
+        networkSel.innerHTML = `
+          <option value="">Select network</option>
+          <option value="MTN">MTN Mobile Money</option>
+          <option value="VOD">Telecel Cash</option>
+          <option value="ATL">AirtelTigo Money</option>
+        `;
+      }
+    }
 
     // --- Helpers ---
     function setMsg(el, text, colorVar) {
@@ -430,10 +569,39 @@
         role: roleInput.value,
       };
 
-      // Add seller fields if seller
+      // Add seller fields
       if (isSeller) {
         payload.company_name = document.getElementById("reg-company").value.trim() || null;
         payload.location = document.getElementById("reg-location").value.trim() || null;
+
+        // Add payout details
+        if (currentPayoutType === "mobile_money") {
+          const network = document.getElementById("payout-momo-network").value;
+          const number = document.getElementById("payout-momo-number").value.trim();
+          const holderName = document.getElementById("payout-momo-name").value.trim();
+
+          if (!network || !number || !holderName) {
+            setMsg(msg, "Please fill all Mobile Money payout fields.", "var(--red)");
+            return;
+          }
+          payload.payout_type = "mobile_money";
+          payload.payout_network = network;
+          payload.payout_account_number = number;
+          payload.payout_account_name = holderName;
+        } else {
+          const bankCode = document.getElementById("payout-bank-name").value;
+          const accountNumber = document.getElementById("payout-bank-number").value.trim();
+          const holderName = document.getElementById("payout-bank-holder").value.trim();
+
+          if (!bankCode || !accountNumber || !holderName) {
+            setMsg(msg, "Please fill all bank payout fields.", "var(--red)");
+            return;
+          }
+          payload.payout_type = "bank";
+          payload.payout_bank_code = bankCode;
+          payload.payout_account_number = accountNumber;
+          payload.payout_account_name = holderName;
+        }
       }
 
       // Client-side validation
@@ -443,7 +611,7 @@
       }
 
       btn.disabled = true;
-      setMsg(msg, "Creating account...", "var(--wood-med)");
+      setMsg(msg, isSeller ? "Creating account + registering payout..." : "Creating account...", "var(--wood-med)");
 
       try {
         const res = await fetch("/auth/register", {
@@ -454,7 +622,13 @@
         const data = await parseJsonSafe(res);
 
         if (res.ok) {
-          setMsg(msg, data.message || "Account created.", "var(--green)");
+          let successMsg = data.message || "Account created.";
+          if (isSeller && data.payout_registered) {
+            successMsg = "Account created with payout details registered. Waiting for Admin approval.";
+          } else if (isSeller && data.payout_error) {
+            successMsg = "Account created, but payout registration failed: " + data.payout_error + ". Please add your payout details after admin approval.";
+          }
+          setMsg(msg, successMsg, "var(--green)");
           if (payload.role === "customer") {
             setTimeout(() => showTab("login"), 1500);
           }
