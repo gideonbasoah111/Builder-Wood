@@ -6,14 +6,13 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# Configure Cloudinary at import time.
+from builder_wood.app import cloudinary_config  # noqa: F401
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-# Configure Cloudinary before anything else imports it.
-# (Just the import triggers cloudinary.config() in cloudinary_config.py.)
-from builder_wood.app import cloudinary_config  # noqa: F401
 
 from builder_wood.app.auth import get_password_hash
 from builder_wood.app.config import settings
@@ -27,6 +26,7 @@ from builder_wood.app.routers import (
     payments,
     seller,
     seller_payout,
+    vehicles,
     woods,
 )
 
@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="Timber marketplace",
-    version="0.8.0",
+    version="0.9.0",
     lifespan=lifespan,
 )
 
@@ -89,25 +89,19 @@ app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-# ------------------------------------------------------------------
-# Routers — specific first, wildcard last.
-# seller.router MUST come before any wildcard router so that
-# POST /seller/add-wood cannot partial-match a GET-only wildcard
-# (which would produce a 405).
-# ------------------------------------------------------------------
+# Routers — specific first, wildcard last
 app.include_router(seller.router)
+app.include_router(seller_payout.router)
 app.include_router(auth.router)
 app.include_router(cart.router)
 app.include_router(payments.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
+app.include_router(vehicles.router)
 app.include_router(woods.router)
-app.include_router(seller_payout.router)
 
 
-# ------------------------------------------------------------------
-# Generic page routes
-# ------------------------------------------------------------------
+# ---------- Generic page routes ----------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
@@ -119,6 +113,24 @@ def home(request: Request):
 def login_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="login.html", context={"shop_name": settings.APP_NAME}
+    )
+
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="forgot_password.html",
+        context={"shop_name": settings.APP_NAME},
+    )
+
+
+@app.get("/reset-password", response_class=HTMLResponse)
+def reset_password_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="reset_password.html",
+        context={"shop_name": settings.APP_NAME},
     )
 
 
@@ -154,9 +166,6 @@ def product_detail_page(request: Request, wood_id: int):
     )
 
 
-# ------------------------------------------------------------------
-# Health + optional route dump (DEBUG_ROUTES=1 to enable)
-# ------------------------------------------------------------------
 @app.get("/health")
 def health():
     return {"status": "ok", "application": settings.APP_NAME}

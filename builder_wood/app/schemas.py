@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # ============================================================
@@ -386,3 +386,18 @@ class ConversationOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=6)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_length(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 bytes.")
+        return value

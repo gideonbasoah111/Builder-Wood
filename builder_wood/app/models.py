@@ -269,3 +269,12 @@ class GeocodeCache(Base):
     lon = Column(DECIMAL(10, 7), nullable=False)
     display_name = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    token_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(100), nullable=False, unique=True)
+    expires_at = Column(TIMESTAMP, nullable=False)
+    used = Column(Boolean, nullable=False, default=False)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
