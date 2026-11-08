@@ -63,6 +63,46 @@
     }
     .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); }
 
+    /* ---------- password field with eye toggle ---------- */
+    .password-field { position: relative; }
+    .password-field input { padding-right: 48px; }
+    .password-toggle {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: 0;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--muted);
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1;
+    }
+    .password-toggle:hover { color: var(--wood-med); background: var(--parchment); }
+    .password-toggle:focus-visible { outline: 2px solid var(--wood-med); outline-offset: 2px; }
+
+    /* ---------- forgot password link ---------- */
+    .forgot-password-row {
+      text-align: right;
+      margin-top: -8px;
+      margin-bottom: 12px;
+    }
+    .forgot-password-link {
+      font-size: 12.5px;
+      color: var(--wood-med);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .forgot-password-link:hover {
+      color: var(--wood-dark);
+      text-decoration: underline;
+    }
+
+    /* ---------- submit button ---------- */
     .submit-btn {
       width: 100%; min-height: 48px;
       background: var(--wood-med); color: #fff;
@@ -98,10 +138,28 @@
       .role-option:not(.active):hover { border-color: var(--wood-light); }
     }
 
+    /* ---------- seller-only fields ---------- */
+    .seller-fields {
+      display: none;
+      padding: 12px;
+      background: var(--parchment);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      border: 1px dashed var(--line-2);
+    }
+    .seller-fields.show { display: block; }
+    .seller-fields .form-group:last-child { margin-bottom: 0; }
+    .seller-fields-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 12px;
+      line-height: 1.5;
+    }
+
     /* ---------- phones ---------- */
     @media (max-width: 600px) {
       .auth-page { margin: 20px 12px; padding: 22px 18px; border-radius: 12px; }
-      .form-group input, .form-group select { font-size: 16px; } /* iOS no-zoom */
+      .form-group input, .form-group select { font-size: 16px; }
     }
     @media (max-width: 420px) {
       .role-selector { flex-direction: column; }
@@ -143,8 +201,16 @@
       </div>
       <div class="form-group">
         <label for="login-password">Password</label>
-        <input id="login-password" type="password" name="password" required
-               autocomplete="current-password">
+        <div class="password-field">
+          <input id="login-password" type="password" name="password" required
+                 autocomplete="current-password">
+          <button type="button" class="password-toggle"
+                  onclick="togglePassword('login-password', this)"
+                  aria-label="Show password">👁</button>
+        </div>
+      </div>
+      <div class="forgot-password-row">
+        <a href="/forgot-password" class="forgot-password-link">Forgot password?</a>
       </div>
       <button type="submit" class="submit-btn">Log In</button>
       <div class="msg" id="login-msg" role="status" aria-live="polite"></div>
@@ -173,10 +239,33 @@
         <label for="reg-phone">Phone Number</label>
         <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel">
       </div>
+
+      <!-- Seller-only fields -->
+      <div class="seller-fields" id="seller-fields">
+        <p class="seller-fields-note">
+          These details will appear on your seller profile. You can update them later.
+        </p>
+        <div class="form-group">
+          <label for="reg-company">Company / Shop Name</label>
+          <input id="reg-company" type="text" name="company_name"
+                 placeholder="e.g. Mensah Timber" autocomplete="organization">
+        </div>
+        <div class="form-group">
+          <label for="reg-location">Location</label>
+          <input id="reg-location" type="text" name="location"
+                 placeholder="e.g. Sokoban Wood Village, Kumasi" autocomplete="address-level2">
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="reg-password">Password</label>
-        <input id="reg-password" type="password" name="password" required minlength="6"
-               autocomplete="new-password">
+        <div class="password-field">
+          <input id="reg-password" type="password" name="password" required minlength="6"
+                 autocomplete="new-password">
+          <button type="button" class="password-toggle"
+                  onclick="togglePassword('reg-password', this)"
+                  aria-label="Show password">👁</button>
+        </div>
       </div>
 
       <button type="submit" class="submit-btn">Create Account</button>
@@ -187,6 +276,22 @@
   <script>
     'use strict';
 
+    // --- Password eye toggle ---
+    function togglePassword(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "🙈";
+        btn.setAttribute("aria-label", "Hide password");
+      } else {
+        input.type = "password";
+        btn.textContent = "👁";
+        btn.setAttribute("aria-label", "Show password");
+      }
+    }
+    window.togglePassword = togglePassword;
+
+    // --- Tabs ---
     const tabLogin = document.getElementById("tab-login");
     const tabRegister = document.getElementById("tab-register");
     const formLogin = document.getElementById("login-form");
@@ -205,7 +310,6 @@
     tabLogin.addEventListener("click", () => showTab("login"));
     tabRegister.addEventListener("click", () => showTab("register"));
 
-    // Keyboard support for tabs
     [tabLogin, tabRegister].forEach((el) => {
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -217,9 +321,10 @@
 
     if (window.location.search.includes("mode=register")) showTab("register");
 
-    // --- role selector ---
+    // --- Role selector ---
     const roleOptions = document.querySelectorAll(".role-option");
     const roleInput = document.getElementById("role-input");
+    const sellerFields = document.getElementById("seller-fields");
 
     function selectRole(role) {
       roleOptions.forEach((o) => {
@@ -228,6 +333,16 @@
         o.setAttribute("aria-checked", String(active));
       });
       roleInput.value = role;
+
+      // Show/hide seller fields based on selected role
+      if (role === "seller") {
+        sellerFields.classList.add("show");
+      } else {
+        sellerFields.classList.remove("show");
+        // Clear seller fields when switching back to customer
+        document.getElementById("reg-company").value = "";
+        document.getElementById("reg-location").value = "";
+      }
     }
 
     roleOptions.forEach((opt) => {
@@ -240,7 +355,7 @@
       });
     });
 
-    // --- helpers ---
+    // --- Helpers ---
     function setMsg(el, text, colorVar) {
       el.textContent = text;
       el.style.color = colorVar || "inherit";
@@ -250,7 +365,7 @@
       try { return await res.json(); } catch { return {}; }
     }
 
-    // --- login ---
+    // --- Login ---
     formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -298,12 +413,14 @@
       }
     });
 
-    // --- register ---
+    // --- Register ---
     formRegister.addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = e.target;
       const msg = document.getElementById("register-msg");
       const btn = form.querySelector(".submit-btn");
+
+      const isSeller = roleInput.value === "seller";
 
       const payload = {
         name: form.name.value.trim(),
@@ -313,9 +430,15 @@
         role: roleInput.value,
       };
 
-      // light client-side check (server still validates)
+      // Add seller fields if seller
+      if (isSeller) {
+        payload.company_name = document.getElementById("reg-company").value.trim() || null;
+        payload.location = document.getElementById("reg-location").value.trim() || null;
+      }
+
+      // Client-side validation
       if (!payload.name || !payload.email || !payload.phone_number || payload.password.length < 6) {
-        setMsg(msg, "Please fill in all fields (password ≥ 6 chars).", "var(--red)");
+        setMsg(msg, "Please fill in all required fields (password ≥ 6 chars).", "var(--red)");
         return;
       }
 
