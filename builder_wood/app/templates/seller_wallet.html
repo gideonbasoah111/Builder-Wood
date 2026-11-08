@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Wallet — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .dashboard-page { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .nav-tabs a { padding: 10px 6px; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+
+    .wallet-hero {
+      background: linear-gradient(135deg, var(--wood-med), var(--wood-dark));
+      color: #fff; border-radius: 16px; padding: 32px; margin-bottom: 24px;
+      position: relative; overflow: hidden;
+    }
+    .wallet-hero::after { content: "💰"; position: absolute; right: -20px; top: -20px; font-size: 160px; opacity: 0.08; }
+    .wallet-hero .label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-2); margin-bottom: 8px; }
+    .wallet-hero .balance { font-family: Fraunces, serif; font-size: 52px; font-weight: 700; letter-spacing: -1px; margin: 0 0 6px; line-height: 1; }
+    .wallet-hero .sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+    .wallet-hero .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .wallet-hero .btn-wd { background: var(--gold); color: var(--wood-dark); padding: 12px 24px; border: none; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .wallet-hero .btn-wd:hover { background: var(--gold-2); }
+    .wallet-hero .btn-wd:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-mini { padding: 16px; background: var(--parchment); border-radius: 10px; border: 1px solid var(--line); }
+    .stat-mini .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+    .stat-mini .val { font-family: Fraunces, serif; font-size: 20px; font-weight: 700; color: var(--ink); }
+
+    .section-title { font-family: Fraunces, serif; font-size: 20px; font-weight: 600; margin: 32px 0 16px; }
+    .txn-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .txn-table thead { background: #fdfaf5; }
+    .txn-table th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .txn-table td { padding: 12px; border-bottom: 1px solid var(--line); }
+    .txn-table .credit { color: var(--green); font-weight: 700; }
+    .txn-table .debit { color: var(--red); font-weight: 700; }
+    .txn-table .amount { font-family: Fraunces, serif; font-weight: 700; }
+
+    .badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+    .badge-processing { background: #cce5ff; color: #004085; }
+    .badge-completed { background: #d4edda; color: #155724; }
+    .badge-rejected { background: #f8d7da; color: #721c24; }
+    .badge-failed { background: #f8d7da; color: #721c24; }
+
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(20,12,4,0.6); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    .modal-backdrop.show { display: flex; }
+    .modal { background: #fff; border-radius: 16px; padding: 30px; max-width: 420px; width: 100%; box-shadow: var(--shadow-lg); }
+    .modal h3 { font-family: Fraunces, serif; font-size: 22px; margin: 0 0 6px; }
+    .modal p { font-size: 13px; color: var(--muted); margin: 0 0 20px; }
+    .modal .field { margin-bottom: 16px; }
+    .modal .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+    .modal .field input { width: 100%; padding: 12px; border: 1.5px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 14px; }
+    .modal .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal .actions button { flex: 1; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; border: none; }
+    .modal .btn-cancel { background: var(--parchment-2); color: var(--ink); }
+    .modal .btn-confirm { background: var(--wood-med); color: #fff; }
+
+    .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; display: none; }
+    .msg.show { display: block; }
+    .msg.ok { background: #d4edda; color: #155724; }
+    .msg.err { background: #f8d7da; color: #721c24; }
+    .empty-text { text-align: center; padding: 40px; color: var(--muted); }
+
+    @media (max-width: 600px) {
+      .wallet-hero .balance { font-size: 38px; }
+      .stats-row { grid-template-columns: 1fr; }
+      .dashboard-page { margin: 20px 12px; padding: 22px 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <div class="dash-header">
+      <h2>My Wallet</h2>
+    </div>
+
+    <div class="nav-tabs">
+      <a href="/seller/upload">Upload Wood</a>
+      <a href="/seller/products">My Products</a>
+      <a href="/seller/orders">My Orders</a>
+      <a href="/seller/payout">Payout Account</a>
+      <a href="/seller/wallet-page" class="active">💰 Wallet</a>
+    </div>
+
+    <div id="wallet-hero" class="wallet-hero">
+      <div class="label">Available Balance</div>
+      <div class="balance" id="balance">GH₵ 0.00</div>
+      <div class="sub" id="sub">Loading...</div>
+      <div class="actions">
+        <button class="btn-wd" id="btn-withdraw" onclick="openWithdrawModal()" disabled>
+          Request Withdrawal
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="stats-row">
+      <div class="stat-mini"><div class="lbl">Total Earned</div><div class="val" id="stat-earned">—</div></div>
+      <div class="stat-mini"><div class="lbl">Total Withdrawn</div><div class="val" id="stat-withdrawn">—</div></div>
+      <div class="stat-mini"><div class="lbl">Pending Withdrawals</div><div class="val" id="stat-pending">—</div></div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <h3 class="section-title">Wallet History</h3>
+    <div id="txn-list">
+      <p class="empty-text">Loading...</p>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="wd-modal">
+    <div class="modal">
+      <h3>Request Withdrawal</h3>
+      <p id="wd-info">Enter the amount you want to withdraw.</p>
+      <div class="field">
+        <label for="wd-amount">Amount (GH₵)</label>
+        <input id="wd-amount" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label for="wd-notes">Notes (optional)</label>
+        <input id="wd-notes" type="text" placeholder="Any note for admin">
+      </div>
+      <div class="actions">
+        <button class="btn-cancel" onclick="closeWithdrawModal()">Cancel</button>
+        <button class="btn-confirm" id="wd-confirm" onclick="submitWithdrawal()">Request</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.href = "/login";
+
+    let walletData = null;
+
+    function fmtGHS(v) {
+      const n = Number(v);
+      return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
+    }
+
+    async function loadWallet() {
+      try {
+        const res = await fetch("/seller/wallet/", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed");
+        walletData = await res.json();
+
+        document.getElementById("balance").textContent = fmtGHS(walletData.balance);
+        document.getElementById("stat-earned").textContent = fmtGHS(walletData.total_earned);
+        document.getElementById("stat-withdrawn").textContent = fmtGHS(walletData.total_withdrawn);
+        document.getElementById("stat-pending").textContent = fmtGHS(walletData.pending_withdrawals_total);
+
+        const btn = document.getElementById("btn-withdraw");
+        const canWithdraw = walletData.balance >= walletData.min_withdrawal && walletData.has_payout_account;
+        btn.disabled = !canWithdraw;
+
+        let sub = "Ready to withdraw";
+        if (!walletData.has_payout_account) sub = "⚠️ Register a payout account first";
+        else if (walletData.balance < walletData.min_withdrawal) sub = `Minimum withdrawal: ${fmtGHS(walletData.min_withdrawal)}`;
+        document.getElementById("sub").textContent = sub;
+      } catch (e) {
+        document.getElementById("sub").textContent = "Error loading wallet";
+      }
+    }
+
+    async function loadTransactions() {
+      try {
+        const res = await fetch("/seller/wallet/transactions?limit=30", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const items = await res.json();
+        const host = document.getElementById("txn-list");
+        if (!items.length) {
+          host.innerHTML = '<p class="empty-text">No transactions yet.</p>';
+          return;
+        }
+        host.innerHTML = `
+          <table class="txn-table">
+            <thead>
+              <tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th></tr>
+            </thead>
+            <tbody>
+              ${items.map(t => `
+                <tr>
+                  <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                  <td><span class="badge badge-${t.type === "credit" ? "completed" : "processing"}">${t.type}</span></td>
+                  <td>${t.description || "—"}</td>
+                  <td class="${t.type === "credit" ? "credit" : "debit"}">${t.type === "credit" ? "+" : "-"}${fmtGHS(t.amount)}</td>
+                  <td class="amount">${fmtGHS(t.balance_after)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      } catch (e) {
+        document.getElementById("txn-list").innerHTML = '<p class="empty-text">Error loading transactions.</p>';
+      }
+    }
+
+    function openWithdrawModal() {
+      if (!walletData) return;
+      document.getElementById("wd-info").textContent = `Available: ${fmtGHS(walletData.balance)} · Min: ${fmtGHS(walletData.min_withdrawal)}`;
+      document.getElementById("wd-amount").value = walletData.balance.toFixed(2);
+      document.getElementById("wd-amount").max = walletData.balance;
+      document.getElementById("wd-notes").value = "";
+      document.getElementById("wd-modal").classList.add("show");
+    }
+
+    function closeWithdrawModal() {
+      document.getElementById("wd-modal").classList.remove("show");
+    }
+
+    async function submitWithdrawal() {
+      const amount = parseFloat(document.getElementById("wd-amount").value);
+      const notes = document.getElementById("wd-notes").value.trim() || null;
+
+      if (!amount || amount <= 0) {
+        showMsg("Enter a valid amount.", true);
+        return;
+      }
+      if (amount > walletData.balance) {
+        showMsg(`Cannot withdraw more than available balance (${fmtGHS(walletData.balance)}).`, true);
+        return;
+      }
+
+      const btn = document.getElementById("wd-confirm");
+      btn.disabled = true;
+      btn.textContent = "Submitting...";
+
+      try {
+        const res = await fetch("/seller/wallet/withdrawals", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ amount, notes })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          closeWithdrawModal();
+          showMsg(`✅ Withdrawal request submitted. Admin will process it shortly.`, false);
+          loadWallet();
+          loadTransactions();
+        } else {
+          showMsg(`❌ ${data.detail || "Failed to request withdrawal"}`, true);
+        }
+      } catch (e) {
+        showMsg("❌ Network error", true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Request";
+      }
+    }
+
+    function showMsg(text, isError) {
+      const msg = document.getElementById("msg");
+      msg.textContent = text;
+      msg.className = "msg show " + (isError ? "err" : "ok");
+      clearTimeout(showMsg._t);
+      showMsg._t = setTimeout(() => { msg.className = "msg"; }, 8000);
+    }
+
+    window.openWithdrawModal = openWithdrawModal;
+    window.closeWithdrawModal = closeWithdrawModal;
+    window.submitWithdrawal = submitWithdrawal;
+
+    loadWallet();
+    loadTransactions();
+  </script>
+</body>
+</html>

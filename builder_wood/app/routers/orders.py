@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
-import os
-import logging
 import uuid
 
 import requests
@@ -16,8 +14,6 @@ from builder_wood.app.auth import get_current_user, get_current_active_seller, g
 from builder_wood.app.config import settings
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 MIN_DISTANCE_KM = Decimal("1.0")
@@ -25,9 +21,6 @@ COMMISSION_RATE = Decimal("0.05")
 PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
 
 
-# ============================================================
-# Request/Response schemas
-# ============================================================
 class OrderItemIn(BaseModel):
     wood_id: int
     quantity: int = Field(gt=0)
@@ -74,7 +67,7 @@ class OrderOut(BaseModel):
     delivery_fee: Decimal
     total_price: Decimal
     currency: str
-    vehicle_id: Optional[int] = None
+    vehicle_id: Optional[int]
     delivery_address: str
     order_date: Optional[datetime] = None
     items: List[OrderItemOut] = []
@@ -83,9 +76,6 @@ class OrderOut(BaseModel):
         from_attributes = True
 
 
-# ============================================================
-# Vehicle allocation
-# ============================================================
 def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, preferred_method: str):
     if preferred_method == "pickup":
         return None, Decimal("0.00")
@@ -114,21 +104,18 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
                 raise HTTPException(400, f"{v.name} can deliver up to {v.max_distance_km} km, but your address is {distance_km} km away.")
             return v, _fee(v)
 
-    candidates = [v for v in active if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km]
+    candidates = [
+        v for v in active
+        if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km
+    ]
     if not candidates:
         raise HTTPException(400, f"No vehicle can deliver {total_pieces} pieces over {distance_km} km.")
     v = min(candidates, key=lambda x: x.max_pieces)
     return v, _fee(v)
 
 
-# ============================================================
-# Paystack transfer (with DEMO_MODE support)
-# ============================================================
 def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
-    """
-    Initiate a Paystack transfer to the seller.
-    In DEMO_MODE, simulates success without calling Paystack.
-    """
+    """Initiate a Paystack transfer to the seller."""
     if order.settlement_status in ("transferring", "settled"):
         raise HTTPException(400, "Settlement already in progress or complete.")
     if order.is_funds_released:
@@ -140,27 +127,10 @@ def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
     if not seller:
         raise HTTPException(404, "Seller not found.")
     if not seller.paystack_recipient_code:
-        raise HTTPException(400, "Seller has not registered a payout account.")
+        raise HTTPException(400, "Seller has not registered a payout account. Ask them to add bank or mobile money details.")
 
     reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
-
-    # ---------- DEMO MODE ----------
-    if os.getenv("DEMO_MODE", "false").lower() == "true":
-        logger.warning(
-            f"[DEMO MODE] Simulating transfer for order {order.order_id}, ref: {reference}"
-        )
-        order.settlement_status = "settled"
-        order.transfer_reference = reference
-        order.funds_released_at = datetime.utcnow()
-        order.is_funds_released = True
-        order.transfer_failed_reason = None
-        db.commit()
-        return reference
-    # ---------- END DEMO MODE ----------
-
-    amount_pesewas = int(
-        (Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1"))
-    )
+    amount_pesewas = int((Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1")))
 
     try:
         resp = requests.post(
@@ -192,9 +162,6 @@ def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
     return reference
 
 
-# ============================================================
-# Distance quote
-# ============================================================
 @router.post("/estimate-distance", response_model=schemas.DistanceEstimateOut)
 def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends(get_db)):
     try:
@@ -208,9 +175,6 @@ def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends
     }
 
 
-# ============================================================
-# List orders
-# ============================================================
 @router.get("/seller/orders", response_model=List[OrderOut])
 def get_seller_orders(
     db: Session = Depends(get_db),
@@ -239,9 +203,6 @@ def get_my_orders(
     )
 
 
-# ============================================================
-# Create order
-# ============================================================
 @router.post("/", response_model=List[OrderOut], status_code=201)
 def create_order(
     payload: OrderCreateIn,
@@ -340,9 +301,6 @@ def create_order(
     )
 
 
-# ============================================================
-# Update order status (seller marks shipped/delivered)
-# ============================================================
 @router.patch("/{order_id}/status", response_model=OrderOut)
 def update_order_status(
     order_id: int,
@@ -385,9 +343,6 @@ def update_order_status(
     )
 
 
-# ============================================================
-# Admin release funds
-# ============================================================
 @router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
 def admin_release_funds(
     order_id: int,
@@ -418,9 +373,6 @@ def admin_release_funds(
     }
 
 
-# ============================================================
-# Buyer confirms delivery
-# ============================================================
 @router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
 def buyer_confirm_delivery(
     order_id: int,
@@ -460,9 +412,6 @@ def buyer_confirm_delivery(
     }
 
 
-# ============================================================
-# Settlement status
-# ============================================================
 @router.get("/{order_id}/settlement", response_model=schemas.SettlementStatusOut)
 def get_settlement_status(
     order_id: int,
@@ -489,9 +438,6 @@ def get_settlement_status(
     }
 
 
-# ============================================================
-# Disputes
-# ============================================================
 @router.post("/{order_id}/dispute")
 def open_dispute(
     order_id: int,
@@ -527,9 +473,6 @@ def open_dispute(
     return {"status": "success", "message": "Dispute opened."}
 
 
-# ============================================================
-# Get single order
-# ============================================================
 @router.get("/{order_id}", response_model=OrderOut)
 def get_order(
     order_id: int,
