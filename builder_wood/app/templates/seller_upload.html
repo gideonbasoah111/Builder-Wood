@@ -2,220 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Upload Timber — Builder Wood</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    :root { --tap: 44px; --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { overflow-x: hidden; }
-    body {
-      padding-left: max(0px, var(--safe-l));
-      padding-right: max(0px, var(--safe-r));
-      padding-bottom: max(0px, var(--safe-b));
-    }
-
-    /* ---------- shell ---------- */
-    .dashboard-page {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 30px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      overflow-wrap: anywhere;
-    }
-    .dash-header {
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 16px; flex-wrap: wrap;
-      border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px;
-    }
+    .dashboard-page { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
     .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
-
-    .header-main { flex-wrap: wrap; gap: 12px; }
-    .header-main .catnav-quote { margin-left: auto; }
-    @media (max-width: 480px) {
-      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
-    }
-
-    /* ---------- tabs ---------- */
-    .nav-tabs {
-      display: flex; gap: 8px; margin-bottom: 20px;
-      border-bottom: 1px solid var(--line);
-      overflow-x: auto; overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .nav-tabs::-webkit-scrollbar { display: none; }
-    .nav-tabs a {
-      color: var(--muted); font-weight: 600; text-decoration: none;
-      padding: 10px 6px; border-bottom: 2px solid transparent;
-      white-space: nowrap; flex: 0 0 auto;
-      -webkit-tap-highlight-color: transparent;
-    }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 6px; cursor: pointer; border-bottom: 2px solid transparent; }
     .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
 
-    /* ---------- form fields ---------- */
-    .form-group { margin-bottom: 16px; min-width: 0; }
-    .form-group label {
-      display: block; font-size: 13px; font-weight: 600;
-      margin-bottom: 6px; color: var(--ink-2);
-    }
-    .form-group input, .form-group select {
-      width: 100%; padding: 10px 12px;
-      border: 1px solid var(--line-2); border-radius: 8px;
-      font-family: inherit; font-size: 14px;
-      background: #fff; color: var(--ink); outline: 0;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .form-group input:focus, .form-group select:focus {
-      border-color: var(--wood-med);
-      box-shadow: 0 0 0 3px rgba(93,64,55,0.1);
-    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; font-family: inherit; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); box-shadow: 0 0 0 3px rgba(93,64,55,0.1); }
 
-    .row { display: flex; gap: 16px; flex-wrap: wrap; }
-    .row .form-group { flex: 1 1 160px; }
+    .row { display: flex; gap: 16px; }
+    .row .form-group { flex: 1; }
 
-    /* ---------- image slots ---------- */
-    .image-upload-section {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 16px; margin-bottom: 24px;
-    }
-    .upload-slot {
-      border: 2px dashed var(--line-2); border-radius: 12px;
-      padding: 20px; text-align: center; background: #fafbf8;
-      position: relative; min-height: 180px;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      cursor: pointer; transition: border-color .2s, background .2s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    @media (hover: hover) {
-      .upload-slot:hover { border-color: var(--wood-med); background: var(--parchment); }
-    }
-    .upload-slot:focus-visible { outline: 3px solid var(--wood-med); outline-offset: 3px; }
-    /* Keep the native file input interactive on iOS Safari and Android browsers.
-       A transparent full-tile input reliably opens the system photo picker. */
-    .upload-slot input[type="file"] {
-      display: block;
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      cursor: pointer;
-      z-index: 1;
-      margin: 0;
-      padding: 0;
-      border: 0;
-    }
-    .upload-slot .preview-container { pointer-events: none; }
-    .upload-slot .remove-btn { pointer-events: auto; }
+    .image-upload-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .upload-slot { border: 2px dashed var(--line-2); border-radius: 12px; padding: 20px; text-align: center; background: #fafbf8; position: relative; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+    .upload-slot:hover { border-color: var(--wood-med); background: var(--parchment); }
+    .upload-slot input[type="file"] { display: none; }
     .upload-slot .slot-icon { font-size: 32px; color: var(--wood-light); margin-bottom: 8px; }
     .upload-slot h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
-    .upload-slot p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
-    .upload-slot .slot-hint {
-      margin-top: 6px; font-size: 10.5px; color: var(--wood-med); font-weight: 600;
-    }
-    .upload-slot .count-badge {
-      position: absolute; top: 8px; left: 8px;
-      background: var(--wood-med); color: #fff;
-      font-size: 11px; font-weight: 700;
-      padding: 3px 8px; border-radius: 999px;
-      display: none;
-    }
-    .upload-slot.has-many .count-badge { display: block; }
-
-    .preview-container {
-      position: absolute; inset: 0; border-radius: 10px;
-      overflow: hidden; display: none;
-    }
+    .upload-slot p { margin: 0; font-size: 11px; color: var(--muted); }
+    .preview-container { position: absolute; inset: 0; border-radius: 10px; overflow: hidden; display: none; }
     .preview-container.visible { display: block; }
     .preview-container img { width: 100%; height: 100%; object-fit: cover; }
+    .remove-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); color: var(--red); border: none; border-radius: 50%; width: 26px; height: 26px; font-weight: 900; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
-    .remove-btn {
-      position: absolute; top: 8px; right: 8px;
-      background: rgba(255, 255, 255, 0.95);
-      color: var(--red); border: none; border-radius: 50%;
-      width: 30px; height: 30px; font-weight: 900; font-size: 16px;
-      cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      display: grid; place-items: center; z-index: 2;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    /* ---------- submit ---------- */
-    .submit-btn {
-      width: 100%; min-height: 48px;
-      background: var(--wood-med); color: #fff;
-      padding: 14px; border: none; border-radius: 8px;
-      font-weight: 700; font-size: 15px; cursor: pointer;
-      margin-top: 10px; transition: background .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    @media (hover: hover) { .submit-btn:hover:not(:disabled) { background: var(--wood-dark); } }
+    .submit-btn { width: 100%; background: var(--wood-med); color: white; padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.15s; }
+    .submit-btn:hover { background: var(--wood-dark); }
     .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-    /* ---------- progress bar ---------- */
-    .progress {
-      display: none; margin-top: 14px;
-      width: 100%; height: 8px;
-      background: var(--parchment-2); border-radius: 999px;
-      overflow: hidden;
-    }
-    .progress.visible { display: block; }
-    .progress-bar {
-      height: 100%; width: 0%;
-      background: linear-gradient(90deg, var(--wood-med), var(--gold));
-      transition: width .2s ease;
-    }
-
-    .msg {
-      margin-top: 14px; font-weight: 600; text-align: center;
-      white-space: pre-line; min-height: 1.2em;
-      overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.5;
-    }
-    .msg.error   { color: var(--red); }
+    .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; white-space: pre-line; }
+    .msg.error { color: var(--red); }
     .msg.success { color: var(--green); }
-    .msg.loading { color: var(--wood-med); }
+    .auth-warning { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
 
-    .auth-warning {
-      background: #fff3cd; color: #856404;
-      padding: 15px; border-radius: 8px;
-      margin-bottom: 20px; text-align: center;
-      display: none; font-size: 13.5px; line-height: 1.6;
-    }
-    .auth-warning a { color: #856404; font-weight: 700; }
+    .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
-    /* ---------- tablet ---------- */
-    @media (max-width: 900px) {
-      .image-upload-section { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    /* ---------- phone ---------- */
-    @media (max-width: 700px) {
-      .image-upload-section { grid-template-columns: 1fr; }
-      .upload-slot { min-height: 160px; }
-    }
-
-    @media (max-width: 600px) {
-      .dashboard-page { margin: 20px 12px; padding: 22px 18px; border-radius: 12px; }
-      .dash-header h2 { font-size: 20px; }
-      .row { flex-direction: column; gap: 0; }
-      .row .form-group { flex: 1 1 auto; }
-      /* Prevent iOS zoom-on-focus */
-      .form-group input, .form-group select { font-size: 16px; }
-    }
-
-    @media (max-width: 380px) {
-      .dashboard-page { margin: 12px 8px; padding: 16px 12px; }
-      .dash-header h2 { font-size: 18px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { transition-duration: .01ms !important; }
-    }
+    @media (max-width: 700px) { .image-upload-section { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -225,24 +55,26 @@
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
     </div>
   </header>
 
   <main class="dashboard-page">
     <div class="dash-header">
-      <h2>Upload Wood</h2>
+      <h2>Seller Dashboard</h2>
     </div>
 
     <div class="nav-tabs">
-      <a href="/seller/upload" class="active" aria-current="page">Upload Wood</a>
+      <a href="/seller/upload" class="active">Upload Wood</a>
       <a href="/seller/products">My Products</a>
       <a href="/seller/orders">My Orders</a>
+      <a href="/seller/payout">Payout Account</a>
+      <a href="/seller/wallet-page">💰 Wallet</a>
     </div>
 
     <div id="auth-warning" class="auth-warning">
       You must be logged in as an approved seller to upload wood.
-      <br><a href="/login">Click here to log in</a>
+      <br><a href="/login" style="color: #856404; font-weight: bold;">Click here to log in</a>
     </div>
 
     <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
@@ -250,52 +82,39 @@
       <h3 style="font-family: Fraunces, serif; margin-bottom: 16px;">Product Photos</h3>
 
       <div class="image-upload-section">
-        <!-- MAIN -->
-        <div class="upload-slot">
+        <div class="upload-slot" onclick="document.getElementById('main-input').click()">
           <div class="slot-icon">🖼️</div>
           <h4>Main View</h4>
           <p>Cover photo for the shop</p>
-          <span class="slot-hint">Tap to choose from photos or take a new photo</span>
-          <input type="file" id="main-input" name="main_image" aria-label="Choose main product photo"
-                 accept="image/*" required
+          <input type="file" id="main-input" name="main_image" accept="image/*" required
                  onchange="previewImage(this, 'main-preview')">
           <div class="preview-container" id="main-preview">
             <img src="" alt="Main Preview">
-            <button type="button" class="remove-btn" aria-label="Remove main image"
-                    onclick="clearImage(event, 'main-input', 'main-preview')">×</button>
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'main-input', 'main-preview')">×</button>
           </div>
         </div>
 
-        <!-- DIMENSION -->
-        <div class="upload-slot">
+        <div class="upload-slot" onclick="document.getElementById('dim-input').click()">
           <div class="slot-icon">📏</div>
           <h4>Dimension</h4>
           <p>Photo showing tape measure</p>
-          <span class="slot-hint">Tap to choose from photos or take a new photo</span>
-          <input type="file" id="dim-input" name="dimension_image" aria-label="Choose dimension photo"
-                 accept="image/*"
+          <input type="file" id="dim-input" name="dimension_image" accept="image/*"
                  onchange="previewImage(this, 'dim-preview')">
           <div class="preview-container" id="dim-preview">
             <img src="" alt="Dimension Preview">
-            <button type="button" class="remove-btn" aria-label="Remove dimension image"
-                    onclick="clearImage(event, 'dim-input', 'dim-preview')">×</button>
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'dim-input', 'dim-preview')">×</button>
           </div>
         </div>
 
-        <!-- DETAILS -->
-        <div class="upload-slot" id="detail-slot">
-          <div class="count-badge" id="detail-count">+0</div>
+        <div class="upload-slot" onclick="document.getElementById('detail-input').click()">
           <div class="slot-icon">🔍</div>
           <h4>Details</h4>
           <p>Grain, treated stamp, etc.</p>
-          <span class="slot-hint">Select one or more photos</span>
-          <input type="file" id="detail-input" name="detail_images" aria-label="Choose one or more detail photos"
-                 accept="image/*" multiple
+          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple
                  onchange="previewMultipleImages(this)">
           <div class="preview-container" id="detail-preview">
             <img src="" alt="Detail Preview">
-            <button type="button" class="remove-btn" aria-label="Remove detail images"
-                    onclick="clearImage(event, 'detail-input', 'detail-preview')">×</button>
+            <button type="button" class="remove-btn" onclick="clearImage(event, 'detail-input', 'detail-preview')">×</button>
           </div>
         </div>
       </div>
@@ -303,42 +122,44 @@
       <div class="row">
         <div class="form-group">
           <label for="local_name">Local Name (e.g. Wawa, Denya)</label>
-          <input type="text" id="local_name" name="local_name" required maxlength="200" autocomplete="off">
+          <input type="text" id="local_name" name="local_name" required>
         </div>
         <div class="form-group">
           <label for="trade_name">Trade Name (e.g. Obeche)</label>
-          <input type="text" id="trade_name" name="trade_name" required maxlength="200" autocomplete="off">
+          <input type="text" id="trade_name" name="trade_name" required>
         </div>
       </div>
 
+      <!-- FIX: numeric fields accept whole numbers OR decimals — no forced .5 steps -->
       <div class="row">
         <div class="form-group">
           <label for="thickness">Thickness (inches)</label>
-          <input type="number" id="thickness" step="0.5" min="0.1" name="thickness"
-                 inputmode="decimal" required>
+          <input type="number" id="thickness" step="any" min="0.01" name="thickness" required
+                 placeholder="e.g. 2 or 1.5">
+          <div class="hint">Whole numbers like 2, 4 work fine. Decimals like 1.5 accepted.</div>
         </div>
         <div class="form-group">
           <label for="width">Width (inches)</label>
-          <input type="number" id="width" step="0.5" min="0.1" name="width"
-                 inputmode="decimal" required>
+          <input type="number" id="width" step="any" min="0.01" name="width" required
+                 placeholder="e.g. 4 or 12">
+          <div class="hint">Whole numbers like 4, 6, 12 work fine.</div>
         </div>
         <div class="form-group">
           <label for="length">Length (ft)</label>
-          <input type="number" id="length" step="1" min="1" name="length"
-                 inputmode="numeric" required>
+          <input type="number" id="length" step="any" min="0.01" name="length" required
+                 placeholder="e.g. 14 or 12.5">
+          <div class="hint">Whole numbers like 12, 14 work fine.</div>
         </div>
       </div>
 
       <div class="row">
         <div class="form-group">
           <label for="price">Price per piece (GHS)</label>
-          <input type="number" id="price" step="0.01" min="0.01" name="price"
-                 inputmode="decimal" required>
+          <input type="number" id="price" step="0.01" min="0.01" name="price" required>
         </div>
         <div class="form-group">
           <label for="stock">Stock Quantity</label>
-          <input type="number" id="stock" step="1" min="0" name="stock"
-                 inputmode="numeric" required>
+          <input type="number" id="stock" step="1" min="0" name="stock" required>
         </div>
       </div>
 
@@ -372,359 +193,137 @@
       </div>
 
       <button type="submit" class="submit-btn" id="submit-btn">Publish to Store</button>
-
-      <div class="progress" id="progress" aria-hidden="true">
-        <div class="progress-bar" id="progress-bar"></div>
-      </div>
-
       <div class="msg" id="msg" role="status" aria-live="polite"></div>
     </form>
   </main>
 
   <script>
-    "use strict";
-
     (function () {
-      const MAX_RAW_BYTES = 25 * 1024 * 1024;   // absolute ceiling before compression
-      const MAX_OUT_BYTES = 5 * 1024 * 1024;    // target after compression
-      const MAX_DIMENSION = 2000;               // px, longest side after compression
-
-      const token      = localStorage.getItem("bw_token");
-      const submitBtn  = document.getElementById("submit-btn");
-      const msg        = document.getElementById("msg");
-      const form       = document.getElementById("upload-form");
-      const authWarn   = document.getElementById("auth-warning");
-      const progress   = document.getElementById("progress");
-      const progressBar= document.getElementById("progress-bar");
+      const token = localStorage.getItem("bw_token");
+      const submitBtn = document.getElementById("submit-btn");
+      const msg = document.getElementById("msg");
+      const form = document.getElementById("upload-form");
 
       if (!token) {
-        authWarn.style.display = "block";
+        document.getElementById("auth-warning").style.display = "block";
         submitBtn.disabled = true;
       }
 
-      /* ---------- size + type helpers ---------- */
-      function humanSize(bytes) {
-        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-        if (bytes >= 1024) return Math.round(bytes / 1024) + " KB";
-        return bytes + " B";
-      }
-
-      function isHeic(file) {
-        const t = (file.type || "").toLowerCase();
-        const n = (file.name || "").toLowerCase();
-        return t === "image/heic" || t === "image/heif" ||
-               n.endsWith(".heic") || n.endsWith(".heif");
-      }
-
-      /* ---------- client-side compression (canvas → JPEG) ---------- */
-      function compressImage(file) {
-        // Skip compression if already small enough and not HEIC
-        if (!isHeic(file) && file.size <= MAX_OUT_BYTES && file.type === "image/jpeg") {
-          return Promise.resolve(file);
-        }
-
-        return new Promise((resolve, reject) => {
-          const url = URL.createObjectURL(file);
-          const img = new Image();
-          img.onload = () => {
-            URL.revokeObjectURL(url);
-
-            let w = img.naturalWidth || img.width;
-            let h = img.naturalHeight || img.height;
-            if (!w || !h) { reject(new Error("Could not read image dimensions")); return; }
-
-            // Resize longest side to MAX_DIMENSION
-            if (w > h && w > MAX_DIMENSION) {
-              h = Math.round(h * MAX_DIMENSION / w);
-              w = MAX_DIMENSION;
-            } else if (h >= w && h > MAX_DIMENSION) {
-              w = Math.round(w * MAX_DIMENSION / h);
-              h = MAX_DIMENSION;
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, w, h);
-
-            // Try progressively lower quality until under MAX_OUT_BYTES
-            const qualities = [0.85, 0.75, 0.65, 0.55, 0.45];
-            let i = 0;
-
-            function tryQuality() {
-              canvas.toBlob((blob) => {
-                if (!blob) { reject(new Error("Compression failed")); return; }
-                if (blob.size <= MAX_OUT_BYTES || i >= qualities.length - 1) {
-                  const name = (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
-                  resolve(new File([blob], name, { type: "image/jpeg" }));
-                } else {
-                  i += 1;
-                  tryQuality();
-                }
-              }, "image/jpeg", qualities[i]);
-            }
-            tryQuality();
-          };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("Could not decode image — try a JPG or PNG"));
-          };
-          img.src = url;
-        });
-      }
-
-      /* ---------- preview ---------- */
-      function renderPreview(input, previewEl, files) {
-        const img = previewEl.querySelector("img");
-        if (!files || files.length === 0) {
-          previewEl.classList.remove("visible");
-          if (img) img.src = "";
-          return;
-        }
+      function previewImage(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const img = preview.querySelector("img");
+        if (!input.files || !input.files[0]) return;
         const reader = new FileReader();
         reader.onload = (e) => {
           img.src = e.target.result;
-          previewEl.classList.add("visible");
+          preview.classList.add("visible");
         };
-        reader.readAsDataURL(files[0]);
+        reader.readAsDataURL(input.files[0]);
       }
 
-      window.previewImage = function (input, previewId) {
-        msg.textContent = ""; msg.className = "msg";
-        const previewEl = document.getElementById(previewId);
-        if (!input.files || !input.files[0]) return;
+      function previewMultipleImages(input) {
+        const preview = document.getElementById("detail-preview");
+        const img = preview.querySelector("img");
+        if (!input.files || !input.files.length) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+          preview.classList.add("visible");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
 
-        const f = input.files[0];
-        if (f.size > MAX_RAW_BYTES) {
-          msg.textContent =
-            "Photo \"" + f.name + "\" is " + humanSize(f.size) +
-            ". Please choose one under " + humanSize(MAX_RAW_BYTES) + ".";
-          msg.className = "msg error";
-          input.value = "";
-          previewEl.classList.remove("visible");
-          return;
-        }
-        renderPreview(input, previewEl, input.files);
-      };
-
-      window.previewMultipleImages = function (input) {
-        msg.textContent = ""; msg.className = "msg";
-        const previewEl = document.getElementById("detail-preview");
-        const slot = document.getElementById("detail-slot");
-        const badge = document.getElementById("detail-count");
-
-        if (!input.files || !input.files.length) {
-          previewEl.classList.remove("visible");
-          slot.classList.remove("has-many");
-          return;
-        }
-
-        for (const f of input.files) {
-          if (f.size > MAX_RAW_BYTES) {
-            msg.textContent =
-              "Photo \"" + f.name + "\" is too large (" + humanSize(f.size) + ").";
-            msg.className = "msg error";
-            input.value = "";
-            previewEl.classList.remove("visible");
-            slot.classList.remove("has-many");
-            return;
-          }
-        }
-
-        renderPreview(input, previewEl, input.files);
-        if (input.files.length > 1) {
-          badge.textContent = "+" + (input.files.length - 1);
-          slot.classList.add("has-many");
-        } else {
-          slot.classList.remove("has-many");
-        }
-      };
-
-      window.clearImage = function (event, inputId, previewId) {
+      function clearImage(event, inputId, previewId) {
         event.stopPropagation();
         const input = document.getElementById(inputId);
-        const previewEl = document.getElementById(previewId);
+        const preview = document.getElementById(previewId);
         input.value = "";
-        previewEl.classList.remove("visible");
-        const img = previewEl.querySelector("img");
-        if (img) img.src = "";
-        if (inputId === "detail-input") {
-          document.getElementById("detail-slot").classList.remove("has-many");
-        }
-      };
+        preview.classList.remove("visible");
+        preview.querySelector("img").src = "";
+      }
 
-      /* ---------- error rendering ---------- */
+      window.previewImage = previewImage;
+      window.previewMultipleImages = previewMultipleImages;
+      window.clearImage = clearImage;
+
       function renderError(data, fallback) {
         if (!data) return fallback;
         if (Array.isArray(data.detail)) {
-          return data.detail.map((e) => {
-            const field = (e.loc || []).filter((x) => x !== "body").join(".");
-            return field ? field + ": " + e.msg : e.msg;
-          }).join("\n");
+          return data.detail
+            .map((e) => {
+              const field = (e.loc || []).filter((x) => x !== "body").join(".");
+              return field ? field + ": " + e.msg : e.msg;
+            })
+            .join("\n");
         }
         if (typeof data.detail === "string") return data.detail;
         return fallback;
       }
 
-      /* ---------- collect files from a specific input, compressed ---------- */
-      async function collectCompressed(inputId) {
-        const input = document.getElementById(inputId);
-        if (!input || !input.files || !input.files.length) return [];
-        const out = [];
-        for (const f of input.files) {
-          try {
-            const compressed = await compressImage(f);
-            out.push(compressed);
-          } catch (err) {
-            if (isHeic(f)) {
-              throw new Error(
-                "iPhone HEIC photo \"" + f.name + "\" couldn't be converted. " +
-                "In iPhone Settings → Camera → Formats, choose 'Most Compatible', " +
-                "then re-take the photo."
-              );
-            }
-            throw new Error("Could not process \"" + f.name + "\": " + err.message);
-          }
-        }
-        return out;
-      }
-
-      /* ---------- XHR upload with progress ---------- */
-      function uploadWithProgress(url, formData, token, onProgress) {
-        return new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", url, true);
-          xhr.setRequestHeader("Authorization", "Bearer " + token);
-
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) onProgress(e.loaded, e.total);
-          };
-          xhr.onload = () => {
-            let data = null;
-            try { data = JSON.parse(xhr.responseText); } catch (_) {}
-            resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, data });
-          };
-          xhr.onerror = () => reject(new Error("Network error"));
-          xhr.ontimeout = () => reject(new Error("Upload timed out"));
-          xhr.timeout = 180000; // 3 minutes
-          xhr.send(formData);
-        });
-      }
-
-      /* ---------- submit ---------- */
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        msg.textContent = ""; msg.className = "msg";
-        progress.classList.remove("visible");
-        progressBar.style.width = "0%";
+        msg.textContent = "";
+        msg.className = "msg";
 
         if (!token) {
           msg.textContent = "You must be logged in.";
-          msg.className = "msg error";
+          msg.classList.add("error");
           return;
         }
 
         if (!form.checkValidity()) {
           msg.textContent = "Please fill all required fields correctly.";
-          msg.className = "msg error";
+          msg.classList.add("error");
           form.reportValidity();
           return;
         }
 
-        const mainInput = document.getElementById("main-input");
-        if (!mainInput.files || !mainInput.files.length) {
-          msg.textContent = "Please choose a main photo.";
-          msg.className = "msg error";
-          return;
+        const formData = new FormData(form);
+
+        for (const [key, value] of [...formData.entries()]) {
+          if (value instanceof File && value.size === 0) {
+            formData.delete(key);
+          }
         }
 
+        formData.set("is_treated", form.is_treated.checked ? "true" : "false");
+
         submitBtn.disabled = true;
-        msg.textContent = "Preparing photos…";
-        msg.className = "msg loading";
+        msg.textContent = "Uploading...";
+        msg.classList.add("success");
 
         try {
-          const mainFile    = (await collectCompressed("main-input"))[0];
-          const dimFiles    = await collectCompressed("dim-input");
-          const detailFiles = await collectCompressed("detail-input");
-
-          const formData = new FormData();
-          formData.append("local_name",    form.local_name.value.trim());
-          formData.append("trade_name",    form.trade_name.value.trim());
-          formData.append("thickness",     form.thickness.value);
-          formData.append("width",         form.width.value);
-          formData.append("length",        form.length.value);
-          formData.append("price",         form.price.value);
-          formData.append("stock",         form.stock.value);
-          formData.append("category_slug", form.category_slug.value);
-          formData.append("product_form",  form.product_form.value);
-          formData.append(
-            "is_treated",
-            form.querySelector('input[name="is_treated"]').checked ? "true" : "false"
-          );
-
-          formData.append("main_image", mainFile, mainFile.name);
-          if (dimFiles.length) formData.append("dimension_image", dimFiles[0], dimFiles[0].name);
-          for (const f of detailFiles) formData.append("detail_images", f, f.name);
-
-          msg.textContent = "Uploading… 0%";
-          msg.className = "msg loading";
-          progress.classList.add("visible");
-
-          const res = await uploadWithProgress(
-            "/seller/add-wood", formData, token,
-            (loaded, total) => {
-              const pct = Math.min(99, Math.round(loaded / total * 100));
-              progressBar.style.width = pct + "%";
-              msg.textContent = "Uploading… " + pct + "%";
-            }
-          );
-
-          progressBar.style.width = "100%";
+          const res = await fetch("/seller/add-wood", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: formData,
+          });
 
           if (res.status === 401) {
-            msg.textContent = "Session expired. Redirecting to login…";
+            msg.textContent = "Session expired. Please log in again.";
             msg.className = "msg error";
-            setTimeout(() => { window.location.href = "/login"; }, 1200);
+            setTimeout(() => { window.location.href = "/login"; }, 1500);
             return;
           }
-          if (res.status === 413) {
-            msg.textContent =
-              "One or more photos is still too large after compression. " +
-              "Please take a photo from further away or use a lower-resolution one.";
-            msg.className = "msg error";
-            return;
-          }
+
+          let data = null;
+          try { data = await res.json(); } catch (_) { /* non-JSON response */ }
 
           if (res.ok) {
-            msg.textContent =
-              "Success! Wood #" + (res.data && res.data.wood_id ? res.data.wood_id : "") +
-              " added to your store.\nYou can add another below.";
+            msg.textContent = "Success! Wood #" + (data && data.wood_id ? data.wood_id : "") + " added.";
             msg.className = "msg success";
-
             form.reset();
-            form.querySelectorAll('input[type="file"]').forEach((inp) => { inp.value = ""; });
             document.querySelectorAll(".preview-container").forEach((p) => {
               p.classList.remove("visible");
               const img = p.querySelector("img");
               if (img) img.src = "";
             });
-            document.getElementById("detail-slot").classList.remove("has-many");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-
-            setTimeout(() => {
-              if (msg.classList.contains("success")) {
-                msg.textContent = ""; msg.className = "msg";
-                progress.classList.remove("visible");
-                progressBar.style.width = "0%";
-              }
-            }, 8000);
           } else {
-            msg.textContent = "Error: " + renderError(res.data, "HTTP " + res.status);
+            msg.textContent = "Error: " + renderError(data, "HTTP " + res.status);
             msg.className = "msg error";
           }
         } catch (err) {
-          msg.textContent = "Error: " + (err.message || "unknown");
+          msg.textContent = "Error: network failure — " + ((err && err.message) || "unknown");
           msg.className = "msg error";
         } finally {
           submitBtn.disabled = false;

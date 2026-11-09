@@ -3,320 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
   <title>My Products — Builder Wood</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    :root { --tap: 44px; }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { overflow-x: hidden; }
-
-    body {
-      padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      padding-left: env(safe-area-inset-left, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
-    }
-
-    .dashboard-page {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 30px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm);
-      overflow-wrap: anywhere;
-    }
-
-    .dash-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-    }
-    .dash-header h2 {
-      font-family: Fraunces, serif;
-      font-size: 24px;
-      margin: 0;
-      color: var(--ink);
-    }
-
-    .header-main { flex-wrap: wrap; gap: 12px; }
-    .header-main .catnav-quote { margin-left: auto; }
-    @media (max-width: 480px) {
-      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
-    }
-
-    /* ---------- tabs ---------- */
-    .nav-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-      border-bottom: 1px solid var(--line);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      flex-wrap: nowrap;
-    }
-    .nav-tabs::-webkit-scrollbar { display: none; }
-    .nav-tabs a {
-      color: var(--muted);
-      font-weight: 600;
-      text-decoration: none;
-      padding: 10px 6px;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      white-space: nowrap;
-      flex: 0 0 auto;
-      -webkit-tap-highlight-color: transparent;
-      transition: color .15s;
-    }
-    .nav-tabs a:hover { color: var(--ink); }
-    .nav-tabs a.active {
-      color: var(--wood-med);
-      border-bottom-color: var(--wood-med);
-    }
-
-    /* ---------- product rows ---------- */
-    .product-row {
-      display: grid;
-      grid-template-columns: 72px 1fr auto;
-      gap: 20px;
-      align-items: center;
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      margin-bottom: 12px;
-      background: #fff;
-      transition: box-shadow .2s, border-color .2s;
-      min-width: 0;
-    }
-    @media (hover: hover) {
-      .product-row:hover {
-        border-color: var(--wood-light);
-        box-shadow: var(--shadow-sm);
-      }
-    }
-    .product-row > * { min-width: 0; }
-
-    .product-thumb {
-      width: 72px;
-      height: 72px;
-      border-radius: 8px;
-      object-fit: cover;
-      background: var(--parchment-2);
-      border: 1px solid var(--line);
-      display: grid;
-      place-items: center;
-      font-size: 28px;
-      color: var(--wood-med);
-      flex: 0 0 auto;
-      overflow: hidden;
-    }
-    .product-thumb img {
-      width: 100%; height: 100%; object-fit: cover; display: block;
-    }
-
-    .product-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .product-info h4 {
-      margin: 0;
-      font-size: 15.5px;
-      font-weight: 700;
-      color: var(--ink);
-      overflow-wrap: anywhere;
-      line-height: 1.3;
-    }
-    .product-info .product-sub {
-      font-size: 12px;
-      color: var(--muted);
-      overflow-wrap: anywhere;
-    }
-
-    .product-meta {
-      display: flex;
-      gap: 10px;
-      font-size: 13px;
-      color: var(--ink-2);
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .meta-badge {
-      background: var(--parchment-2);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-weight: 600;
-      color: var(--wood-med);
-      white-space: nowrap;
-    }
-    .stock-low { color: var(--red); font-weight: 700; white-space: nowrap; }
-    .stock-ok  { color: var(--green); font-weight: 600; white-space: nowrap; }
-    .stock-out { color: var(--red); font-weight: 700; white-space: nowrap; }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex: 0 0 auto;
-    }
-
-    .btn-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      border: 1px solid var(--line-2);
-      background: #fff;
-      cursor: pointer;
-      color: var(--muted);
-      transition: background .15s, color .15s, border-color .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    @media (hover: hover) {
-      .btn-icon:hover {
-        background: #fbe9e7;
-        color: var(--red);
-        border-color: #f5c6cb;
-      }
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--muted);
-    }
-    .empty-state h4 { color: var(--ink); margin: 0 0 8px; font-size: 18px; }
-    .empty-state p { margin: 0 0 16px; font-size: 14px; }
-    .empty-state a {
-      color: var(--wood-med);
-      font-weight: 700;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      min-height: var(--tap);
-    }
-    .empty-state a:hover { text-decoration: underline; }
-
-    /* ---------- skeleton ---------- */
-    .skeleton {
-      position: relative;
-      overflow: hidden;
-      background: var(--parchment-2, #eee);
-      border-radius: var(--radius);
-      height: 104px;
-      margin-bottom: 12px;
-    }
-    .skeleton::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      transform: translateX(-100%);
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
-      animation: shimmer 1.2s infinite;
-    }
-    @keyframes shimmer { to { transform: translateX(100%); } }
-
-    /* ---------- modal ---------- */
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(20, 12, 4, .6);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-    .modal-backdrop.show { display: flex; }
-    .modal {
-      background: #fff;
-      border-radius: var(--radius-lg);
-      padding: 28px 24px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-      box-shadow: var(--shadow-lg);
-      overflow-wrap: anywhere;
-    }
-    .modal h3 { font-family: "Fraunces", serif; font-size: 20px; margin: 0 0 10px; }
-    .modal p { color: var(--ink-2); margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .modal-actions .btn {
-      flex: 1 1 120px;
-      min-height: var(--tap);
-      padding: 10px 16px;
-      border: none;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 14px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn-cancel  { background: var(--parchment-2); color: var(--ink); }
-    .btn-confirm { background: var(--red); color: #fff; }
-
-    .msg {
-      margin-top: 16px;
-      font-weight: 600;
-      text-align: center;
-      min-height: 1.2em;
-      overflow-wrap: anywhere;
-      font-size: 13px;
-    }
-    .msg.ok  { color: var(--green); }
+    .dashboard-page { max-width: 1100px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+    .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 6px; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .product-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .product-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: var(--parchment); }
+    .product-card .body { padding: 12px; }
+    .product-card h4 { font-size: 14px; margin: 0 0 4px; }
+    .product-card .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .product-card .price { font-family: Fraunces, serif; font-size: 16px; font-weight: 700; color: var(--wood-med); }
+    .product-card .stock { font-size: 11px; color: var(--green); margin-top: 4px; }
+    .product-card .stock.out { color: var(--red); }
+    .empty-text { text-align: center; padding: 40px; color: var(--muted); }
+    .btn { padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-block; }
+    .btn-primary { background: var(--wood-med); color: #fff; }
+    .msg { margin-top: 15px; text-align: center; font-weight: 600; min-height: 20px; }
+    .msg.ok { color: var(--green); }
     .msg.err { color: var(--red); }
-
-    /* ---------- tablet ---------- */
-    @media (max-width: 720px) {
-      .dashboard-page { margin: 24px 12px; padding: 22px 18px; border-radius: 12px; }
-      .product-row { padding: 14px; gap: 14px; }
-    }
-
-    /* ---------- phone: reflow rows ---------- */
-    @media (max-width: 520px) {
-      .dashboard-page { margin: 16px 10px; padding: 18px 14px; }
-      .dash-header h2 { font-size: 20px; }
-
-      .product-row {
-        grid-template-columns: 56px 1fr;
-        gap: 12px;
-        padding: 12px;
-      }
-      .product-thumb { width: 56px; height: 56px; font-size: 22px; }
-
-      .actions {
-        grid-column: 1 / -1;
-        justify-content: flex-end;
-        margin-top: 4px;
-      }
-      .btn-icon { width: 44px; height: 44px; }
-
-      .modal-actions { flex-direction: column; }
-      .modal-actions .btn { width: 100%; }
-    }
-
-    /* ---------- tiny phones ---------- */
-    @media (max-width: 360px) {
-      .dashboard-page { margin: 12px 8px; padding: 14px 12px; }
-      .dash-header h2 { font-size: 18px; }
-      .product-info h4 { font-size: 14.5px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .skeleton::after { animation: none; opacity: .45; }
-      *, *::before, *::after { transition-duration: .01ms !important; }
-    }
   </style>
 </head>
 <body>
@@ -326,267 +37,76 @@
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
     </div>
   </header>
 
   <main class="dashboard-page">
     <div class="dash-header">
       <h2>My Products</h2>
+      <a href="/seller/upload" class="btn btn-primary">+ Upload New Wood</a>
     </div>
 
     <div class="nav-tabs">
       <a href="/seller/upload">Upload Wood</a>
-      <a href="/seller/products" class="active" aria-current="page">My Products</a>
+      <a href="/seller/products" class="active">My Products</a>
       <a href="/seller/orders">My Orders</a>
+      <a href="/seller/payout">Payout Account</a>
+      <a href="/seller/wallet-page">💰 Wallet</a>
     </div>
 
-    <div id="products-list" aria-live="polite">
-      <div class="skeleton"></div>
-      <div class="skeleton"></div>
-      <div class="skeleton"></div>
+    <div id="products-grid" class="product-grid">
+      <p class="empty-text">Loading...</p>
     </div>
 
-    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <div class="msg" id="msg"></div>
   </main>
 
-  <!-- Delete confirmation modal -->
-  <div class="modal-backdrop" id="modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true"
-         aria-labelledby="modal-title" aria-describedby="modal-message">
-      <h3 id="modal-title">Delete this product?</h3>
-      <p id="modal-message">This will remove the listing from the store.</p>
-      <div class="modal-actions">
-        <button class="btn btn-cancel" id="modal-cancel" type="button">Cancel</button>
-        <button class="btn btn-confirm" id="modal-confirm" type="button">Yes, delete</button>
-      </div>
-    </div>
-  </div>
-
   <script>
-    "use strict";
+    const token = localStorage.getItem("bw_token");
+    if (!token) window.location.replace("/login");
 
-    (function () {
-      const token = localStorage.getItem("bw_token");
-      if (!token) { window.location.replace("/login"); return; }
+    function fmtGHS(v) {
+      const n = Number(v);
+      return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
+    }
 
-      const listEl  = document.getElementById("products-list");
-      const msgEl   = document.getElementById("msg");
-      const backdrop = document.getElementById("modal-backdrop");
-      const mTitle   = document.getElementById("modal-title");
-      const mMessage = document.getElementById("modal-message");
-      const mCancel  = document.getElementById("modal-cancel");
-      const mConfirm = document.getElementById("modal-confirm");
+    async function loadProducts() {
+      try {
+        const res = await fetch("/woods/?seller=me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed");
+        const items = await res.json();
+        const rows = Array.isArray(items) ? items : (items.items || []);
 
-      let pendingAction = null;
-      let lastFocused = null;
-
-      /* ---------- helpers ---------- */
-      const escapeHtml = (s) =>
-        String(s ?? "").replace(/[&<>"']/g, (c) => ({
-          "&": "&amp;", "<": "&lt;", ">": "&gt;",
-          '"': "&quot;", "'": "&#39;"
-        }[c]));
-
-      const money = (n, c) => {
-        const v = Number(n);
-        if (!Number.isFinite(v)) return "Price unavailable";
-        const cur = c || "GHS";
-        return cur + " " + v.toFixed(2);
-      };
-
-      function showMsg(text, ok = true) {
-        msgEl.textContent = text;
-        msgEl.className = "msg " + (ok ? "ok" : "err");
-        clearTimeout(showMsg._t);
-        showMsg._t = setTimeout(() => { msgEl.textContent = ""; }, 5000);
-      }
-
-      /* ---------- modal ---------- */
-      function showModal(title, message, onConfirm) {
-        mTitle.textContent = title;
-        mMessage.textContent = message;
-        lastFocused = document.activeElement;
-        pendingAction = onConfirm;
-        backdrop.classList.add("show");
-        mConfirm.focus();
-      }
-      function hideModal() {
-        backdrop.classList.remove("show");
-        pendingAction = null;
-        if (lastFocused) lastFocused.focus();
-      }
-
-      mCancel.addEventListener("click", hideModal);
-      mConfirm.addEventListener("click", () => {
-        const fn = pendingAction;
-        hideModal();
-        if (fn) fn();
-      });
-      backdrop.addEventListener("click", (e) => {
-        if (e.target === backdrop) hideModal();
-      });
-      document.addEventListener("keydown", (e) => {
-        if (!backdrop.classList.contains("show")) return;
-        if (e.key === "Escape") hideModal();
-      });
-
-      /* ---------- fetch products ---------- */
-      async function loadProducts() {
-        listEl.innerHTML =
-          '<div class="skeleton"></div>' +
-          '<div class="skeleton"></div>' +
-          '<div class="skeleton"></div>';
-
-        try {
-          const res = await fetch("/woods/seller/my-products", {
-            headers: { "Authorization": "Bearer " + token }
-          });
-
-          if (res.status === 401) {
-            ["bw_token", "bw_role", "bw_name", "bw_user_id"]
-              .forEach((k) => localStorage.removeItem(k));
-            window.location.replace("/login");
-            return;
-          }
-          if (!res.ok) throw new Error("HTTP " + res.status);
-
-          const products = await res.json();
-
-          if (!Array.isArray(products) || products.length === 0) {
-            listEl.innerHTML =
-              '<div class="empty-state">' +
-                "<h4>No products yet</h4>" +
-                "<p>You haven't uploaded any wood to the marketplace.</p>" +
-                '<a href="/seller/upload">Upload your first wood →</a>' +
-              "</div>";
-            return;
-          }
-
-          listEl.innerHTML = products.map((p) => {
-            const stock   = Number(p.stock_quantity) || 0;
-            const isLow   = stock > 0 && stock <= 10;
-            const isOut   = stock <= 0;
-            const stockClass = isOut ? "stock-out" : isLow ? "stock-low" : "stock-ok";
-            const stockText  = isOut
-              ? "Out of stock"
-              : stock + " in stock";
-
-            const displayName = escapeHtml(
-              p.display_name ||
-              [p.local_name, p.trade_name].filter(Boolean).join(" / ") ||
-              "Timber product"
-            );
-
-            // Image resolution: top-level image_url → first image in array → placeholder
-            const imgUrl =
-              p.image_url ||
-              (Array.isArray(p.images) && p.images[0] && p.images[0].image_url) ||
-              "";
-
-            const thumb = imgUrl
-              ? '<img src="' + escapeHtml(imgUrl) + '" alt="' + displayName + '" loading="lazy">'
-              : "🪵";
-
-            const subline = p.trade_name
-              ? '<div class="product-sub">' + escapeHtml(p.trade_name) + "</div>"
-              : "";
-
-            return (
-              '<div class="product-row">' +
-                '<div class="product-thumb">' + thumb + "</div>" +
-                '<div class="product-info">' +
-                  "<h4>" + displayName + "</h4>" +
-                  subline +
-                  '<div class="product-meta">' +
-                    '<span class="meta-badge">' + escapeHtml(money(p.price_per_piece, p.currency)) + "</span>" +
-                    '<span class="' + stockClass + '">' + escapeHtml(stockText) + "</span>" +
-                  "</div>" +
-                "</div>" +
-                '<div class="actions">' +
-                  '<button class="btn-icon" type="button" ' +
-                    'data-delete="' + Number(p.wood_id) + '" ' +
-                    'data-name="' + displayName + '" ' +
-                    'aria-label="Delete ' + displayName + '">' +
-                    '<svg viewBox="0 0 24 24" width="18" height="18" ' +
-                      'stroke="currentColor" stroke-width="2" fill="none" ' +
-                      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-                      '<path d="M3 6h18"></path>' +
-                      '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
-                      '<line x1="10" y1="11" x2="10" y2="17"></line>' +
-                      '<line x1="14" y1="11" x2="14" y2="17"></line>' +
-                    "</svg>" +
-                  "</button>" +
-                "</div>" +
-              "</div>"
-            );
-          }).join("");
-
-          // Bind delete buttons
-          listEl.querySelectorAll("[data-delete]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              const id   = Number(btn.getAttribute("data-delete"));
-              const name = btn.getAttribute("data-name") || "this product";
-              showModal(
-                "Delete this product?",
-                name + " will be removed from the store and no longer " +
-                "shown to buyers. This cannot be undone.",
-                () => deleteProduct(id)
-              );
-            });
-          });
-
-        } catch (err) {
-          console.error("seller_products load failed:", err);
-          listEl.innerHTML =
-            '<p style="text-align:center; color:var(--red); padding:20px;">' +
-              "Error loading products. Please try again." +
-            "</p>";
+        const host = document.getElementById("products-grid");
+        if (!rows.length) {
+          host.innerHTML = '<p class="empty-text" style="grid-column: 1 / -1;">No products yet. <a href="/seller/upload" style="color:var(--wood-med);font-weight:700;">Upload your first wood →</a></p>';
+          return;
         }
+
+        host.innerHTML = rows.map(p => {
+          const img = p.image_url || (p.images && p.images[0] && p.images[0].image_url) || "";
+          const stock = Number(p.stock_quantity || 0);
+          return `
+            <article class="product-card">
+              ${img ? `<img src="${img}" alt="">` : `<div style="aspect-ratio:1/1;display:grid;place-items:center;font-size:40px;background:var(--parchment);">🪵</div>`}
+              <div class="body">
+                <h4>${p.local_name || "Timber"} ${p.size_label || ""}</h4>
+                <div class="meta">${p.category_name || p.trade_name || "Timber"}</div>
+                <div class="price">${fmtGHS(p.price_per_piece)}</div>
+                <div class="stock ${stock <= 0 ? 'out' : ''}">${stock <= 0 ? 'Out of stock' : stock + ' in stock'}</div>
+              </div>
+            </article>
+          `;
+        }).join("");
+      } catch (e) {
+        document.getElementById("products-grid").innerHTML = '<p class="empty-text" style="grid-column: 1 / -1;color:var(--red);">Error loading products.</p>';
       }
+    }
 
-      /* ---------- delete ---------- */
-      async function deleteProduct(id) {
-        try {
-          const res = await fetch("/woods/" + encodeURIComponent(id), {
-            method: "DELETE",
-            headers: { "Authorization": "Bearer " + token }
-          });
-
-          if (res.status === 204 || res.ok) {
-            showMsg("Product deleted.", true);
-            loadProducts();
-            return;
-          }
-          if (res.status === 401) {
-            window.location.replace("/login");
-            return;
-          }
-          if (res.status === 403) {
-            showMsg("This listing is not yours to delete.", false);
-            return;
-          }
-          if (res.status === 404) {
-            showMsg("This product no longer exists.", false);
-            loadProducts();
-            return;
-          }
-
-          let detail = "Could not delete this listing.";
-          try {
-            const data = await res.json();
-            if (typeof data.detail === "string") detail = data.detail;
-          } catch (_) { /* ignore */ }
-          showMsg(detail, false);
-
-        } catch (err) {
-          console.error("Delete failed:", err);
-          showMsg("Network error. Please check your connection.", false);
-        }
-      }
-
-      loadProducts();
-    })();
+    loadProducts();
   </script>
 </body>
 </html>

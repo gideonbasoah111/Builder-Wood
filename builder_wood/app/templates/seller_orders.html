@@ -3,562 +3,227 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
   <title>Seller Orders — Builder Wood</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    :root { --tap: 44px; }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { overflow-x: hidden; }
-
-    body {
-      padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      padding-left: env(safe-area-inset-left, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
-    }
-
-    .dashboard-page {
-      max-width: 960px;
-      margin: 40px auto;
-      padding: 30px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      overflow-wrap: anywhere;
-    }
-
-    .dash-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-    }
+    .dashboard-page { max-width: 960px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
     .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
-
-    .header-main { flex-wrap: wrap; gap: 12px; }
-    .header-main .catnav-quote { margin-left: auto; }
-    @media (max-width: 480px) {
-      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
-    }
-
-    .stats-strip {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      background: var(--parchment);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 14px 16px;
-      min-width: 0;
-    }
-    .stat-card .stat-num {
-      font-size: 22px;
-      font-weight: 700;
-      font-family: Fraunces, serif;
-      line-height: 1.15;
-      overflow-wrap: anywhere;
-    }
-    .stat-card .stat-label {
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .03em;
-      margin-top: 2px;
-    }
-
-    .toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--line);
-    }
-    .nav-tabs {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      flex-wrap: nowrap;
-    }
-    .nav-tabs::-webkit-scrollbar { display: none; }
-    .nav-tabs a {
-      color: var(--muted);
-      font-weight: 600;
-      text-decoration: none;
-      padding: 10px 6px;
-      border-bottom: 2px solid transparent;
-      white-space: nowrap;
-      flex: 0 0 auto;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .nav-tabs a.active,
-    .nav-tabs a[aria-current="page"] {
-      color: var(--wood-med);
-      border-bottom-color: var(--wood-med);
-    }
-
-    .filters {
-      display: flex;
-      gap: 8px;
-      padding-bottom: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .chip {
-      border: 1px solid var(--line);
-      background: #fff;
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--ink-2);
-      min-height: 34px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .chip[aria-pressed="true"] {
-      background: var(--wood-med);
-      border-color: var(--wood-med);
-      color: #fff;
-    }
-    .search-box {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-      min-height: 34px;
-      flex: 1 1 160px;
-      min-width: 140px;
-      max-width: 240px;
-      background: #fff;
-      color: var(--ink);
-      outline: 0;
-    }
-    .search-box:focus { border-color: var(--wood-med); }
-
-    .msg {
-      margin-top: 15px;
-      font-weight: 600;
-      text-align: center;
-      min-height: 1.2em;
-      overflow-wrap: anywhere;
-    }
-    .msg.ok  { color: var(--green); }
-    .msg.err { color: var(--red); }
-
-    /* Order cards */
-    .order-card {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      margin-bottom: 20px;
-      overflow: hidden;
-      min-width: 0;
-    }
-    .order-card > * { min-width: 0; }
-
-    .order-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding: 15px 20px;
-      background: var(--parchment);
-      border-bottom: 1px solid var(--line);
-    }
-    .order-head h4 {
-      margin: 0;
-      font-size: 15px;
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-      overflow-wrap: anywhere;
-    }
-    .order-head .meta {
-      font-size: 12px;
-      font-weight: 400;
-      color: var(--muted);
-    }
-    .status {
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      white-space: nowrap;
-      letter-spacing: .02em;
-    }
-    .status-pending   { background: #fff3cd; color: #856404; }
-    .status-paid      { background: #cce5ff; color: #004085; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .nav-tabs a { color: var(--muted); font-weight: 600; text-decoration: none; padding: 10px 6px; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+    .stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--parchment); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+    .stat-card .stat-num { font-size: 22px; font-weight: 700; font-family: Fraunces, serif; line-height: 1.15; }
+    .stat-card .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+    .order-card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .order-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 15px 20px; background: var(--parchment); border-bottom: 1px solid var(--line); }
+    .order-head h4 { margin: 0; font-size: 15px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .order-head .meta { font-size: 12px; font-weight: 400; color: var(--muted); }
+    .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-paid { background: #d4edda; color: #155724; }
     .status-confirmed { background: #cce5ff; color: #004085; }
-    .status-shipped   { background: #d1ecf1; color: #0c5460; }
+    .status-shipped { background: #d1ecf1; color: #0c5460; }
     .status-delivered { background: #d4edda; color: #155724; }
     .status-cancelled { background: #f8d7da; color: #721c24; }
-    .status-disputed  { background: #f8d7da; color: #721c24; }
-
+    .status-disputed { background: #f8d7da; color: #721c24; }
     .order-body { padding: 20px; }
     .order-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-
-    .order-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      min-width: 0;
-    }
-    .order-item > span:first-child { overflow-wrap: anywhere; min-width: 0; flex: 1 1 auto; }
+    .order-item { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; }
     .order-item > span:last-child { white-space: nowrap; font-weight: 600; }
-
-    .order-total {
-      font-weight: 700;
-      font-size: 15px;
-      border-top: 1px dashed var(--line);
-      padding-top: 15px;
-      margin-top: 15px;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .order-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 12px;
-      cursor: pointer;
-      border: none;
-      min-height: 36px;
-      -webkit-tap-highlight-color: transparent;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .order-total { font-weight: 700; font-size: 15px; border-top: 1px dashed var(--line); padding-top: 15px; margin-top: 15px; display: flex; justify-content: space-between; gap: 10px; }
+    .order-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; }
     .btn-primary { background: var(--wood-med); color: #fff; }
     .btn-success { background: var(--green); color: #fff; }
-    .btn-danger  { background: #b02a37; color: #fff; }
-    .btn-sm { padding: 6px 12px; font-size: 11px; min-height: 32px; }
-
-    /* Skeleton */
-    .skeleton {
-      position: relative;
-      overflow: hidden;
-      background: var(--parchment-2, #eee);
-      border-radius: 10px;
-      height: 120px;
-      margin-bottom: 20px;
-    }
-
-    /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-    }
+    .btn-sm { padding: 6px 12px; font-size: 11px; }
+    .empty-state { text-align: center; padding: 60px 20px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
     .empty-state .empty-icon { font-size: 48px; opacity: .6; margin-bottom: 10px; }
     .empty-state h3 { font-family: Fraunces, serif; margin: 0 0 6px; }
     .empty-state p { color: var(--muted); margin: 0; font-size: 13px; }
-
-    @media (max-width: 720px) {
-      .dashboard-page { margin: 24px 12px; padding: 22px 18px; border-radius: 12px; }
-      .order-body { padding: 16px; }
-      .order-head { padding: 12px 16px; }
-    }
-    @media (max-width: 600px) {
-      .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
-      .filters { padding-bottom: 12px; }
-      .search-box { max-width: 100%; flex: 1 1 100%; }
-    }
-    @media (max-width: 520px) {
-      .order-head { flex-direction: column; align-items: flex-start; }
-      .order-head .status { align-self: flex-end; }
-      .order-item { flex-direction: column; gap: 4px; }
-      .order-item > span:last-child { align-self: flex-end; }
-      .order-actions { flex-direction: column; }
-      .order-actions .btn { width: 100%; }
-    }
+    .msg { margin-top: 15px; text-align: center; font-weight: 600; min-height: 20px; }
+    .msg.ok { color: var(--green); }
+    .msg.err { color: var(--red); }
+    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .chip { padding: 6px 14px; border-radius: 999px; background: #fff; color: var(--ink-2); font-size: 12px; font-weight: 600; border: 1px solid var(--line-2); cursor: pointer; }
+    .chip.active { background: var(--wood-med); color: #fff; border-color: var(--wood-med); }
   </style>
 </head>
 <body>
   <header class="header">
     <div class="container header-main">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">🪵</span>
+        <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Seller Dashboard</small></span>
       </a>
-      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
     </div>
   </header>
 
   <main class="dashboard-page">
     <div class="dash-header">
-      <h2>Seller Dashboard</h2>
-      <button class="btn btn-sm btn-primary" id="refresh-btn" type="button">↻ Refresh</button>
+      <h2>My Orders</h2>
+      <button class="btn btn-primary btn-sm" id="refresh-btn" type="button">↻ Refresh</button>
     </div>
 
-    <section class="stats-strip" id="stats-strip" aria-label="Order summary"></section>
-
-    <div class="toolbar">
-      <nav class="nav-tabs" aria-label="Seller sections">
-        <a href="/seller/upload">Upload Wood</a>
-        <a href="/seller/products">My Products</a>
-        <a href="/seller/orders" aria-current="page">My Orders</a>
-      </nav>
-      <div class="filters" role="group" aria-label="Filter orders by status">
-        <input class="search-box" id="search" type="search" placeholder="Search order #…" aria-label="Search by order number">
-        <button class="chip" data-filter="all"       aria-pressed="true"  type="button">All</button>
-        <button class="chip" data-filter="pending"   aria-pressed="false" type="button">Pending</button>
-        <button class="chip" data-filter="confirmed" aria-pressed="false" type="button">Confirmed</button>
-        <button class="chip" data-filter="shipped"   aria-pressed="false" type="button">Shipped</button>
-        <button class="chip" data-filter="delivered" aria-pressed="false" type="button">Delivered</button>
-      </div>
+    <div class="nav-tabs">
+      <a href="/seller/upload">Upload Wood</a>
+      <a href="/seller/products">My Products</a>
+      <a href="/seller/orders" class="active">My Orders</a>
+      <a href="/seller/payout">Payout Account</a>
+      <a href="/seller/wallet-page">💰 Wallet</a>
     </div>
 
-    <div id="orders-list" aria-live="polite"></div>
-    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <section class="stats-strip" id="stats-strip"></section>
+
+    <div class="filters">
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip" data-filter="pending">Pending</button>
+      <button class="chip" data-filter="confirmed">Confirmed</button>
+      <button class="chip" data-filter="shipped">Shipped</button>
+      <button class="chip" data-filter="delivered">Delivered</button>
+    </div>
+
+    <div id="orders-list"></div>
+    <div class="msg" id="msg" role="status"></div>
   </main>
 
   <script>
-    "use strict";
-
     const token = localStorage.getItem("bw_token");
     if (!token) window.location.replace("/login");
 
-    const msgEl     = document.getElementById("msg");
-    const listEl    = document.getElementById("orders-list");
-    const statsEl   = document.getElementById("stats-strip");
-    const searchEl  = document.getElementById("search");
-    const refreshBtn = document.getElementById("refresh-btn");
-
     let allOrders = [];
     let activeFilter = "all";
-    let searchTerm = "";
 
-    const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
+    function fmtGHS(v) {
+      const n = Number(v);
+      return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
+    }
 
-    const fmtMoney = (n) => "GH₵ " + Number(n || 0).toFixed(2);
+    function esc(v) {
+      return String(v == null ? "" : v).replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    }
 
-    function showMsg(text, ok = true) {
-      msgEl.textContent = text;
-      msgEl.className = "msg " + (ok ? "ok" : "err");
+    function showMsg(text, isError) {
+      const msg = document.getElementById("msg");
+      msg.textContent = text;
+      msg.className = "msg " + (isError ? "err" : "ok");
       clearTimeout(showMsg._t);
-      showMsg._t = setTimeout(() => { msgEl.textContent = ""; }, 5000);
+      showMsg._t = setTimeout(() => { msg.textContent = ""; }, 5000);
     }
 
-    async function api(url, options = {}) {
-      const res = await fetch(url, {
-        ...options,
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          ...(options.headers || {})
-        }
-      });
-      if (res.status === 401) {
-        window.location.replace("/login");
-        throw new Error("Session expired");
+    async function loadOrders() {
+      document.getElementById("orders-list").innerHTML = '<p class="empty-state">Loading...</p>';
+      try {
+        const res = await fetch("/orders/seller/orders", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed");
+        allOrders = await res.json();
+        renderStats();
+        renderOrders();
+      } catch (e) {
+        showMsg("Could not load orders", true);
       }
-      if (!res.ok) {
-        let detail = "Request failed.";
-        try { detail = (await res.json()).detail || detail; } catch {}
-        throw new Error(detail);
-      }
-      return res.json();
     }
 
-    /* ---------- Render stats ---------- */
-    function renderStats(orders) {
-      const pending = orders.filter(o => ["pending", "paid", "confirmed"].includes(o.status)).length;
-      const shipped = orders.filter(o => o.status === "shipped").length;
-      const delivered = orders.filter(o => o.status === "delivered").length;
-      const revenue = orders
-        .filter(o => ["paid", "confirmed", "shipped", "delivered"].includes(o.status))
+    function renderStats() {
+      const pending = allOrders.filter(o => ["pending", "paid", "confirmed"].includes(o.status)).length;
+      const shipped = allOrders.filter(o => o.status === "shipped").length;
+      const delivered = allOrders.filter(o => o.status === "delivered").length;
+      const revenue = allOrders.filter(o => ["paid", "confirmed", "shipped", "delivered"].includes(o.status))
         .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
 
-      statsEl.innerHTML = `
-        <div class="stat-card">
-          <div class="stat-num">${orders.length}</div>
-          <div class="stat-label">Total Orders</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">${pending}</div>
-          <div class="stat-label">Pending</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">${shipped}</div>
-          <div class="stat-label">Shipped</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">${delivered}</div>
-          <div class="stat-label">Delivered</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">${fmtMoney(revenue)}</div>
-          <div class="stat-label">Revenue</div>
-        </div>
+      document.getElementById("stats-strip").innerHTML = `
+        <div class="stat-card"><div class="stat-num">${allOrders.length}</div><div class="stat-label">Total Orders</div></div>
+        <div class="stat-card"><div class="stat-num">${pending}</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-num">${shipped}</div><div class="stat-label">Shipped</div></div>
+        <div class="stat-card"><div class="stat-num">${delivered}</div><div class="stat-label">Delivered</div></div>
+        <div class="stat-card"><div class="stat-num">${fmtGHS(revenue)}</div><div class="stat-label">Revenue</div></div>
       `;
     }
 
-    /* ---------- Render orders ---------- */
-    function renderOrders(orders) {
-      if (!orders.length) {
-        listEl.innerHTML = `
+    function renderOrders() {
+      let filtered = allOrders;
+      if (activeFilter !== "all") filtered = filtered.filter(o => o.status === activeFilter);
+
+      const host = document.getElementById("orders-list");
+      if (!filtered.length) {
+        host.innerHTML = `
           <div class="empty-state">
             <div class="empty-icon">📦</div>
-            <h3>No orders yet</h3>
+            <h3>${activeFilter === "all" ? "No orders yet" : "No " + activeFilter + " orders"}</h3>
             <p>When customers buy your wood, orders will appear here.</p>
           </div>
         `;
         return;
       }
 
-      listEl.innerHTML = orders.map(o => {
+      host.innerHTML = filtered.map(o => {
         const items = (o.items || []).map(i => `
           <div class="order-item">
-            <span>${escapeHtml(i.wood_name_snap)} — ${escapeHtml(i.size_snap)}</span>
-            <span>${i.quantity} × ${fmtMoney(i.price_at_purchase)}</span>
+            <span>${esc(i.wood_name_snap)} — ${esc(i.size_snap)}</span>
+            <span>${i.quantity} × ${fmtGHS(i.price_at_purchase)}</span>
           </div>
         `).join("");
 
-        const statusClass = `status-${o.status}`;
+        let actions = "";
+        if (o.status === "confirmed" || o.status === "paid") {
+          actions = `<div class="order-actions"><button class="btn btn-primary btn-sm" onclick="updateStatus(${o.order_id}, 'shipped')">Mark Shipped</button></div>`;
+        } else if (o.status === "shipped") {
+          actions = `<div class="order-actions"><button class="btn btn-success btn-sm" onclick="updateStatus(${o.order_id}, 'delivered')">Mark Delivered</button></div>`;
+        }
 
         return `
-          <div class="order-card" data-order-id="${o.order_id}">
+          <div class="order-card">
             <div class="order-head">
-              <h4>
-                Order #${o.order_id}
-                <span class="meta">${new Date(o.order_date || Date.now()).toLocaleDateString()}</span>
-              </h4>
-              <span class="status ${statusClass}">${o.status}</span>
+              <h4>Order #${o.order_id} <span class="meta">${new Date(o.order_date || Date.now()).toLocaleDateString()}</span></h4>
+              <span class="status status-${o.status}">${o.status}</span>
             </div>
             <div class="order-body">
               <div class="order-items">${items}</div>
-              <div class="order-total">
-                <span>Total</span>
-                <span>${fmtMoney(o.total_price)}</span>
-              </div>
-              ${renderActions(o)}
+              <div class="order-total"><span>Total</span><span>${fmtGHS(o.total_price)}</span></div>
+              ${actions}
             </div>
           </div>
         `;
       }).join("");
     }
 
-    function renderActions(o) {
-      if (o.status === "confirmed" || o.status === "paid") {
-        return `<div class="order-actions">
-          <button class="btn btn-primary btn-sm" onclick="updateStatus(${o.order_id}, 'shipped')">Mark Shipped</button>
-        </div>`;
-      }
-      if (o.status === "shipped") {
-        return `<div class="order-actions">
-          <button class="btn btn-success btn-sm" onclick="updateStatus(${o.order_id}, 'delivered')">Mark Delivered</button>
-        </div>`;
-      }
-      return "";
-    }
-
-    /* ---------- Filter + search ---------- */
-    function applyFilters() {
-      let filtered = allOrders;
-      if (activeFilter !== "all") {
-        filtered = filtered.filter(o => o.status === activeFilter);
-      }
-      if (searchTerm) {
-        filtered = filtered.filter(o =>
-          String(o.order_id).includes(searchTerm)
-        );
-      }
-      renderOrders(filtered);
-    }
-
-    /* ---------- Load orders ---------- */
-    async function loadOrders() {
-      listEl.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-      try {
-        const orders = await api("/orders/seller/orders");
-        allOrders = Array.isArray(orders) ? orders : [];
-        renderStats(allOrders);
-        applyFilters();
-      } catch (err) {
-        listEl.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">⚠️</div>
-            <h3>Could not load orders</h3>
-            <p>${escapeHtml(err.message || "Please try again.")}</p>
-          </div>
-        `;
-        showMsg(err.message || "Failed to load orders", false);
-      }
-    }
-
-    /* ---------- Update order status ---------- */
     async function updateStatus(orderId, newStatus) {
       const verb = newStatus === "shipped" ? "mark as shipped" : "mark as delivered";
       if (!confirm(`Are you sure you want to ${verb} order #${orderId}?`)) return;
 
       try {
-        await api(`/orders/${orderId}/status`, {
+        const res = await fetch(`/orders/${orderId}/status`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ status: newStatus }),
         });
-        showMsg(`Order #${orderId} marked as ${newStatus}`, true);
-        await loadOrders();
-      } catch (err) {
-        showMsg(err.message || "Failed to update status", false);
-      }
+        if (res.ok) {
+          showMsg(`Order #${orderId} marked as ${newStatus}`, false);
+          loadOrders();
+        } else {
+          const e = await res.json();
+          showMsg(e.detail || "Failed to update", true);
+        }
+      } catch { showMsg("Network error", true); }
     }
 
-    /* ---------- Wire up filters ---------- */
     document.querySelectorAll(".chip[data-filter]").forEach(btn => {
       btn.addEventListener("click", () => {
         activeFilter = btn.dataset.filter;
-        document.querySelectorAll(".chip[data-filter]").forEach(b => b.setAttribute("aria-pressed", "false"));
-        btn.setAttribute("aria-pressed", "true");
-        applyFilters();
+        document.querySelectorAll(".chip[data-filter]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderOrders();
       });
     });
 
-    if (searchEl) {
-      searchEl.addEventListener("input", (e) => {
-        searchTerm = e.target.value.trim().toLowerCase();
-        applyFilters();
-      });
-    }
+    document.getElementById("refresh-btn").addEventListener("click", loadOrders);
 
-    if (refreshBtn) {
-      refreshBtn.addEventListener("click", loadOrders);
-    }
-
-    // Global scope exposure for inline onclick handlers
-    window.updateStatus = updateStatus;
-
-    // Initial load
     loadOrders();
   </script>
 </body>

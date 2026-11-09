@@ -10,6 +10,9 @@
     .dashboard-page { max-width: 700px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
     .dash-header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
     .dash-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .nav-tabs a { padding: 10px 6px; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 2px solid transparent; }
+    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
     .field { margin-bottom: 16px; }
     .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     .field input, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; }
@@ -25,9 +28,9 @@
     .status-missing { background: #fff3cd; color: #856404; border-left: 4px solid #f0ad4e; }
     .form-section { display: none; }
     .form-section.active { display: block; }
-    .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
-    .nav-tabs a { padding: 10px 6px; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 2px solid transparent; }
-    .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
+    .payout-type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+    .payout-type-btn { flex: 1; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+    .payout-type-btn.active { border-color: var(--wood-med); background: var(--wood-med); color: #fff; }
   </style>
 </head>
 <body>
@@ -51,6 +54,7 @@
       <a href="/seller/products">My Products</a>
       <a href="/seller/orders">My Orders</a>
       <a href="/seller/payout" class="active">Payout Account</a>
+      <a href="/seller/wallet-page">💰 Wallet</a>
     </div>
 
     <div id="status-banner"></div>
@@ -68,7 +72,6 @@
         </select>
       </div>
 
-      <!-- Mobile Money form -->
       <div id="form-momo" class="form-section active">
         <div class="field">
           <label>Network</label>
@@ -79,7 +82,7 @@
         <div class="field">
           <label>Mobile Number</label>
           <input id="momo-number" type="tel" placeholder="0244123456" />
-          <div class="hint">Enter the number registered with your mobile money account</div>
+          <div class="hint">The number registered with your mobile money account</div>
         </div>
         <div class="field">
           <label>Account Holder Name</label>
@@ -87,7 +90,6 @@
         </div>
       </div>
 
-      <!-- Bank form -->
       <div id="form-bank" class="form-section">
         <div class="field">
           <label>Bank</label>
@@ -123,7 +125,6 @@
 
     let optionsLoaded = false;
 
-    // Load existing account info
     async function loadCurrent() {
       try {
         const res = await fetch("/seller/payout/account", {
@@ -140,13 +141,10 @@
       } catch (e) { console.warn(e); }
     }
 
-    // Load Paystack options (banks + telcos)
     async function loadOptions() {
       if (optionsLoaded) return;
       try {
-        const res = await fetch("/seller/payout/options", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetch("/seller/payout/options-public");
         if (!res.ok) return;
         const data = await res.json();
 
@@ -162,13 +160,11 @@
       } catch (e) { console.warn(e); }
     }
 
-    // Toggle forms
     typeSelect.addEventListener("change", (e) => {
       momoForm.classList.toggle("active", e.target.value === "mobile_money");
       bankForm.classList.toggle("active", e.target.value === "bank");
     });
 
-    // Submit
     submitBtn.addEventListener("click", async () => {
       msg.textContent = "";
       const type = typeSelect.value;
@@ -203,10 +199,7 @@
       try {
         const res = await fetch("/seller/payout/account", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
         const data = await res.json();

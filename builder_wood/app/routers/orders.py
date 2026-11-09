@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 import uuid
+import logging
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -11,16 +11,19 @@ from sqlalchemy.orm import Session, joinedload
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_user, get_current_active_seller, get_current_admin
-from builder_wood.app.config import settings
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 MIN_DISTANCE_KM = Decimal("1.0")
 COMMISSION_RATE = Decimal("0.05")
-PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
 
 
+# ============================================================
+# Request/Response schemas
+# ============================================================
 class OrderItemIn(BaseModel):
     wood_id: int
     quantity: int = Field(gt=0)
@@ -67,7 +70,7 @@ class OrderOut(BaseModel):
     delivery_fee: Decimal
     total_price: Decimal
     currency: str
-    vehicle_id: Optional[int]
+    vehicle_id: Optional[int] = None
     delivery_address: str
     order_date: Optional[datetime] = None
     items: List[OrderItemOut] = []
@@ -76,6 +79,9 @@ class OrderOut(BaseModel):
         from_attributes = True
 
 
+# ============================================================
+# Vehicle allocation
+# ============================================================
 def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, preferred_method: str):
     if preferred_method == "pickup":
         return None, Decimal("0.00")
@@ -104,64 +110,39 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
                 raise HTTPException(400, f"{v.name} can deliver up to {v.max_distance_km} km, but your address is {distance_km} km away.")
             return v, _fee(v)
 
-    candidates = [
-        v for v in active
-        if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km
-    ]
+    candidates = [v for v in active if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km]
     if not candidates:
         raise HTTPException(400, f"No vehicle can deliver {total_pieces} pieces over {distance_km} km.")
     v = min(candidates, key=lambda x: x.max_pieces)
     return v, _fee(v)
 
 
+# ============================================================
+# Release order to wallet (NO Paystack call here)
+# ============================================================
 def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
-    """Initiate a Paystack transfer to the seller."""
-    if order.settlement_status in ("transferring", "settled"):
-        raise HTTPException(400, "Settlement already in progress or complete.")
-    if order.is_funds_released:
-        raise HTTPException(400, "Funds already released.")
-    if not order.seller_payout_amount or order.seller_payout_amount <= 0:
-        raise HTTPException(400, "No payout amount set on this order.")
+    """
+    Release order payout to the seller's WALLET (not Paystack).
 
-    seller = db.query(models.User).filter(models.User.user_id == order.seller_id).first()
-    if not seller:
-        raise HTTPException(404, "Seller not found.")
-    if not seller.paystack_recipient_code:
-        raise HTTPException(400, "Seller has not registered a payout account. Ask them to add bank or mobile money details.")
+    The Paystack transfer happens later, only when the seller
+    requests a withdrawal (via admin_wallet.approve_withdrawal).
+    """
+    from builder_wood.app.wallet_service import (
+        release_order_to_wallet,
+        auto_create_withdrawal_if_eligible,
+    )
 
-    reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
-    amount_pesewas = int((Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1")))
+    reference = release_order_to_wallet(db, order)
 
-    try:
-        resp = requests.post(
-            PAYSTACK_TRANSFER_URL,
-            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
-            json={
-                "source": "balance",
-                "amount": amount_pesewas,
-                "recipient": seller.paystack_recipient_code,
-                "reason": f"Builder Wood payout for order #{order.order_id}",
-                "reference": reference,
-            },
-            timeout=20,
-        )
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise HTTPException(502, f"Paystack unreachable: {exc}")
+    # If balance crossed auto-withdrawal threshold, queue a withdrawal
+    auto_create_withdrawal_if_eligible(db, order.seller_id)
 
-    if not data.get("status"):
-        order.settlement_status = "not_eligible"
-        order.transfer_failed_reason = data.get("message", "Unknown transfer error")
-        db.commit()
-        raise HTTPException(400, f"Transfer rejected: {data.get('message')}")
-
-    order.settlement_status = "transferring"
-    order.transfer_reference = reference
-    order.transfer_failed_reason = None
-    db.commit()
     return reference
 
 
+# ============================================================
+# Distance quote
+# ============================================================
 @router.post("/estimate-distance", response_model=schemas.DistanceEstimateOut)
 def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends(get_db)):
     try:
@@ -175,6 +156,9 @@ def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends
     }
 
 
+# ============================================================
+# List orders
+# ============================================================
 @router.get("/seller/orders", response_model=List[OrderOut])
 def get_seller_orders(
     db: Session = Depends(get_db),
@@ -203,6 +187,9 @@ def get_my_orders(
     )
 
 
+# ============================================================
+# Create order
+# ============================================================
 @router.post("/", response_model=List[OrderOut], status_code=201)
 def create_order(
     payload: OrderCreateIn,
@@ -301,6 +288,9 @@ def create_order(
     )
 
 
+# ============================================================
+# Update order status
+# ============================================================
 @router.patch("/{order_id}/status", response_model=OrderOut)
 def update_order_status(
     order_id: int,
@@ -343,6 +333,9 @@ def update_order_status(
     )
 
 
+# ============================================================
+# Admin release funds — now credits wallet, no Paystack
+# ============================================================
 @router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
 def admin_release_funds(
     order_id: int,
@@ -373,6 +366,9 @@ def admin_release_funds(
     }
 
 
+# ============================================================
+# Buyer confirms delivery
+# ============================================================
 @router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
 def buyer_confirm_delivery(
     order_id: int,
@@ -412,6 +408,9 @@ def buyer_confirm_delivery(
     }
 
 
+# ============================================================
+# Settlement status
+# ============================================================
 @router.get("/{order_id}/settlement", response_model=schemas.SettlementStatusOut)
 def get_settlement_status(
     order_id: int,
@@ -438,6 +437,9 @@ def get_settlement_status(
     }
 
 
+# ============================================================
+# Disputes
+# ============================================================
 @router.post("/{order_id}/dispute")
 def open_dispute(
     order_id: int,
@@ -473,6 +475,9 @@ def open_dispute(
     return {"status": "success", "message": "Dispute opened."}
 
 
+# ============================================================
+# Get single order
+# ============================================================
 @router.get("/{order_id}", response_model=OrderOut)
 def get_order(
     order_id: int,

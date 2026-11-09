@@ -6,7 +6,6 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Configure Cloudinary at import time.
 from builder_wood.app import cloudinary_config  # noqa: F401
 
 from fastapi import FastAPI, Request
@@ -20,6 +19,7 @@ from builder_wood.app.database import SessionLocal
 from builder_wood.app.models import User
 from builder_wood.app.routers import (
     admin,
+    admin_wallet,
     auth,
     cart,
     orders,
@@ -27,6 +27,7 @@ from builder_wood.app.routers import (
     seller,
     seller_payout,
     vehicles,
+    wallet,
     woods,
 )
 
@@ -62,16 +63,10 @@ async def lifespan(app: FastAPI):
                     )
                     db.commit()
                     logger.warning("Bootstrap admin created: %s", admin_email)
-                    logger.warning(
-                        "REMOVE BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD "
-                        "from Render now."
-                    )
             finally:
                 db.close()
         except Exception as e:
             logger.error("Bootstrap admin failed: %s", e)
-    else:
-        logger.info("No bootstrap admin configured.")
 
     yield
 
@@ -79,7 +74,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="Timber marketplace",
-    version="0.9.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -89,19 +84,20 @@ app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-# Routers — specific first, wildcard last
+# Routers — specific first
 app.include_router(seller.router)
 app.include_router(seller_payout.router)
+app.include_router(wallet.router)
 app.include_router(auth.router)
 app.include_router(cart.router)
 app.include_router(payments.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
+app.include_router(admin_wallet.router)
 app.include_router(vehicles.router)
 app.include_router(woods.router)
 
 
-# ---------- Generic page routes ----------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
@@ -119,18 +115,14 @@ def login_page(request: Request):
 @app.get("/forgot-password", response_class=HTMLResponse)
 def forgot_password_page(request: Request):
     return templates.TemplateResponse(
-        request=request,
-        name="forgot_password.html",
-        context={"shop_name": settings.APP_NAME},
+        request=request, name="forgot_password.html", context={"shop_name": settings.APP_NAME}
     )
 
 
 @app.get("/reset-password", response_class=HTMLResponse)
 def reset_password_page(request: Request):
     return templates.TemplateResponse(
-        request=request,
-        name="reset_password.html",
-        context={"shop_name": settings.APP_NAME},
+        request=request, name="reset_password.html", context={"shop_name": settings.APP_NAME}
     )
 
 
@@ -151,8 +143,7 @@ def my_orders_page(request: Request):
 @app.get("/order/{order_id}", response_class=HTMLResponse)
 def order_confirmation(request: Request, order_id: int):
     return templates.TemplateResponse(
-        request=request,
-        name="order_confirmation.html",
+        request=request, name="order_confirmation.html",
         context={"shop_name": settings.APP_NAME, "order_id": order_id},
     )
 
@@ -160,22 +151,18 @@ def order_confirmation(request: Request, order_id: int):
 @app.get("/product/{wood_id}", response_class=HTMLResponse)
 def product_detail_page(request: Request, wood_id: int):
     return templates.TemplateResponse(
-        request=request,
-        name="product_detail.html",
+        request=request, name="product_detail.html",
         context={"shop_name": settings.APP_NAME, "wood_id": wood_id},
+    )
+
+
+@app.get("/seller/wallet-page", response_class=HTMLResponse, include_in_schema=False)
+def seller_wallet_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="seller_wallet.html", context={"shop_name": settings.APP_NAME}
     )
 
 
 @app.get("/health")
 def health():
     return {"status": "ok", "application": settings.APP_NAME}
-
-
-if os.getenv("DEBUG_ROUTES") == "1":
-
-    @app.get("/debug/routes")
-    def debug_routes():
-        return [
-            {"path": r.path, "methods": sorted(getattr(r, "methods", []) or [])}
-            for r in app.routes
-        ]
