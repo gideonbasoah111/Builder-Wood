@@ -1,158 +1,328 @@
-"""Admin wallet + withdrawal management."""
-from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import Optional
-import uuid
-import os
 from datetime import datetime
-
-import requests
-
-from builder_wood.app.database import get_db
-from builder_wood.app import models
-from builder_wood.app.auth import get_current_admin
-from builder_wood.app.config import settings
-from builder_wood.app.wallet_service import credit_wallet
-
-router = APIRouter(prefix="/admin", tags=["admin-wallet"])
-
-PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
+from sqlalchemy import (
+    Boolean, Column, DateTime, DECIMAL, Enum, ForeignKey, Integer,
+    String, Text, TIMESTAMP, UniqueConstraint, Index, CHAR, func,
+)
+from sqlalchemy.orm import relationship
+from builder_wood.app.database import Base
 
 
-@router.get("/withdrawals")
-def list_withdrawals(
-    status: Optional[str] = None,
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    query = db.query(models.WithdrawalRequest).join(
-        models.User, models.WithdrawalRequest.seller_id == models.User.user_id
+class User(Base):
+    __tablename__ = "users"
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+    role = Column(Enum("customer", "seller", "admin", name="user_role"), nullable=False, default="customer")
+    name = Column(String(255), nullable=False)
+    company_name = Column(String(255))
+    email = Column(String(255), nullable=False, unique=True)
+    phone_number = Column(String(20), unique=True)
+    password_hash = Column(String(255), nullable=False)
+    address = Column(String(255))
+    location = Column(String(255))
+    is_active = Column(Boolean, nullable=False, default=True)
+    paystack_recipient_code = Column(String(50), nullable=True)
+    payout_bank_name = Column(String(100), nullable=True)
+    payout_account_number = Column(String(20), nullable=True)
+    payout_account_name = Column(String(150), nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp())
+    woods = relationship("Wood", back_populates="seller", foreign_keys="Wood.seller_id", cascade="all, delete-orphan")
+    vehicles = relationship("SellerVehicle", back_populates="seller", cascade="all, delete-orphan")
+    orders_as_customer = relationship("Order", back_populates="customer", foreign_keys="Order.customer_id")
+    orders_as_seller = relationship("Order", back_populates="seller", foreign_keys="Order.seller_id")
+    conversations_as_buyer = relationship("Conversation", back_populates="buyer", foreign_keys="Conversation.buyer_id",
+                                          cascade="all, delete-orphan")
+    conversations_as_seller = relationship("Conversation", back_populates="seller",
+                                           foreign_keys="Conversation.seller_id", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="sender")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+    category_id = Column(Integer, primary_key=True, autoincrement=True)
+    category_name = Column(String(100), nullable=False)
+    slug = Column(String(100), nullable=False, unique=True)
+    parent_category = Column(Integer, ForeignKey("categories.category_id", ondelete="SET NULL"))
+    description = Column(String(255))
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    parent = relationship("Category", remote_side=[category_id], backref="children")
+    woods = relationship("Wood", back_populates="category")
+
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+    vehicle_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False)
+    max_pieces = Column(Integer, nullable=False)
+    max_length_ft = Column(DECIMAL(6, 2), nullable=False)
+    max_distance_km = Column(DECIMAL(6, 2), nullable=False)
+    rate_per_km = Column(DECIMAL(8, 2), nullable=False)
+    base_fee = Column(DECIMAL(8, 2), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    sellers = relationship("SellerVehicle", back_populates="vehicle", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="vehicle")
+
+
+class SellerVehicle(Base):
+    __tablename__ = "seller_vehicles"
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.vehicle_id", ondelete="CASCADE"), primary_key=True)
+    seller = relationship("User", back_populates="vehicles")
+    vehicle = relationship("Vehicle", back_populates="sellers")
+
+
+class Wood(Base):
+    __tablename__ = "woods"
+    wood_id = Column(Integer, primary_key=True, autoincrement=True)
+    local_name = Column(String(100), nullable=False)
+    scientific_name = Column(String(150))
+    trade_name = Column(String(100))
+    description = Column(Text)
+    durability = Column(String(150))
+    thickness_in = Column(DECIMAL(5, 2), nullable=False)
+    width_in = Column(DECIMAL(5, 2), nullable=False)
+    length_ft = Column(DECIMAL(6, 2), nullable=False)
+    product_form = Column(Enum("Sawn Timber", "Ceiling Batten", "T&G Board", "Moulding", "Plinth", name="product_form"),
+                          nullable=False, default="Sawn Timber")
+    is_treated = Column(Boolean, nullable=False, default=False)
+    currency = Column(CHAR(3), nullable=False, default="GHS")
+    price_per_piece = Column(DECIMAL(12, 2), nullable=False)
+    stock_quantity = Column(Integer, nullable=False, default=0)
+    category_id = Column(Integer, ForeignKey("categories.category_id", ondelete="RESTRICT"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    source_market = Column(String(100), nullable=False, default="Sokoban Wood Village")
+    source_town = Column(String(50), nullable=False, default="Kumasi")
+    is_available = Column(Boolean, nullable=False, default=True)
+    is_featured = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp())
+    category = relationship("Category", back_populates="woods")
+    seller = relationship("User", back_populates="woods", foreign_keys=[seller_id])
+    images = relationship("WoodImage", back_populates="wood", cascade="all, delete-orphan",
+                          order_by="WoodImage.display_order")
+    order_items = relationship("OrderItem", back_populates="wood")
+    conversations = relationship("Conversation", back_populates="wood")
+
+    @property
+    def size_label(self):
+        return "{}x{}x{}".format(int(self.thickness_in), int(self.width_in), int(self.length_ft))
+
+    @property
+    def display_name(self):
+        return "{} {}".format(self.local_name, self.size_label)
+
+
+class WoodImage(Base):
+    __tablename__ = "wood_images"
+    image_id = Column(Integer, primary_key=True, autoincrement=True)
+    wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String(255), nullable=False)
+    alt_text = Column(String(255))
+    is_primary = Column(Boolean, nullable=False, default=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    wood = relationship("Wood", back_populates="images")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+    order_id = Column(Integer, primary_key=True, autoincrement=True)
+    customer_id = Column(Integer, ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
+    delivery_address = Column(String(255), nullable=False)
+    distance_km = Column(DECIMAL(6, 2), nullable=False)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.vehicle_id", ondelete="SET NULL"))
+    total_pieces = Column(Integer, nullable=False, default=0)
+    subtotal = Column(DECIMAL(12, 2), nullable=False, default=0)
+    delivery_fee = Column(DECIMAL(10, 2), nullable=False, default=0)
+    total_price = Column(DECIMAL(12, 2), nullable=False, default=0)
+    currency = Column(CHAR(3), nullable=False, default="GHS")
+    status = Column(
+        Enum("pending", "paid", "confirmed", "shipped", "delivered", "cancelled", "disputed", name="order_status"),
+        nullable=False, default="pending"
     )
-    if status:
-        query = query.filter(models.WithdrawalRequest.status == status)
-
-    withdrawals = query.order_by(models.WithdrawalRequest.requested_at.desc()).all()
-
-    return [
-        {
-            "withdrawal_id": w.withdrawal_id,
-            "seller_id": w.seller_id,
-            "seller_name": w.seller.name if w.seller else "Unknown",
-            "seller_phone": w.seller.phone_number if w.seller else None,
-            "amount": float(w.amount),
-            "status": w.status,
-            "payout_method": w.payout_method,
-            "payout_account": w.payout_account,
-            "paystack_transfer_ref": w.paystack_transfer_ref,
-            "requested_at": w.requested_at.isoformat() if w.requested_at else None,
-            "processed_at": w.processed_at.isoformat() if w.processed_at else None,
-            "notes": w.notes,
-            "seller_has_recipient": bool(w.seller and w.seller.paystack_recipient_code),
-        }
-        for w in withdrawals
-    ]
-
-
-@router.post("/withdrawals/{withdrawal_id}/approve")
-def approve_withdrawal(
-    withdrawal_id: int,
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """Approve a withdrawal and trigger Paystack transfer."""
-    w = db.query(models.WithdrawalRequest).filter(
-        models.WithdrawalRequest.withdrawal_id == withdrawal_id
-    ).with_for_update().first()
-
-    if not w:
-        raise HTTPException(404, "Withdrawal not found")
-    if w.status != "pending":
-        raise HTTPException(400, f"Cannot approve withdrawal in status: {w.status}")
-
-    seller = db.query(models.User).filter(models.User.user_id == w.seller_id).first()
-    if not seller or not seller.paystack_recipient_code:
-        raise HTTPException(400, "Seller has no payout account")
-
-    reference = f"BW-WD-{w.withdrawal_id}-{uuid.uuid4().hex[:8]}".lower()
-    amount_pesewas = int((Decimal(str(w.amount)) * 100).quantize(Decimal("1")))
-
-    # ---------- DEMO MODE: skip Paystack ----------
-    if os.getenv("DEMO_MODE", "false").lower() == "true":
-        w.status = "completed"
-        w.paystack_transfer_ref = f"DEMO-{reference}"
-        w.processed_at = datetime.utcnow()
-        w.notes = (w.notes or "") + "\n[DEMO MODE] Simulated transfer"
-        db.commit()
-        return {
-            "status": "completed",
-            "withdrawal_id": w.withdrawal_id,
-            "reference": f"DEMO-{reference}",
-            "message": "DEMO MODE — transfer simulated",
-        }
-
-    # ---------- REAL Paystack transfer ----------
-    try:
-        resp = requests.post(
-            PAYSTACK_TRANSFER_URL,
-            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
-            json={
-                "source": "balance",
-                "amount": amount_pesewas,
-                "recipient": seller.paystack_recipient_code,
-                "reason": f"Builder Wood withdrawal #{w.withdrawal_id}",
-                "reference": reference,
-            },
-            timeout=20,
-        )
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise HTTPException(502, f"Paystack unreachable: {exc}")
-
-    if not data.get("status"):
-        w.status = "failed"
-        w.notes = (w.notes or "") + f"\nFailed: {data.get('message')}"
-        db.commit()
-        raise HTTPException(400, f"Transfer failed: {data.get('message')}")
-
-    w.status = "processing"
-    w.paystack_transfer_ref = reference
-    w.processed_at = datetime.utcnow()
-    db.commit()
-    return {
-        "status": "processing",
-        "withdrawal_id": w.withdrawal_id,
-        "reference": reference,
-    }
+    notes = Column(Text)
+    order_date = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp())
+    is_funds_released = Column(Boolean, nullable=False, default=False)
+    seller_payout_amount = Column(DECIMAL(12, 2), nullable=True)
+    platform_commission = Column(DECIMAL(12, 2), nullable=True)
+    auto_confirm_at = Column(TIMESTAMP, nullable=True)
+    dispute_reason = Column(Text, nullable=True)
+    disputed_at = Column(TIMESTAMP, nullable=True)
+    payment_status = Column(String(20), nullable=False, default="unpaid")
+    delivery_status = Column(String(20), nullable=False, default="pending")
+    settlement_status = Column(String(20), nullable=False, default="not_eligible")
+    settlement_eligible_at = Column(TIMESTAMP, nullable=True)
+    funds_released_at = Column(TIMESTAMP, nullable=True)
+    transfer_reference = Column(String(100), nullable=True)
+    transfer_failed_reason = Column(Text, nullable=True)
+    frozen_payout = Column(Boolean, nullable=False, default=False)
+    frozen_at = Column(TIMESTAMP, nullable=True)
+    customer = relationship("User", back_populates="orders_as_customer", foreign_keys=[customer_id])
+    seller = relationship("User", back_populates="orders_as_seller", foreign_keys=[seller_id])
+    vehicle = relationship("Vehicle", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan",
+                                  order_by="OrderStatusHistory.changed_at")
+    transactions = relationship("PaymentTransaction", back_populates="order")
 
 
-@router.post("/withdrawals/{withdrawal_id}/reject")
-def reject_withdrawal(
-    withdrawal_id: int,
-    reason: str = "Rejected by admin",
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    """Reject a withdrawal — refunds the amount to the seller's wallet."""
-    w = db.query(models.WithdrawalRequest).filter(
-        models.WithdrawalRequest.withdrawal_id == withdrawal_id
-    ).with_for_update().first()
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    order_item_id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False)
+    wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="RESTRICT"), nullable=False)
+    wood_name_snap = Column(String(100), nullable=False)
+    size_snap = Column(String(50), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price_at_purchase = Column(DECIMAL(12, 2), nullable=False)
+    order = relationship("Order", back_populates="items")
+    wood = relationship("Wood", back_populates="order_items")
 
-    if not w:
-        raise HTTPException(404, "Withdrawal not found")
-    if w.status != "pending":
-        raise HTTPException(400, f"Cannot reject withdrawal in status: {w.status}")
 
-    credit_wallet(
-        db,
-        seller_id=w.seller_id,
-        amount=Decimal(str(w.amount)),
-        withdrawal_id=w.withdrawal_id,
-        description=f"Refund for rejected withdrawal #{w.withdrawal_id}",
+class OrderStatusHistory(Base):
+    __tablename__ = "order_status_history"
+    history_id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False)
+    old_status = Column(String(50))
+    new_status = Column(String(50), nullable=False)
+    changed_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"))
+    changed_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    order = relationship("Order", back_populates="status_history")
+    changed_by_user = relationship("User")
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+    conversation_id = Column(Integer, primary_key=True, autoincrement=True)
+    buyer_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="SET NULL"))
+    last_message_at = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    __table_args__ = (UniqueConstraint("buyer_id", "seller_id", "wood_id", name="uq_conv"),)
+    buyer = relationship("User", back_populates="conversations_as_buyer", foreign_keys=[buyer_id])
+    seller = relationship("User", back_populates="conversations_as_seller", foreign_keys=[seller_id])
+    wood = relationship("Wood", back_populates="conversations")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan",
+                            order_by="Message.created_at")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    message_id = Column(Integer, primary_key=True, autoincrement=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.conversation_id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    message_text = Column(Text)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User", back_populates="messages")
+
+
+class CartItem(Base):
+    __tablename__ = "cart_items"
+    cart_item_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="CASCADE"), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    user = relationship("User", backref="cart_items")
+    wood = relationship("Wood")
+
+
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+    transaction_id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False)
+    reference = Column(String(100), unique=True, nullable=False, index=True)
+    provider = Column(String(50), nullable=False, default="paystack")
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    currency = Column(CHAR(3), nullable=False, default="GHS")
+    status = Column(Enum("pending", "success", "failed", "refunded", name="payment_status"), nullable=False,
+                    default="pending")
+    gateway_response = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp())
+    order = relationship("Order", back_populates="transactions")
+
+
+class GeocodeCache(Base):
+    __tablename__ = "geocode_cache"
+    cache_id = Column(Integer, primary_key=True, autoincrement=True)
+    address_key = Column(String(255), nullable=False, unique=True)
+    lat = Column(DECIMAL(10, 7), nullable=False)
+    lon = Column(DECIMAL(10, 7), nullable=False)
+    display_name = Column(String(255), nullable=False)
+    distance_km = Column(DECIMAL(6, 2), nullable=False)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    token_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(100), nullable=False, unique=True)
+    expires_at = Column(TIMESTAMP, nullable=False)
+    used = Column(Boolean, nullable=False, default=False)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+
+
+class SellerWallet(Base):
+    __tablename__ = "seller_wallets"
+    wallet_id = Column(Integer, primary_key=True, autoincrement=True)
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, unique=True)
+    balance = Column(DECIMAL(12, 2), nullable=False, default=0)
+    total_earned = Column(DECIMAL(12, 2), nullable=False, default=0)
+    total_withdrawn = Column(DECIMAL(12, 2), nullable=False, default=0)
+    min_withdrawal = Column(DECIMAL(12, 2), nullable=False, default=50)
+    auto_withdrawal_threshold = Column(DECIMAL(12, 2), nullable=False, default=500)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
+                        onupdate=func.current_timestamp())
+    seller = relationship("User", backref="wallet", uselist=False)
+    transactions = relationship("WalletTransaction", back_populates="wallet",
+                                cascade="all, delete-orphan",
+                                order_by="WalletTransaction.created_at.desc()")
+
+
+class WalletTransaction(Base):
+    __tablename__ = "wallet_transactions"
+    transaction_id = Column(Integer, primary_key=True, autoincrement=True)
+    wallet_id = Column(Integer, ForeignKey("seller_wallets.wallet_id", ondelete="CASCADE"), nullable=False)
+    type = Column(Enum("credit", "debit", "freeze", "unfreeze", name="wallet_tx_type"), nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    balance_after = Column(DECIMAL(12, 2), nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.order_id", ondelete="SET NULL"), nullable=True)
+    withdrawal_id = Column(Integer, nullable=True)
+    reference = Column(String(100), nullable=True)
+    description = Column(String(255), nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    wallet = relationship("SellerWallet", back_populates="transactions")
+    order = relationship("Order")
+
+
+class WithdrawalRequest(Base):
+    __tablename__ = "withdrawal_requests"
+    withdrawal_id = Column(Integer, primary_key=True, autoincrement=True)
+    seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    status = Column(
+        Enum("pending", "approved", "processing", "completed", "rejected", "failed",
+             name="withdrawal_status"),
+        nullable=False, default="pending"
     )
-
-    w.status = "rejected"
-    w.processed_at = datetime.utcnow()
-    w.notes = (w.notes or "") + f"\nRejected: {reason}"
-    db.commit()
-    return {"status": "rejected", "withdrawal_id": w.withdrawal_id}
+    payout_method = Column(String(50), nullable=True)
+    payout_account = Column(String(50), nullable=True)
+    paystack_transfer_ref = Column(String(100), nullable=True)
+    requested_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
+    processed_at = Column(TIMESTAMP, nullable=True)
+    notes = Column(Text, nullable=True)
+    seller = relationship("User")
