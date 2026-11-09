@@ -61,4 +61,104 @@ def approve_withdrawal(
     admin: models.User = Depends(get_current_admin),
 ):
     """Approve a withdrawal and trigger Paystack transfer."""
-    w = db.query(models
+    w = (
+        db.query(models.WithdrawalRequest)
+        .filter(models.WithdrawalRequest.withdrawal_id == withdrawal_id)
+        .with_for_update()
+        .first()
+    )
+
+    if not w:
+        raise HTTPException(404, "Withdrawal not found")
+    if w.status != "pending":
+        raise HTTPException(400, f"Cannot approve withdrawal in status: {w.status}")
+
+    seller = db.query(models.User).filter(models.User.user_id == w.seller_id).first()
+    if not seller or not seller.paystack_recipient_code:
+        raise HTTPException(400, "Seller has no payout account")
+
+    reference = f"BW-WD-{w.withdrawal_id}-{uuid.uuid4().hex[:8]}".lower()
+    amount_pesewas = int((Decimal(str(w.amount)) * 100).quantize(Decimal("1")))
+
+    # ---------- DEMO MODE ----------
+    if os.getenv("DEMO_MODE", "false").lower() == "true":
+        w.status = "completed"
+        w.paystack_transfer_ref = f"DEMO-{reference}"
+        w.processed_at = datetime.utcnow()
+        w.notes = (w.notes or "") + "\n[DEMO MODE] Simulated transfer"
+        db.commit()
+        return {
+            "status": "completed",
+            "withdrawal_id": w.withdrawal_id,
+            "reference": f"DEMO-{reference}",
+            "message": "DEMO MODE — transfer simulated",
+        }
+
+    # ---------- REAL Paystack ----------
+    try:
+        resp = requests.post(
+            PAYSTACK_TRANSFER_URL,
+            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
+            json={
+                "source": "balance",
+                "amount": amount_pesewas,
+                "recipient": seller.paystack_recipient_code,
+                "reason": f"Builder Wood withdrawal #{w.withdrawal_id}",
+                "reference": reference,
+            },
+            timeout=20,
+        )
+        data = resp.json()
+    except requests.RequestException as exc:
+        raise HTTPException(502, f"Paystack unreachable: {exc}")
+
+    if not data.get("status"):
+        w.status = "failed"
+        w.notes = (w.notes or "") + f"\nFailed: {data.get('message')}"
+        db.commit()
+        raise HTTPException(400, f"Transfer failed: {data.get('message')}")
+
+    w.status = "processing"
+    w.paystack_transfer_ref = reference
+    w.processed_at = datetime.utcnow()
+    db.commit()
+    return {
+        "status": "processing",
+        "withdrawal_id": w.withdrawal_id,
+        "reference": reference,
+    }
+
+
+@router.post("/withdrawals/{withdrawal_id}/reject")
+def reject_withdrawal(
+    withdrawal_id: int,
+    reason: str = "Rejected by admin",
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Reject a withdrawal — refunds the amount to the seller's wallet."""
+    w = (
+        db.query(models.WithdrawalRequest)
+        .filter(models.WithdrawalRequest.withdrawal_id == withdrawal_id)
+        .with_for_update()
+        .first()
+    )
+
+    if not w:
+        raise HTTPException(404, "Withdrawal not found")
+    if w.status != "pending":
+        raise HTTPException(400, f"Cannot reject withdrawal in status: {w.status}")
+
+    credit_wallet(
+        db,
+        seller_id=w.seller_id,
+        amount=Decimal(str(w.amount)),
+        withdrawal_id=w.withdrawal_id,
+        description=f"Refund for rejected withdrawal #{w.withdrawal_id}",
+    )
+
+    w.status = "rejected"
+    w.processed_at = datetime.utcnow()
+    w.notes = (w.notes or "") + f"\nRejected: {reason}"
+    db.commit()
+    return {"status": "rejected", "withdrawal_id": w.withdrawal_id}
