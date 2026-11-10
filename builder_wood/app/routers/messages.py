@@ -2,16 +2,17 @@
 In-app messaging between buyers and sellers.
 
 Endpoints:
-- POST /conversations/start        — get or create conversation
-- GET  /conversations              — list user's conversations
-- GET  /conversations/{id}         — get conversation with messages
+- POST /conversations/start         — get or create conversation
+- GET  /conversations               — list user's conversations
+- GET  /conversations/{id}          — get conversation with messages
 - POST /conversations/{id}/messages — send a message
 - POST /conversations/{id}/mark-read — mark all messages as read
-- GET  /conversations/unread-count — total unread
+- GET  /conversations/unread-count  — total unread
 
-MySQL note:
-- NULLS LAST is PostgreSQL-only. MySQL sorts NULL first in ASC.
-- To force NULLs last, we sort by (last_message_at IS NULL) ASC, then DESC.
+Fixes applied:
+- Flagged messages (contact info attempts) are stored for admin audit,
+  but hidden from both participants in the chat view.
+- MySQL-compatible ordering (nullslast is PostgreSQL-only).
 """
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -80,7 +81,7 @@ def start_conversation(
 
 
 # ============================================================
-# GET /conversations — MySQL-compatible ordering
+# GET /conversations
 # ============================================================
 @router.get("/conversations", response_model=List[schemas.ConversationSummaryOut])
 def list_conversations(
@@ -88,9 +89,8 @@ def list_conversations(
     current_user: models.User = Depends(get_current_user),
 ):
     """
-    MySQL-compatible ordering:
-      ORDER BY (last_message_at IS NULL) ASC, last_message_at DESC
-    This puts NULL values last (they have is_null=1, sorted after is_null=0).
+    OPTIMIZED: 4 queries total regardless of conversation count.
+    MySQL ordering: NULL last via is_(None) boolean sort key.
     """
     convs = (
         db.query(models.Conversation)
@@ -120,6 +120,7 @@ def list_conversations(
         for u in db.query(models.User).filter(models.User.user_id.in_(other_ids)).all()
     }
 
+    # Unread count excludes flagged messages
     stats_rows = (
         db.query(
             models.Message.conversation_id.label("conv_id"),
@@ -127,7 +128,8 @@ def list_conversations(
             func.sum(case(
                 (
                     (models.Message.sender_id != current_user.user_id)
-                    & (models.Message.is_read.is_(False)),
+                    & (models.Message.is_read.is_(False))
+                    & (models.Message.is_flagged.is_(False)),
                     1,
                 ),
                 else_=0,
@@ -160,11 +162,16 @@ def list_conversations(
         stats = stats_map.get(conv.conversation_id, {"last_msg_id": None, "unread": 0})
         last_msg = last_msgs.get(stats["last_msg_id"]) if stats["last_msg_id"] else None
 
+        # Last message preview should also skip flagged (which shouldn't be last, but just in case)
+        preview = None
+        if last_msg and last_msg.message_text and not last_msg.is_flagged:
+            preview = last_msg.message_text[:80]
+
         result.append({
             "conversation_id": conv.conversation_id,
             "other_party_name": other.name if other else "Unknown",
             "other_party_role": other_role,
-            "last_message_preview": last_msg.message_text[:80] if last_msg and last_msg.message_text else None,
+            "last_message_preview": preview,
             "last_message_at": conv.last_message_at,
             "unread_count": stats["unread"],
         })
@@ -180,6 +187,7 @@ def unread_count(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    """Single aggregate query, excluding flagged messages."""
     count = (
         db.query(func.count(models.Message.message_id))
         .join(models.Conversation, models.Message.conversation_id == models.Conversation.conversation_id)
@@ -188,6 +196,7 @@ def unread_count(
             | (models.Conversation.seller_id == current_user.user_id),
             models.Message.sender_id != current_user.user_id,
             models.Message.is_read.is_(False),
+            models.Message.is_flagged.is_(False),
         )
         .scalar()
     )
@@ -217,6 +226,7 @@ def get_conversation(
         models.Message.conversation_id == conversation_id,
         models.Message.sender_id != current_user.user_id,
         models.Message.is_read.is_(False),
+        models.Message.is_flagged.is_(False),
     ).update({models.Message.is_read: True}, synchronize_session=False)
     db.commit()
 
@@ -261,6 +271,7 @@ def send_message(
             current_user.messaging_violations += 1
             violations = current_user.messaging_violations
 
+            # Save flagged message for admin audit — but NEVER shown to participants
             flagged = models.Message(
                 conversation_id=conversation_id,
                 sender_id=current_user.user_id,
@@ -297,6 +308,7 @@ def send_message(
         sender_id=current_user.user_id,
         message_text=text,
         is_read=False,
+        is_flagged=False,
     )
     db.add(msg)
     conv.last_message_at = datetime.utcnow()
@@ -338,6 +350,7 @@ def mark_read(
         models.Message.conversation_id == conversation_id,
         models.Message.sender_id != current_user.user_id,
         models.Message.is_read.is_(False),
+        models.Message.is_flagged.is_(False),
     ).update({models.Message.is_read: True}, synchronize_session=False)
     db.commit()
 
@@ -348,6 +361,12 @@ def mark_read(
 # Internal helper
 # ============================================================
 def _build_conversation_detail(conv: models.Conversation, current_user: models.User, db: Session):
+    """
+    Fetches conversation detail with 3 queries:
+    1. Other party user
+    2. Wood context (if any)
+    3. Messages with senders eager-loaded (flagged excluded)
+    """
     other_id = conv.seller_id if conv.buyer_id == current_user.user_id else conv.buyer_id
     other = db.query(models.User).filter(models.User.user_id == other_id).first()
     other_role = "seller" if conv.buyer_id == current_user.user_id else "buyer"
@@ -364,10 +383,14 @@ def _build_conversation_detail(conv: models.Conversation, current_user: models.U
                 "price": float(wood.price_per_piece),
             }
 
+    # KEY FIX: exclude flagged messages from participant view
     messages = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))
-        .filter(models.Message.conversation_id == conv.conversation_id)
+        .filter(
+            models.Message.conversation_id == conv.conversation_id,
+            models.Message.is_flagged.is_(False),
+        )
         .order_by(models.Message.created_at.asc())
         .limit(200)
         .all()

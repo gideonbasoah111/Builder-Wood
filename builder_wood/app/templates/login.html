@@ -4,684 +4,1835 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f7f4ef">
+
   <title>Account — Builder Wood</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/static/styles.css">
+
   <style>
-    :root { --tap: 44px; }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { overflow-x: hidden; }
+    :root {
+      --tap: 46px;
+      --auth-bg: #f6f4f0;
+      --auth-white: #ffffff;
+      --auth-brown: #5d4037;
+      --auth-dark: #38251f;
+      --auth-gold: #c69b52;
+      --auth-text: #292521;
+      --auth-muted: #817b75;
+      --auth-border: #e9e4dd;
+      --auth-green: #238653;
+      --auth-red: #c43d35;
+      --auth-radius: 14px;
+      --auth-shadow: 0 12px 40px rgba(54, 39, 29, .07);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      overflow-x: hidden;
+    }
 
     body {
-      padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      padding-left: env(safe-area-inset-left, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
-      background: var(--parchment);
+      font-family: 'Inter', sans-serif;
+      color: var(--auth-text);
+      background: var(--auth-bg);
+      padding:
+        env(safe-area-inset-top, 0px)
+        env(safe-area-inset-right, 0px)
+        env(safe-area-inset-bottom, 0px)
+        env(safe-area-inset-left, 0px);
     }
 
-    /* FIX 1: smaller top gap on desktop, minimal on phone */
-    .auth-page {
-      max-width: 520px;
-      margin: 40px auto 40px;
-      padding: 30px;
+    button, input, select {
+      font: inherit;
+    }
+
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* HEADER */
+
+    .header {
       background: #fff;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      overflow-wrap: anywhere;
+      border-bottom: 1px solid var(--auth-border);
+      position: relative;
+      z-index: 10;
     }
 
-    .header-main { flex-wrap: wrap; gap: 12px; }
-    .header-main .catnav-quote { margin-left: auto; }
-    @media (max-width: 480px) {
-      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
+    .header-main {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      flex-wrap: wrap;
     }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 43px;
+      height: 43px;
+      display: grid;
+      place-items: center;
+      background: #f5eee7;
+      border-radius: 12px;
+      font-size: 23px;
+    }
+
+    .brand-text {
+      font-family: 'Fraunces', serif;
+      font-size: 25px;
+      font-weight: 700;
+      color: var(--auth-dark);
+      letter-spacing: -.7px;
+    }
+
+    .brand-text em {
+      color: var(--auth-brown);
+      font-style: normal;
+    }
+
+    .catnav-quote {
+      color: var(--auth-brown);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 12px 16px !important;
+      border-radius: 8px;
+      transition: background .2s;
+    }
+
+    .catnav-quote:hover {
+      background: #f6f1eb;
+    }
+
+    /* MAIN LAYOUT */
+
+    .auth-layout {
+      width: min(1080px, calc(100% - 40px));
+      margin: 42px auto;
+      display: grid;
+      grid-template-columns: .88fr 1.12fr;
+      align-items: stretch;
+      background: #fff;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--auth-shadow);
+      border: 1px solid var(--auth-border);
+    }
+
+    /* LEFT BRAND PANEL — no fixed min-height, grid stretch handles it */
+
+    .auth-intro {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 38px;
+      color: #fff;
+      overflow: hidden;
+      background:
+        linear-gradient(145deg, rgba(39, 25, 20, .96), rgba(76, 47, 36, .96));
+    }
+
+    .auth-intro::before {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -160px;
+      top: -100px;
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 35px rgba(255,255,255,.025),
+        0 0 0 75px rgba(255,255,255,.02);
+    }
+
+    .auth-intro::after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      left: -150px;
+      bottom: -130px;
+      border-radius: 50%;
+      background: rgba(198,155,82,.09);
+    }
+
+    .intro-content,
+    .intro-bottom {
+      position: relative;
+      z-index: 1;
+    }
+
+    .intro-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,.09);
+      color: #e9c78d;
+      border: 1px solid rgba(255,255,255,.13);
+      padding: 9px 13px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .intro-title {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(34px, 4vw, 47px);
+      line-height: 1.12;
+      font-weight: 600;
+      letter-spacing: -1px;
+      margin: 35px 0 18px;
+      max-width: 390px;
+    }
+
+    .intro-title span {
+      color: #d8b477;
+    }
+
+    .intro-description {
+      color: rgba(255,255,255,.72);
+      font-size: 14px;
+      line-height: 1.9;
+      max-width: 340px;
+      margin: 0;
+    }
+
+    .intro-features {
+      display: grid;
+      gap: 22px;
+      margin-top: 55px;
+    }
+
+    .intro-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      background: rgba(255,255,255,.10);
+      border-radius: 10px;
+      font-size: 17px;
+    }
+
+    .feature-copy strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+      color: #fff;
+    }
+
+    .feature-copy span {
+      font-size: 11.5px;
+      color: rgba(255,255,255,.65);
+      line-height: 1.6;
+    }
+
+    .intro-bottom {
+      margin-top: 50px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,.13);
+      color: rgba(255,255,255,.55);
+      font-size: 11px;
+    }
+
+    /* AUTH CARD */
+
+    .auth-page {
+      min-width: 0;
+      padding: 43px 48px;
+      background: #fff;
+    }
+
+    .auth-heading {
+      margin-bottom: 27px;
+    }
+
+    .auth-heading h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 29px;
+      font-weight: 600;
+      color: var(--auth-dark);
+      margin: 0 0 8px;
+      letter-spacing: -.5px;
+    }
+
+    .auth-heading p {
+      font-size: 13px;
+      color: var(--auth-muted);
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* TABS */
 
     .auth-tabs {
-      display: flex; border-bottom: 1px solid var(--line);
-      margin-bottom: 24px; overflow-x: auto;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      display: flex;
+      border-bottom: 1px solid var(--auth-border);
+      margin-bottom: 27px;
+      gap: 10px;
     }
-    .auth-tabs::-webkit-scrollbar { display: none; }
+
     .auth-tab {
-      flex: 1 0 auto; text-align: center; padding: 12px 6px;
-      min-height: var(--tap); font-weight: 700; color: var(--muted);
-      cursor: pointer; border-bottom: 2px solid transparent;
-      white-space: nowrap; -webkit-tap-highlight-color: transparent;
+      flex: 1;
+      text-align: center;
+      padding: 13px 8px;
+      min-height: var(--tap);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--auth-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
       user-select: none;
-    }
-    .auth-tab.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
-
-    .auth-form { display: none; }
-    .auth-form.active { display: block; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-    .form-group input, .form-group select {
-      width: 100%; padding: 10px 12px;
-      border: 1px solid var(--line-2); border-radius: 8px;
-      font-family: inherit; font-size: 14px;
-      background: #fff; color: var(--ink); outline: 0;
-      transition: border-color .15s;
-      /* Prevent iOS zoom on focus */
-      -webkit-text-size-adjust: 100%;
-    }
-    .form-group input:focus, .form-group select:focus {
-      border-color: var(--wood-med);
-      box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.1);
+      transition: color .2s, border-color .2s;
     }
 
-    /* FIX 3: bigger tap target for the eye toggle */
-    .password-field { position: relative; }
-    .password-field input { padding-right: 56px; }
+    .auth-tab.active {
+      color: var(--auth-brown);
+      border-bottom-color: var(--auth-brown);
+    }
+
+    .auth-tab:focus-visible {
+      outline: 2px solid var(--auth-gold);
+      outline-offset: 3px;
+    }
+
+    .auth-form {
+      display: none;
+    }
+
+    .auth-form.active {
+      display: block;
+      animation: formAppear .25s ease;
+    }
+
+    @keyframes formAppear {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* INPUTS */
+
+    .form-group {
+      margin-bottom: 17px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #39332f;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 13px;
+      border: 1px solid #ded9d2;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      background: #fff;
+      color: var(--auth-text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .form-group input::placeholder {
+      color: #aaa39c;
+    }
+
+    .form-group input:hover,
+    .form-group select:hover {
+      border-color: #b9a99b;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--auth-brown);
+      box-shadow: 0 0 0 3px rgba(93,64,55,.09);
+    }
+
+    /* PASSWORD */
+
+    .password-field {
+      position: relative;
+    }
+
+    .password-field input {
+      padding-right: 55px;
+    }
+
     .password-toggle {
       position: absolute;
-      right: 4px;
+      right: 3px;
       top: 50%;
       transform: translateY(-50%);
       background: transparent;
-      border: 0;
+      border: none;
       width: 44px;
       height: 44px;
       display: grid;
       place-items: center;
       cursor: pointer;
-      font-size: 18px;
-      color: var(--muted);
+      font-size: 17px;
+      color: var(--auth-muted);
       border-radius: 8px;
-      transition: background .15s, color .15s;
-      -webkit-tap-highlight-color: transparent;
     }
-    .password-toggle:hover { color: var(--wood-med); background: var(--parchment); }
-    .password-toggle:focus-visible { outline: 2px solid var(--wood-med); outline-offset: 2px; }
 
-    .forgot-password-row { text-align: right; margin-top: -8px; margin-bottom: 12px; }
+    .password-toggle:hover {
+      background: #f7f3ee;
+      color: var(--auth-brown);
+    }
+
+    .password-toggle:focus-visible {
+      outline: 2px solid var(--auth-brown);
+    }
+
+    /* FORGOT PASSWORD */
+
+    .forgot-password-row {
+      text-align: right;
+      margin-top: -6px;
+      margin-bottom: 15px;
+    }
+
     .forgot-password-link {
-      font-size: 12.5px; color: var(--wood-med); text-decoration: none; font-weight: 600;
-      padding: 8px 4px;
+      font-size: 12px;
+      color: var(--auth-brown);
+      text-decoration: none;
+      font-weight: 700;
+      padding: 7px 2px;
       display: inline-block;
     }
-    .forgot-password-link:hover { color: var(--wood-dark); text-decoration: underline; }
+
+    .forgot-password-link:hover {
+      text-decoration: underline;
+    }
+
+    /* BUTTONS */
 
     .submit-btn {
-      width: 100%; min-height: 48px;
-      background: var(--wood-med); color: #fff;
-      padding: 14px; border: none; border-radius: 8px;
-      font-weight: 700; font-size: 15px; cursor: pointer;
-      margin-top: 10px; transition: background .15s;
-      -webkit-tap-highlight-color: transparent;
+      width: 100%;
+      min-height: 49px;
+      background: var(--auth-brown);
+      color: #fff;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background .2s, transform .2s, box-shadow .2s;
     }
-    .submit-btn:disabled { opacity: .65; cursor: not-allowed; }
-    @media (hover: hover) { .submit-btn:hover:not(:disabled) { background: var(--wood-dark); } }
+
+    .submit-btn:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+
+    @media (hover: hover) {
+      .submit-btn:hover:not(:disabled) {
+        background: var(--auth-dark);
+        box-shadow: 0 5px 15px rgba(56,37,31,.16);
+        transform: translateY(-1px);
+      }
+    }
 
     .msg {
-      margin-top: 15px; font-weight: 600; text-align: center;
-      font-size: 14px; overflow-wrap: anywhere; min-height: 1.2em;
+      margin-top: 15px;
+      font-weight: 600;
+      text-align: center;
+      font-size: 12.5px;
+      overflow-wrap: anywhere;
+      min-height: 1.2em;
+      line-height: 1.6;
     }
 
-    .role-selector { display: flex; gap: 10px; margin-bottom: 16px; }
+    /* ROLE SELECTOR */
+
+    .role-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
     .role-option {
-      flex: 1; min-height: 48px; padding: 12px;
-      border: 1px solid var(--line-2); border-radius: 8px;
-      text-align: center; cursor: pointer;
-      font-size: 13px; font-weight: 600;
-      display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent; user-select: none;
-      transition: border-color .15s, background .15s, color .15s;
-    }
-    .role-option.active {
-      border-color: var(--wood-med);
-      background: var(--parchment); color: var(--wood-med);
-    }
-    @media (hover: hover) {
-      .role-option:not(.active):hover { border-color: var(--wood-light); }
-    }
-
-    /* Seller fields section */
-    .seller-fields {
-      display: none;
-      padding: 14px;
-      background: var(--parchment);
-      border-radius: 8px;
-      margin-bottom: 16px;
-      border: 1px dashed var(--line-2);
-    }
-    .seller-fields.show { display: block; }
-    .seller-fields .form-group:last-child { margin-bottom: 0; }
-    .seller-fields-note {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 0 0 12px;
-      line-height: 1.5;
-    }
-
-    .payout-section {
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px dashed var(--line-2);
-    }
-    .payout-section h4 {
+      flex: 1;
+      min-height: 52px;
+      padding: 12px;
+      border: 1px solid #ded9d2;
+      border-radius: 9px;
+      text-align: center;
+      cursor: pointer;
       font-size: 13px;
       font-weight: 700;
-      margin: 0 0 10px;
-      color: var(--ink);
-    }
-    .payout-section .hint {
-      font-size: 11.5px;
-      color: var(--muted);
-      margin: 0 0 12px;
-      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: border-color .2s, background .2s, color .2s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
 
-    /* FIX 6: allow wrapping for payout type toggle on narrow screens */
+    .role-option::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 2px solid #b8afa7;
+      border-radius: 50%;
+    }
+
+    .role-option.active {
+      border-color: var(--auth-brown);
+      background: #f8f4ef;
+      color: var(--auth-brown);
+    }
+
+    .role-option.active::before {
+      border-color: var(--auth-brown);
+      background: var(--auth-brown);
+      box-shadow: inset 0 0 0 2px #f8f4ef;
+    }
+
+    .role-option:focus-visible {
+      outline: 2px solid var(--auth-gold);
+      outline-offset: 3px;
+    }
+
+    @media (hover: hover) {
+      .role-option:not(.active):hover {
+        border-color: #b6a18e;
+        background: #faf8f5;
+      }
+    }
+
+    /* SELLER SECTION */
+
+    .seller-fields {
+      display: none;
+      padding: 17px;
+      background: #faf8f5;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #eee8df;
+    }
+
+    .seller-fields.show {
+      display: block;
+      animation: formAppear .2s ease;
+    }
+
+    .seller-fields .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .seller-fields-note {
+      font-size: 11.5px;
+      color: var(--auth-muted);
+      margin: 0 0 17px;
+      line-height: 1.7;
+    }
+
+    /* PAYOUT */
+
+    .payout-section {
+      margin-top: 19px;
+      padding-top: 17px;
+      border-top: 1px solid var(--auth-border);
+    }
+
+    .payout-section h4 {
+      font-size: 13px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      color: var(--auth-dark);
+    }
+
+    .payout-section .hint {
+      font-size: 11px;
+      color: var(--auth-muted);
+      margin: 0 0 15px;
+      line-height: 1.7;
+    }
+
     .payout-type-toggle {
       display: flex;
-      gap: 8px;
-      margin-bottom: 14px;
+      gap: 9px;
+      margin-bottom: 17px;
       flex-wrap: wrap;
     }
+
     .payout-type-btn {
-      flex: 1 1 140px;
+      flex: 1 1 120px;
       min-height: 44px;
       padding: 10px 12px;
-      border: 1px solid var(--line-2);
+      border: 1px solid #ded9d2;
       border-radius: 8px;
       background: #fff;
-      font-size: 12.5px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
       text-align: center;
-      transition: border-color .15s, background .15s, color .15s;
-      -webkit-tap-highlight-color: transparent;
+      transition: border-color .2s, background .2s, color .2s;
     }
+
     .payout-type-btn.active {
-      border-color: var(--wood-med);
-      background: var(--wood-med);
+      border-color: var(--auth-brown);
+      background: var(--auth-brown);
       color: #fff;
     }
 
-    .payout-form { display: none; }
-    .payout-form.active { display: block; }
+    .payout-type-btn:not(.active):hover {
+      border-color: var(--auth-brown);
+    }
 
-    /* Mobile responsive */
+    .payout-form {
+      display: none;
+    }
+
+    .payout-form.active {
+      display: block;
+    }
+
+    /* RESPONSIVE TABLETS */
+
+    @media (max-width: 900px) {
+      .auth-layout {
+        max-width: 690px;
+        grid-template-columns: 1fr;
+        margin: 32px auto;
+      }
+
+      .auth-intro {
+        padding: 29px 32px;
+      }
+
+      .intro-title {
+        font-size: 32px;
+        margin: 18px 0 10px;
+      }
+
+      .intro-description {
+        max-width: 550px;
+        font-size: 12.5px;
+      }
+
+      .intro-features {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 13px;
+        margin-top: 25px;
+      }
+
+      .intro-feature {
+        gap: 9px;
+      }
+
+      .feature-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+
+      .feature-copy strong {
+        font-size: 11px;
+      }
+
+      .feature-copy span {
+        font-size: 10px;
+      }
+
+      .intro-bottom {
+        margin-top: 25px;
+        padding-top: 15px;
+      }
+
+      .auth-page {
+        padding: 35px 40px;
+      }
+    }
+
+    /* MOBILE */
+
     @media (max-width: 600px) {
-      /* FIX 1: tighter top gap on phone */
-      .auth-page { margin: 16px auto; padding: 20px 16px; border-radius: 12px; }
+      .header-main {
+        min-height: 65px;
+      }
 
-      /* FIX 4: prevent iOS zoom on input focus */
-      .form-group input, .form-group select { font-size: 16px; }
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+      }
 
-      /* Bigger touch targets */
-      .submit-btn { min-height: 52px; font-size: 16px; }
-      .role-option { min-height: 52px; font-size: 14px; }
+      .brand-text {
+        font-size: 22px;
+      }
+
+      .catnav-quote {
+        font-size: 13px;
+        padding: 10px 12px !important;
+      }
+
+      .auth-layout {
+        width: calc(100% - 24px);
+        margin: 15px auto 25px;
+        border-radius: 13px;
+      }
+
+      .auth-intro {
+        padding: 24px 21px;
+      }
+
+      .intro-title {
+        font-size: 29px;
+        margin: 17px 0 9px;
+      }
+
+      .intro-description {
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .intro-features {
+        grid-template-columns: 1fr;
+        gap: 13px;
+        margin-top: 20px;
+      }
+
+      .intro-feature {
+        align-items: center;
+      }
+
+      .feature-copy span {
+        font-size: 10.5px;
+      }
+
+      .intro-bottom {
+        font-size: 10px;
+        margin-top: 20px;
+      }
+
+      .auth-page {
+        padding: 27px 20px;
+      }
+
+      .auth-heading {
+        margin-bottom: 23px;
+      }
+
+      .auth-heading h1 {
+        font-size: 25px;
+      }
+
+      .auth-heading p {
+        font-size: 12px;
+      }
+
+      .form-group input,
+      .form-group select {
+        font-size: 16px;
+        min-height: 49px;
+      }
+
+      .submit-btn {
+        min-height: 52px;
+        font-size: 15px;
+      }
+
+      .role-option {
+        min-height: 50px;
+        font-size: 12px;
+        padding: 9px 6px;
+      }
+
+      .seller-fields {
+        padding: 13px;
+      }
     }
 
-    @media (max-width: 420px) {
-      /* FIX 5: keep role buttons side by side but readable */
-      .role-selector { flex-direction: row; gap: 8px; }
-      .role-option { padding: 10px 6px; font-size: 12.5px; }
-      .auth-page { margin: 12px 8px; padding: 18px 14px; }
-    }
+    @media (max-width: 380px) {
+      .auth-layout {
+        width: calc(100% - 16px);
+        margin: 10px auto 20px;
+      }
 
-    @media (max-width: 360px) {
-      .auth-page { margin: 8px 4px; padding: 16px 12px; }
-      .auth-tab { font-size: 13px; }
-      .role-option { font-size: 12px; padding: 8px 4px; }
+      .auth-page {
+        padding: 23px 14px;
+      }
+
+      .auth-intro {
+        padding: 22px 16px;
+      }
+
+      .auth-tab {
+        font-size: 12px;
+      }
+
+      .payout-type-btn {
+        flex-basis: 100%;
+      }
+
+      .role-selector {
+        gap: 7px;
+      }
+
+      .role-option {
+        font-size: 11.5px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { transition-duration: .01ms !important; }
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
     }
   </style>
 </head>
-<body>
-  <header class="header">
-    <div class="container header-main">
-      <a class="brand" href="/">
-        <span class="brand-mark">🪵</span>
-        <span class="brand-text">Builder<em>Wood</em></span>
-      </a>
-      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Back to shop</a>
-    </div>
-  </header>
 
-  <main class="auth-page">
+<body>
+
+<header class="header">
+  <div class="container header-main">
+
+    <a class="brand" href="/">
+      <span class="brand-mark">🪵</span>
+      <span class="brand-text">Builder<em>Wood</em></span>
+    </a>
+
+    <a class="catnav-quote" href="/">
+      ← Back to shop
+    </a>
+
+  </div>
+</header>
+
+<main class="auth-layout">
+
+  <!-- LEFT BRAND PANEL -->
+
+  <aside class="auth-intro">
+
+    <div class="intro-content">
+
+      <div class="intro-label">
+        🪵 Your Timber Marketplace
+      </div>
+
+      <h2 class="intro-title">
+        Build better.<br>
+        Source smarter.<br>
+        <span>Grow together.</span>
+      </h2>
+
+      <p class="intro-description">
+        Welcome to Builder Wood, your marketplace for quality timber
+        and wood products. Connect with trusted sellers, discover
+        products and manage your orders in one place.
+      </p>
+
+      <div class="intro-features">
+
+        <div class="intro-feature">
+          <div class="feature-icon">🛒</div>
+          <div class="feature-copy">
+            <strong>Easy Shopping</strong>
+            <span>Discover wood products with ease.</span>
+          </div>
+        </div>
+
+        <div class="intro-feature">
+          <div class="feature-icon">🏪</div>
+          <div class="feature-copy">
+            <strong>Seller Opportunities</strong>
+            <span>Showcase your products and reach buyers.</span>
+          </div>
+        </div>
+
+        <div class="intro-feature">
+          <div class="feature-icon">🔒</div>
+          <div class="feature-copy">
+            <strong>Secure Accounts</strong>
+            <span>Manage your marketplace activity.</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="intro-bottom">
+      © <span id="year"></span> Builder Wood. Building connections through quality timber.
+    </div>
+
+  </aside>
+
+  <!-- RIGHT AUTHENTICATION PANEL -->
+
+  <section class="auth-page">
+
+    <div class="auth-heading">
+      <h1>Welcome to Builder Wood</h1>
+      <p>Sign in to your account or create a new one to get started.</p>
+    </div>
+
     <div class="auth-tabs" role="tablist">
-      <div class="auth-tab active" id="tab-login" role="tab" aria-selected="true" tabindex="0">Sign In</div>
-      <div class="auth-tab" id="tab-register" role="tab" aria-selected="false" tabindex="-1">Create Account</div>
+
+      <div class="auth-tab active"
+           id="tab-login"
+           role="tab"
+           aria-selected="true"
+           tabindex="0">
+        Sign In
+      </div>
+
+      <div class="auth-tab"
+           id="tab-register"
+           role="tab"
+           aria-selected="false"
+           tabindex="-1">
+        Create Account
+      </div>
+
     </div>
 
     <!-- LOGIN -->
+
     <form class="auth-form active" id="login-form" novalidate>
+
       <div class="form-group">
-        <label for="login-email">Email</label>
-        <input id="login-email" type="email" name="username" required
-               placeholder="you@example.com" autocomplete="email"
-               inputmode="email" autocapitalize="off" autocorrect="off">
+        <label for="login-email">Email Address</label>
+        <input
+          id="login-email"
+          type="email"
+          name="username"
+          required
+          placeholder="you@example.com"
+          autocomplete="email"
+          inputmode="email"
+          autocapitalize="off"
+          autocorrect="off">
       </div>
+
       <div class="form-group">
+
         <label for="login-password">Password</label>
+
         <div class="password-field">
-          <input id="login-password" type="password" name="password" required
-                 autocomplete="current-password">
-          <button type="button" class="password-toggle"
-                  onclick="togglePassword('login-password', this)"
-                  aria-label="Show password">👁</button>
+
+          <input
+            id="login-password"
+            type="password"
+            name="password"
+            required
+            autocomplete="current-password">
+
+          <button
+            type="button"
+            class="password-toggle"
+            onclick="togglePassword('login-password', this)"
+            aria-label="Show password">
+            👁
+          </button>
+
         </div>
       </div>
+
       <div class="forgot-password-row">
-        <a href="/forgot-password" class="forgot-password-link">Forgot password?</a>
+        <a href="/forgot-password" class="forgot-password-link">
+          Forgot password?
+        </a>
       </div>
-      <button type="submit" class="submit-btn">Log In</button>
-      <div class="msg" id="login-msg" role="status" aria-live="polite"></div>
+
+      <button type="submit" class="submit-btn">
+        Sign In to Your Account →
+      </button>
+
+      <div class="msg"
+           id="login-msg"
+           role="status"
+           aria-live="polite">
+      </div>
+
     </form>
 
     <!-- REGISTER -->
+
     <form class="auth-form" id="register-form" novalidate>
+
       <div class="form-group">
-        <label>I am registering as:</label>
-        <div class="role-selector">
-          <div class="role-option active" data-role="customer" role="radio" aria-checked="true" tabindex="0">Buyer</div>
-          <div class="role-option" data-role="seller" role="radio" aria-checked="false" tabindex="0">Seller</div>
+
+        <label id="role-label">I am registering as:</label>
+
+        <div class="role-selector"
+             role="radiogroup"
+             aria-labelledby="role-label">
+
+          <div class="role-option active"
+               data-role="customer"
+               role="radio"
+               aria-checked="true"
+               tabindex="0">
+            Buyer
+          </div>
+
+          <div class="role-option"
+               data-role="seller"
+               role="radio"
+               aria-checked="false"
+               tabindex="0">
+            Seller
+          </div>
+
         </div>
-        <input type="hidden" name="role" id="role-input" value="customer">
+
+        <input type="hidden"
+               name="role"
+               id="role-input"
+               value="customer">
+
       </div>
 
       <div class="form-group">
         <label for="reg-name">Full Name</label>
-        <input id="reg-name" type="text" name="name" required autocomplete="name"
-               autocapitalize="words">
+        <input
+          id="reg-name"
+          type="text"
+          name="name"
+          required
+          autocomplete="name"
+          autocapitalize="words"
+          placeholder="Enter your full name">
       </div>
+
       <div class="form-group">
-        <label for="reg-email">Email</label>
-        <input id="reg-email" type="email" name="email" required autocomplete="email"
-               inputmode="email" autocapitalize="off" autocorrect="off">
+        <label for="reg-email">Email Address</label>
+        <input
+          id="reg-email"
+          type="email"
+          name="email"
+          required
+          autocomplete="email"
+          inputmode="email"
+          autocapitalize="off"
+          autocorrect="off"
+          placeholder="you@example.com">
       </div>
+
       <div class="form-group">
         <label for="reg-phone">Phone Number</label>
-        <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel"
-               inputmode="tel">
+        <input
+          id="reg-phone"
+          type="tel"
+          name="phone_number"
+          required
+          autocomplete="tel"
+          inputmode="tel"
+          placeholder="0244123456">
       </div>
 
-      <!-- Seller-only fields -->
+      <!-- SELLER FIELDS -->
+
       <div class="seller-fields" id="seller-fields">
+
         <p class="seller-fields-note">
-          These details will appear on your seller profile and are used for payouts. You can update them later in your dashboard.
+          These details will appear on your seller profile and are used
+          for payouts. You can update them later in your dashboard.
         </p>
+
         <div class="form-group">
           <label for="reg-company">Company / Shop Name</label>
-          <input id="reg-company" type="text" name="company_name"
-                 placeholder="e.g. Mensah Timber" autocomplete="organization"
-                 autocapitalize="words">
-        </div>
-        <div class="form-group">
-          <label for="reg-location">Location</label>
-          <input id="reg-location" type="text" name="location"
-                 placeholder="e.g. Sokoban Wood Village, Kumasi" autocomplete="address-level2"
-                 autocapitalize="words">
+          <input
+            id="reg-company"
+            type="text"
+            name="company_name"
+            placeholder="e.g. Mensah Timber"
+            autocomplete="organization"
+            autocapitalize="words">
         </div>
 
-        <!-- Payout account section -->
+        <div class="form-group">
+          <label for="reg-location">Location</label>
+          <input
+            id="reg-location"
+            type="text"
+            name="location"
+            placeholder="e.g. Sokoban Wood Village, Kumasi"
+            autocomplete="address-level2"
+            autocapitalize="words">
+        </div>
+
+        <!-- PAYOUT ACCOUNT -->
+
         <div class="payout-section">
+
           <h4>💰 Payout Account</h4>
+
           <p class="hint">
-            Where should Builder Wood send your money when orders are completed?
-            This is required before you can receive payouts.
+            Where should Builder Wood send your money when orders
+            are completed? This is required before you can receive payouts.
           </p>
 
           <div class="payout-type-toggle">
-            <button type="button" class="payout-type-btn active" data-payout-type="mobile_money">📱 Mobile Money</button>
-            <button type="button" class="payout-type-btn" data-payout-type="bank">🏦 Bank Account</button>
+
+            <button
+              type="button"
+              class="payout-type-btn active"
+              data-payout-type="mobile_money">
+              📱 Mobile Money
+            </button>
+
+            <button
+              type="button"
+              class="payout-type-btn"
+              data-payout-type="bank">
+              🏦 Bank Account
+            </button>
+
           </div>
 
-          <!-- Mobile money form -->
+          <!-- MOBILE MONEY -->
+
           <div class="payout-form active" id="payout-momo">
+
             <div class="form-group">
               <label for="payout-momo-network">Network</label>
+
               <select id="payout-momo-network">
                 <option value="">Loading networks...</option>
               </select>
             </div>
+
             <div class="form-group">
               <label for="payout-momo-number">Mobile Number</label>
-              <input id="payout-momo-number" type="tel" placeholder="0244123456"
-                     inputmode="tel" autocomplete="tel">
+
+              <input
+                id="payout-momo-number"
+                type="tel"
+                placeholder="0244123456"
+                inputmode="tel"
+                autocomplete="tel">
             </div>
+
             <div class="form-group">
               <label for="payout-momo-name">Account Holder Name</label>
-              <input id="payout-momo-name" type="text" placeholder="Full name on the MoMo account"
-                     autocapitalize="words">
+
+              <input
+                id="payout-momo-name"
+                type="text"
+                placeholder="Full name on the MoMo account"
+                autocapitalize="words">
             </div>
+
           </div>
 
-          <!-- Bank form -->
+          <!-- BANK -->
+
           <div class="payout-form" id="payout-bank">
+
             <div class="form-group">
               <label for="payout-bank-name">Bank</label>
+
               <select id="payout-bank-name">
                 <option value="">Loading banks...</option>
               </select>
             </div>
+
             <div class="form-group">
               <label for="payout-bank-number">Account Number</label>
-              <input id="payout-bank-number" type="text" placeholder="1234567890"
-                     inputmode="numeric">
+
+              <input
+                id="payout-bank-number"
+                type="text"
+                placeholder="1234567890"
+                inputmode="numeric">
             </div>
+
             <div class="form-group">
               <label for="payout-bank-holder">Account Holder Name</label>
-              <input id="payout-bank-holder" type="text" placeholder="Full name on the bank account"
-                     autocapitalize="words">
+
+              <input
+                id="payout-bank-holder"
+                type="text"
+                placeholder="Full name on the bank account"
+                autocapitalize="words">
             </div>
+
           </div>
+
         </div>
+
       </div>
 
       <div class="form-group">
+
         <label for="reg-password">Password</label>
+
         <div class="password-field">
-          <input id="reg-password" type="password" name="password" required minlength="6"
-                 autocomplete="new-password">
-          <button type="button" class="password-toggle"
-                  onclick="togglePassword('reg-password', this)"
-                  aria-label="Show password">👁</button>
+
+          <input
+            id="reg-password"
+            type="password"
+            name="password"
+            required
+            minlength="6"
+            autocomplete="new-password">
+
+          <button
+            type="button"
+            class="password-toggle"
+            onclick="togglePassword('reg-password', this)"
+            aria-label="Show password">
+            👁
+          </button>
+
         </div>
+
       </div>
 
-      <button type="submit" class="submit-btn">Create Account</button>
-      <div class="msg" id="register-msg" role="status" aria-live="polite"></div>
+      <button type="submit" class="submit-btn">
+        Create My Account →
+      </button>
+
+      <div class="msg"
+           id="register-msg"
+           role="status"
+           aria-live="polite">
+      </div>
+
     </form>
-  </main>
 
-  <script>
-    'use strict';
+  </section>
 
-    // --- Password eye toggle ---
-    function togglePassword(inputId, btn) {
-      const input = document.getElementById(inputId);
-      if (input.type === "password") {
-        input.type = "text";
-        btn.textContent = "🙈";
-        btn.setAttribute("aria-label", "Hide password");
-      } else {
-        input.type = "password";
-        btn.textContent = "👁";
-        btn.setAttribute("aria-label", "Show password");
-      }
-    }
-    window.togglePassword = togglePassword;
+</main>
 
-    // --- Tabs ---
-    const tabLogin = document.getElementById("tab-login");
-    const tabRegister = document.getElementById("tab-register");
-    const formLogin = document.getElementById("login-form");
-    const formRegister = document.getElementById("register-form");
+<script>
+'use strict';
 
-    function showTab(tab) {
-      const isLogin = tab === "login";
-      tabLogin.classList.toggle("active", isLogin);
-      tabRegister.classList.toggle("active", !isLogin);
-      tabLogin.setAttribute("aria-selected", String(isLogin));
-      tabRegister.setAttribute("aria-selected", String(!isLogin));
-      formLogin.classList.toggle("active", isLogin);
-      formRegister.classList.toggle("active", !isLogin);
-    }
+// --- Dynamic year in footer ---
+document.getElementById("year").textContent = new Date().getFullYear();
 
-    tabLogin.addEventListener("click", () => showTab("login"));
-    tabRegister.addEventListener("click", () => showTab("register"));
 
-    [tabLogin, tabRegister].forEach((el) => {
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          el.click();
-        }
-      });
-    });
+// --- Password eye toggle ---
 
-    if (window.location.search.includes("mode=register")) showTab("register");
+function togglePassword(inputId, btn) {
 
-    // --- Role selector ---
-    const roleOptions = document.querySelectorAll(".role-option");
-    const roleInput = document.getElementById("role-input");
-    const sellerFields = document.getElementById("seller-fields");
+  const input = document.getElementById(inputId);
 
-    function selectRole(role) {
-      roleOptions.forEach((o) => {
-        const active = o.dataset.role === role;
-        o.classList.toggle("active", active);
-        o.setAttribute("aria-checked", String(active));
-      });
-      roleInput.value = role;
+  if (input.type === "password") {
 
-      if (role === "seller") {
-        sellerFields.classList.add("show");
-        loadPayoutOptions();
-      } else {
-        sellerFields.classList.remove("show");
-        document.getElementById("reg-company").value = "";
-        document.getElementById("reg-location").value = "";
-        document.getElementById("payout-momo-number").value = "";
-        document.getElementById("payout-momo-name").value = "";
-        document.getElementById("payout-bank-number").value = "";
-        document.getElementById("payout-bank-holder").value = "";
-      }
-    }
+    input.type = "text";
+    btn.textContent = "🙈";
+    btn.setAttribute("aria-label", "Hide password");
 
-    roleOptions.forEach((opt) => {
-      opt.addEventListener("click", () => selectRole(opt.dataset.role));
-      opt.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          selectRole(opt.dataset.role);
-        }
-      });
-    });
+  } else {
 
-    // --- Payout type toggle ---
-    const payoutTypeBtns = document.querySelectorAll(".payout-type-btn");
-    const payoutMomoForm = document.getElementById("payout-momo");
-    const payoutBankForm = document.getElementById("payout-bank");
-    let currentPayoutType = "mobile_money";
+    input.type = "password";
+    btn.textContent = "👁";
+    btn.setAttribute("aria-label", "Show password");
 
-    payoutTypeBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        currentPayoutType = btn.dataset.payoutType;
-        payoutTypeBtns.forEach((b) => b.classList.toggle("active", b === btn));
-        payoutMomoForm.classList.toggle("active", currentPayoutType === "mobile_money");
-        payoutBankForm.classList.toggle("active", currentPayoutType === "bank");
-      });
-    });
+  }
 
-    // --- Load payout options ---
-    let payoutOptionsLoaded = false;
+}
 
-    async function loadPayoutOptions() {
-      if (payoutOptionsLoaded) return;
+window.togglePassword = togglePassword;
 
-      try {
-        const res = await fetch("/seller/payout/options-public");
-        if (!res.ok) {
-          console.warn("Payout options endpoint not available yet");
-          return;
-        }
-        const data = await res.json();
 
-        const networkSel = document.getElementById("payout-momo-network");
-        if (data.mobile_money && data.mobile_money.length) {
-          networkSel.innerHTML = '<option value="">Select network</option>' +
-            data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
-        } else {
-          networkSel.innerHTML = `
-            <option value="">Select network</option>
-            <option value="MTN">MTN Mobile Money</option>
-            <option value="VOD">Telecel Cash</option>
-            <option value="ATL">AirtelTigo Money</option>
-          `;
-        }
+// --- Tabs ---
 
-        const bankSel = document.getElementById("payout-bank-name");
-        if (data.banks && data.banks.length) {
-          bankSel.innerHTML = '<option value="">Select bank</option>' +
-            data.banks.map(b => `<option value="${b.code}">${b.name}</option>`).join("");
-        }
+const tabLogin = document.getElementById("tab-login");
+const tabRegister = document.getElementById("tab-register");
 
-        payoutOptionsLoaded = true;
-      } catch (err) {
-        console.warn("Could not load payout options:", err);
-        const networkSel = document.getElementById("payout-momo-network");
-        networkSel.innerHTML = `
-          <option value="">Select network</option>
-          <option value="MTN">MTN Mobile Money</option>
-          <option value="VOD">Telecel Cash</option>
-          <option value="ATL">AirtelTigo Money</option>
-        `;
-      }
-    }
+const formLogin = document.getElementById("login-form");
+const formRegister = document.getElementById("register-form");
 
-    // --- Helpers ---
-    function setMsg(el, text, colorVar) {
-      el.textContent = text;
-      el.style.color = colorVar || "inherit";
-    }
+function showTab(tab) {
 
-    async function parseJsonSafe(res) {
-      try { return await res.json(); } catch { return {}; }
-    }
+  const isLogin = tab === "login";
 
-    // --- Login ---
-    formLogin.addEventListener("submit", async (e) => {
+  tabLogin.classList.toggle("active", isLogin);
+  tabRegister.classList.toggle("active", !isLogin);
+
+  tabLogin.setAttribute("aria-selected", String(isLogin));
+  tabRegister.setAttribute("aria-selected", String(!isLogin));
+
+  tabLogin.tabIndex = isLogin ? 0 : -1;
+  tabRegister.tabIndex = isLogin ? -1 : 0;
+
+  formLogin.classList.toggle("active", isLogin);
+  formRegister.classList.toggle("active", !isLogin);
+
+  // Keep URL in sync so refresh/share preserves the tab
+  const url = new URL(window.location);
+  if (isLogin) {
+    url.searchParams.delete("mode");
+  } else {
+    url.searchParams.set("mode", "register");
+  }
+  window.history.replaceState({}, "", url);
+}
+
+tabLogin.addEventListener("click", () => showTab("login"));
+tabRegister.addEventListener("click", () => showTab("register"));
+
+[tabLogin, tabRegister].forEach((el) => {
+
+  el.addEventListener("keydown", (e) => {
+
+    if (e.key === "Enter" || e.key === " ") {
+
       e.preventDefault();
-      const form = e.target;
-      const msg = document.getElementById("login-msg");
-      const btn = form.querySelector(".submit-btn");
+      el.click();
 
-      if (!form.username.value.trim() || !form.password.value) {
-        setMsg(msg, "Enter your email and password.", "var(--red)");
-        return;
-      }
+    }
 
-      btn.disabled = true;
-      setMsg(msg, "Logging in...", "var(--wood-med)");
+  });
 
-      const body = new URLSearchParams();
-      body.append("username", form.username.value.trim());
-      body.append("password", form.password.value);
+});
 
-      try {
-        const res = await fetch("/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body,
-        });
-        const data = await parseJsonSafe(res);
+if (window.location.search.includes("mode=register")) {
+  showTab("register");
+}
 
-        if (res.ok && data.access_token) {
-          localStorage.setItem("bw_token", data.access_token);
-          localStorage.setItem("bw_role", data.role || "");
-          localStorage.setItem("bw_name", data.name || "");
-          localStorage.setItem("bw_user_id", data.user_id != null ? String(data.user_id) : "");
 
-          setMsg(msg, "Login successful! Redirecting...", "var(--green)");
-          setTimeout(() => { window.location.href = "/"; }, 700);
-        } else {
-          setMsg(msg, data.detail || "Login failed", "var(--red)");
-          btn.disabled = false;
-        }
-      } catch {
-        setMsg(msg, "Network error. Please try again.", "var(--red)");
-        btn.disabled = false;
-      }
-    });
+// --- Role selector ---
 
-    // --- Register ---
-    formRegister.addEventListener("submit", async (e) => {
+const roleOptions = document.querySelectorAll(".role-option");
+
+const roleInput = document.getElementById("role-input");
+
+const sellerFields = document.getElementById("seller-fields");
+
+function selectRole(role) {
+
+  roleOptions.forEach((o) => {
+
+    const active = o.dataset.role === role;
+
+    o.classList.toggle("active", active);
+
+    o.setAttribute("aria-checked", String(active));
+
+  });
+
+  roleInput.value = role;
+
+  if (role === "seller") {
+
+    sellerFields.classList.add("show");
+
+    loadPayoutOptions();
+
+  } else {
+
+    sellerFields.classList.remove("show");
+
+    document.getElementById("reg-company").value = "";
+    document.getElementById("reg-location").value = "";
+
+    document.getElementById("payout-momo-number").value = "";
+    document.getElementById("payout-momo-name").value = "";
+
+    document.getElementById("payout-bank-number").value = "";
+    document.getElementById("payout-bank-holder").value = "";
+
+  }
+
+}
+
+roleOptions.forEach((opt) => {
+
+  opt.addEventListener("click", () => selectRole(opt.dataset.role));
+
+  opt.addEventListener("keydown", (e) => {
+
+    if (e.key === "Enter" || e.key === " ") {
+
       e.preventDefault();
-      const form = e.target;
-      const msg = document.getElementById("register-msg");
-      const btn = form.querySelector(".submit-btn");
+      selectRole(opt.dataset.role);
 
-      const isSeller = roleInput.value === "seller";
+    }
 
-      const payload = {
-        name: form.name.value.trim(),
-        email: form.email.value.trim(),
-        phone_number: form.phone_number.value.trim(),
-        password: form.password.value,
-        role: roleInput.value,
-      };
+  });
 
-      if (isSeller) {
-        payload.company_name = document.getElementById("reg-company").value.trim() || null;
-        payload.location = document.getElementById("reg-location").value.trim() || null;
+});
 
-        if (currentPayoutType === "mobile_money") {
-          const network = document.getElementById("payout-momo-network").value;
-          const number = document.getElementById("payout-momo-number").value.trim();
-          const holderName = document.getElementById("payout-momo-name").value.trim();
 
-          if (!network || !number || !holderName) {
-            setMsg(msg, "Please fill all Mobile Money payout fields.", "var(--red)");
-            return;
-          }
-          payload.payout_type = "mobile_money";
-          payload.payout_network = network;
-          payload.payout_account_number = number;
-          payload.payout_account_name = holderName;
-        } else {
-          const bankCode = document.getElementById("payout-bank-name").value;
-          const accountNumber = document.getElementById("payout-bank-number").value.trim();
-          const holderName = document.getElementById("payout-bank-holder").value.trim();
+// --- Payout type toggle ---
 
-          if (!bankCode || !accountNumber || !holderName) {
-            setMsg(msg, "Please fill all bank payout fields.", "var(--red)");
-            return;
-          }
-          payload.payout_type = "bank";
-          payload.payout_bank_code = bankCode;
-          payload.payout_account_number = accountNumber;
-          payload.payout_account_name = holderName;
-        }
-      }
+const payoutTypeBtns = document.querySelectorAll(".payout-type-btn");
 
-      if (!payload.name || !payload.email || !payload.phone_number || payload.password.length < 6) {
-        setMsg(msg, "Please fill in all required fields (password ≥ 6 chars).", "var(--red)");
-        return;
-      }
+const payoutMomoForm = document.getElementById("payout-momo");
 
-      btn.disabled = true;
-      setMsg(msg, isSeller ? "Creating account + registering payout..." : "Creating account...", "var(--wood-med)");
+const payoutBankForm = document.getElementById("payout-bank");
 
-      try {
-        const res = await fetch("/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await parseJsonSafe(res);
+let currentPayoutType = "mobile_money";
 
-        if (res.ok) {
-          let successMsg = data.message || "Account created.";
-          if (isSeller && data.payout_registered) {
-            successMsg = "Account created with payout details registered. Waiting for Admin approval.";
-          } else if (isSeller && data.payout_error) {
-            successMsg = "Account created, but payout registration failed: " + data.payout_error + ". Please add your payout details after admin approval.";
-          }
-          setMsg(msg, successMsg, "var(--green)");
-          if (payload.role === "customer") {
-            setTimeout(() => showTab("login"), 1500);
-          }
-          form.reset();
-          selectRole("customer");
-          btn.disabled = false;
-        } else {
-          setMsg(msg, data.detail || "Registration failed", "var(--red)");
-          btn.disabled = false;
-        }
-      } catch {
-        setMsg(msg, "Network error. Please try again.", "var(--red)");
-        btn.disabled = false;
-      }
+payoutTypeBtns.forEach((btn) => {
+
+  btn.addEventListener("click", () => {
+
+    currentPayoutType = btn.dataset.payoutType;
+
+    payoutTypeBtns.forEach((b) => {
+      b.classList.toggle("active", b === btn);
     });
-  </script>
+
+    payoutMomoForm.classList.toggle(
+      "active",
+      currentPayoutType === "mobile_money"
+    );
+
+    payoutBankForm.classList.toggle(
+      "active",
+      currentPayoutType === "bank"
+    );
+
+  });
+
+});
+
+
+// --- Load payout options ---
+
+let payoutOptionsLoaded = false;
+
+async function loadPayoutOptions() {
+
+  if (payoutOptionsLoaded) return;
+
+  try {
+
+    const res = await fetch("/seller/payout/options-public");
+
+    if (!res.ok) {
+
+      console.warn("Payout options endpoint not available yet");
+
+      return;
+
+    }
+
+    const data = await res.json();
+
+    const networkSel = document.getElementById("payout-momo-network");
+
+    if (data.mobile_money && data.mobile_money.length) {
+
+      networkSel.innerHTML =
+        '<option value="">Select network</option>' +
+
+        data.mobile_money.map(t =>
+          `<option value="${t.code}">${t.name}</option>`
+        ).join("");
+
+    } else {
+
+      networkSel.innerHTML = `
+        <option value="">Select network</option>
+        <option value="MTN">MTN Mobile Money</option>
+        <option value="VOD">Telecel Cash</option>
+        <option value="ATL">AirtelTigo Money</option>
+      `;
+
+    }
+
+    const bankSel = document.getElementById("payout-bank-name");
+
+    if (data.banks && data.banks.length) {
+
+      bankSel.innerHTML =
+        '<option value="">Select bank</option>' +
+
+        data.banks.map(b =>
+          `<option value="${b.code}">${b.name}</option>`
+        ).join("");
+
+    }
+
+    payoutOptionsLoaded = true;
+
+  } catch (err) {
+
+    console.warn("Could not load payout options:", err);
+
+    const networkSel = document.getElementById("payout-momo-network");
+
+    networkSel.innerHTML = `
+      <option value="">Select network</option>
+      <option value="MTN">MTN Mobile Money</option>
+      <option value="VOD">Telecel Cash</option>
+      <option value="ATL">AirtelTigo Money</option>
+    `;
+
+  }
+
+}
+
+
+// --- Helpers ---
+
+function setMsg(el, text, colorVar) {
+
+  el.textContent = text;
+
+  el.style.color = colorVar || "inherit";
+
+}
+
+async function parseJsonSafe(res) {
+
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+
+}
+
+
+// --- Login ---
+
+formLogin.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  const form = e.target;
+
+  const msg = document.getElementById("login-msg");
+
+  const btn = form.querySelector(".submit-btn");
+
+  if (!form.username.value.trim() || !form.password.value) {
+
+    setMsg(msg, "Enter your email and password.", "var(--auth-red)");
+
+    return;
+
+  }
+
+  btn.disabled = true;
+
+  setMsg(msg, "Logging in...", "var(--auth-brown)");
+
+  const body = new URLSearchParams();
+
+  body.append("username", form.username.value.trim());
+
+  body.append("password", form.password.value);
+
+  try {
+
+    const res = await fetch("/auth/login", {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+
+      body,
+
+    });
+
+    const data = await parseJsonSafe(res);
+
+    if (res.ok && data.access_token) {
+
+      localStorage.setItem("bw_token", data.access_token);
+
+      localStorage.setItem("bw_role", data.role || "");
+
+      localStorage.setItem("bw_name", data.name || "");
+
+      localStorage.setItem(
+        "bw_user_id",
+        data.user_id != null ? String(data.user_id) : ""
+      );
+
+      setMsg(
+        msg,
+        "Login successful! Redirecting...",
+        "var(--auth-green)"
+      );
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 700);
+
+    } else {
+
+      setMsg(
+        msg,
+        data.detail || "Login failed",
+        "var(--auth-red)"
+      );
+
+      btn.disabled = false;
+
+    }
+
+  } catch {
+
+    setMsg(
+      msg,
+      "Network error. Please try again.",
+      "var(--auth-red)"
+    );
+
+    btn.disabled = false;
+
+  }
+
+});
+
+
+// --- Register ---
+
+formRegister.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  const form = e.target;
+
+  const msg = document.getElementById("register-msg");
+
+  const btn = form.querySelector(".submit-btn");
+
+  const isSeller = roleInput.value === "seller";
+
+  const payload = {
+
+    name: form.name.value.trim(),
+
+    email: form.email.value.trim(),
+
+    phone_number: form.phone_number.value.trim(),
+
+    password: form.password.value,
+
+    role: roleInput.value,
+
+  };
+
+
+  if (isSeller) {
+
+    payload.company_name =
+      document.getElementById("reg-company").value.trim() || null;
+
+    payload.location =
+      document.getElementById("reg-location").value.trim() || null;
+
+
+    if (currentPayoutType === "mobile_money") {
+
+      const network =
+        document.getElementById("payout-momo-network").value;
+
+      const number =
+        document.getElementById("payout-momo-number").value.trim();
+
+      const holderName =
+        document.getElementById("payout-momo-name").value.trim();
+
+
+      if (!network || !number || !holderName) {
+
+        setMsg(
+          msg,
+          "Please fill all Mobile Money payout fields.",
+          "var(--auth-red)"
+        );
+
+        return;
+
+      }
+
+      payload.payout_type = "mobile_money";
+
+      payload.payout_network = network;
+
+      payload.payout_account_number = number;
+
+      payload.payout_account_name = holderName;
+
+    } else {
+
+      const bankCode =
+        document.getElementById("payout-bank-name").value;
+
+      const accountNumber =
+        document.getElementById("payout-bank-number").value.trim();
+
+      const holderName =
+        document.getElementById("payout-bank-holder").value.trim();
+
+
+      if (!bankCode || !accountNumber || !holderName) {
+
+        setMsg(
+          msg,
+          "Please fill all bank payout fields.",
+          "var(--auth-red)"
+        );
+
+        return;
+
+      }
+
+      payload.payout_type = "bank";
+
+      payload.payout_bank_code = bankCode;
+
+      payload.payout_account_number = accountNumber;
+
+      payload.payout_account_name = holderName;
+
+    }
+
+  }
+
+
+  if (
+    !payload.name ||
+    !payload.email ||
+    !payload.phone_number ||
+    payload.password.length < 6
+  ) {
+
+    setMsg(
+      msg,
+      "Please fill in all required fields (password ≥ 6 chars).",
+      "var(--auth-red)"
+    );
+
+    return;
+
+  }
+
+
+  btn.disabled = true;
+
+  setMsg(
+    msg,
+    isSeller
+      ? "Creating account + registering payout..."
+      : "Creating account...",
+    "var(--auth-brown)"
+  );
+
+
+  try {
+
+    const res = await fetch("/auth/register", {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify(payload),
+
+    });
+
+    const data = await parseJsonSafe(res);
+
+
+    if (res.ok) {
+
+      let successMsg = data.message || "Account created.";
+
+      if (isSeller && data.payout_registered) {
+
+        successMsg =
+          "Account created with payout details registered. Waiting for Admin approval.";
+
+      } else if (isSeller && data.payout_error) {
+
+        successMsg =
+          "Account created, but payout registration failed: " +
+          data.payout_error +
+          ". Please add your payout details after admin approval.";
+
+      }
+
+      setMsg(
+        msg,
+        successMsg,
+        "var(--auth-green)"
+      );
+
+      if (payload.role === "customer") {
+
+        setTimeout(() => showTab("login"), 1500);
+
+      }
+
+      form.reset();
+
+      selectRole("customer");
+
+      btn.disabled = false;
+
+    } else {
+
+      setMsg(
+        msg,
+        data.detail || "Registration failed",
+        "var(--auth-red)"
+      );
+
+      btn.disabled = false;
+
+    }
+
+  } catch {
+
+    setMsg(
+      msg,
+      "Network error. Please try again.",
+      "var(--auth-red)"
+    );
+
+    btn.disabled = false;
+
+  }
+
+});
+
+</script>
+
 </body>
 </html>

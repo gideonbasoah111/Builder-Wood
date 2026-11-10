@@ -1,7 +1,16 @@
 /* ============================================================
    In-app messaging shared JS.
-   Used by messages_inbox.html and messages_chat.html.
-   Also loaded by index.html to power the [💬] buttons.
+
+   Used by:
+   - messages_inbox.html (inbox list)
+   - messages_chat.html  (single conversation)
+   - index.html          (product card [💬] buttons + unread badge)
+
+   Fixes:
+   - appendMessage is defensive: guards against missing element,
+     removes placeholder, and scrolls AFTER browser paints.
+   - sendMessage keeps the text in the input on error so the user
+     can edit and retry without retyping.
    ============================================================ */
 (function (window) {
   "use strict";
@@ -115,7 +124,6 @@
       document.getElementById("chat-title").textContent = conv.other_party_name || "Chat";
       document.getElementById("chat-role").textContent = conv.other_party_role || "";
 
-      // Wood context banner
       if (conv.wood_context) {
         const banner = document.getElementById("wood-context");
         banner.style.display = "block";
@@ -151,11 +159,14 @@
         </div>`;
     }).join("");
 
-    host.scrollTop = host.scrollHeight;
+    // Scroll to bottom after render
+    requestAnimationFrame(() => {
+      host.scrollTop = host.scrollHeight;
+    });
   }
 
   // ============================================================
-  // Send message
+  // Send message — keeps text on error, appends live on success
   // ============================================================
   Messages.sendMessage = async function (convId) {
     const token_ = token();
@@ -170,6 +181,8 @@
     errorBox.textContent = "";
 
     btn.disabled = true;
+    const originalValue = input.value;
+
     try {
       const res = await fetch(`/conversations/${convId}/messages`, {
         method: "POST",
@@ -180,28 +193,43 @@
         body: JSON.stringify({ message_text: text }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      let data = null;
+      try { data = await res.json(); } catch (_) {}
 
       if (res.ok) {
         input.value = "";
         input.style.height = "auto";
-        // Append without full reload
         appendMessage(data);
       } else {
-        errorBox.textContent = data.detail || "Failed to send message.";
+        const detail = (data && data.detail) || "Failed to send message.";
+        errorBox.textContent = detail;
         errorBox.classList.add("show");
+        // Keep text so user can edit and retry
+        input.value = originalValue;
       }
     } catch (e) {
       errorBox.textContent = "Network error. Please try again.";
       errorBox.classList.add("show");
+      input.value = originalValue;
     } finally {
       btn.disabled = false;
       input.focus();
     }
   };
 
+  // ============================================================
+  // Append message — defensive + proper scroll timing
+  // ============================================================
   function appendMessage(msg) {
     const host = document.getElementById("chat-messages");
+    if (!host) {
+      console.warn("chat-messages element not found");
+      return;
+    }
+
+    // Remove any placeholder text (loading state)
+    host.querySelectorAll(".loading-text, .empty-state").forEach((p) => p.remove());
+
     const myId = String(getUserId());
     const mine = String(msg.sender_id) === myId;
     const side = mine ? "sent" : "received";
@@ -210,20 +238,20 @@
     wrapper.className = `msg-row ${side}`;
     wrapper.innerHTML = `
       <div>
-        <div class="msg-bubble">${esc(msg.message_text)}</div>
-        <div class="msg-meta">${mine ? "You" : esc(msg.sender_name)} · ${fmtTime(msg.created_at)}</div>
+        <div class="msg-bubble">${esc(msg.message_text || "")}</div>
+        <div class="msg-meta">${mine ? "You" : esc(msg.sender_name || "Unknown")} · ${fmtTime(msg.created_at)}</div>
       </div>`;
 
-    // If "no messages yet" placeholder is showing, remove it
-    const placeholder = host.querySelector(".loading-text");
-    if (placeholder) placeholder.remove();
-
     host.appendChild(wrapper);
-    host.scrollTop = host.scrollHeight;
+
+    // Scroll AFTER browser paints the new element
+    requestAnimationFrame(() => {
+      host.scrollTop = host.scrollHeight;
+    });
   }
 
   // ============================================================
-  // Start conversation from a product (used by index.html, product_detail, cart)
+  // Start conversation from a product [💬] button
   // ============================================================
   Messages.startConversation = async function (sellerId, woodId) {
     const token_ = token();
@@ -244,7 +272,10 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token_}`,
         },
-        body: JSON.stringify({ seller_id: parseInt(sellerId, 10), wood_id: woodId ? parseInt(woodId, 10) : null }),
+        body: JSON.stringify({
+          seller_id: parseInt(sellerId, 10),
+          wood_id: woodId ? parseInt(woodId, 10) : null,
+        }),
       });
 
       if (!res.ok) {
@@ -261,7 +292,7 @@
   };
 
   // ============================================================
-  // Unread count (for header badge)
+  // Unread badge (header)
   // ============================================================
   Messages.refreshUnreadBadge = async function () {
     const token_ = token();
@@ -288,7 +319,6 @@
     }
   };
 
-  // Auto-refresh unread badge every 30s
   window.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("messages-badge")) {
       Messages.refreshUnreadBadge();
