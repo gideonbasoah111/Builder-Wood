@@ -40,7 +40,6 @@ class UserRegister(BaseModel):
     company_name: Optional[str] = None
     location: Optional[str] = None
 
-    # Payout fields (seller only)
     payout_type: Optional[Literal["mobile_money", "bank"]] = None
     payout_network: Optional[str] = None
     payout_bank_code: Optional[str] = None
@@ -85,12 +84,6 @@ def _register_payout_recipient(
     account_number: str,
     account_name: str,
 ) -> tuple[Optional[dict], Optional[str]]:
-    """
-    Register a Paystack recipient.
-    Returns (result_dict, error_message):
-      - ({"recipient_code": ..., "display_name": ...}, None) on success
-      - (None, "reason") on failure
-    """
     if not settings.PAYSTACK_SECRET_KEY:
         return None, "Paystack not configured"
 
@@ -150,7 +143,6 @@ def _register_payout_recipient(
 # ============================================================
 @router.post("/register")
 def register(user: UserRegister, db: Session = Depends(get_db)):
-    # Single existence check — replaces the previous 2-query pattern
     existing = db.query(models.User.user_id).filter(
         models.User.email == user.email
     ).first()
@@ -173,7 +165,6 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     payout_registered = False
     payout_error = None
 
-    # Seller with payout details → create Paystack recipient BEFORE commit
     if (
         user.role == "seller"
         and user.payout_type
@@ -220,7 +211,6 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    # Single query — pull only columns we need
     user = db.query(models.User).filter(
         models.User.email == form_data.username
     ).first()
@@ -278,13 +268,11 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Update only fields present in payload — no wasted assignments
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(current_user, field, value)
 
     db.commit()
 
-    # No db.refresh() — the object is already up to date
     return {
         "user_id": current_user.user_id,
         "name": current_user.name,
@@ -332,7 +320,6 @@ def forgot_password(
     if not user:
         return response
 
-    # Single transaction: delete old tokens + insert new one + commit once
     db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.user_id == user.user_id,
         models.PasswordResetToken.used.is_(False),
@@ -380,7 +367,6 @@ def reset_password(
     if not record:
         raise HTTPException(400, "Invalid or already-used reset link")
 
-    # Normalize both datetimes to aware before comparing
     expires = record.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)

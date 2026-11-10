@@ -6,11 +6,11 @@
    - messages_chat.html  (single conversation)
    - index.html          (product card [💬] buttons + unread badge)
 
-   Fixes:
-   - appendMessage is defensive: guards against missing element,
-     removes placeholder, and scrolls AFTER browser paints.
-   - sendMessage keeps the text in the input on error so the user
-     can edit and retry without retyping.
+   Features:
+   - Real-time delivery via Server-Sent Events (SSE)
+   - Live append of sent messages without refresh
+   - Defensive appendMessage with proper scroll timing
+   - Keeps text in input on error
    ============================================================ */
 (function (window) {
   "use strict";
@@ -102,6 +102,7 @@
   // Chat view
   // ============================================================
   let currentConvId = null;
+  let currentStream = null;
 
   Messages.loadChat = async function (convId) {
     currentConvId = convId;
@@ -133,6 +134,9 @@
       }
 
       renderMessages(conv.messages);
+
+      // Open SSE stream for real-time updates
+      Messages.openStream(convId);
     } catch (e) {
       document.getElementById("chat-messages").innerHTML =
         `<p class="loading-text">Could not load conversation.</p>`;
@@ -151,7 +155,7 @@
       const mine = String(m.sender_id) === myId;
       const side = mine ? "sent" : "received";
       return `
-        <div class="msg-row ${side}">
+        <div class="msg-row ${side}" data-message-id="${m.message_id}">
           <div>
             <div class="msg-bubble">${esc(m.message_text)}</div>
             <div class="msg-meta">${mine ? "You" : esc(m.sender_name)} · ${fmtTime(m.created_at)}</div>
@@ -159,14 +163,60 @@
         </div>`;
     }).join("");
 
-    // Scroll to bottom after render
     requestAnimationFrame(() => {
       host.scrollTop = host.scrollHeight;
     });
   }
 
   // ============================================================
-  // Send message — keeps text on error, appends live on success
+  // SSE — real-time incoming messages
+  // ============================================================
+  Messages.openStream = function (convId) {
+    if (currentStream) {
+      currentStream.close();
+      currentStream = null;
+    }
+
+    const token_ = token();
+    if (!token_) return;
+
+    const url = `/conversations/${convId}/stream?token=${encodeURIComponent(token_)}`;
+    const stream = new EventSource(url);
+    currentStream = stream;
+
+    stream.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        const host = document.getElementById("chat-messages");
+        if (!host) return;
+
+        // Dedupe: skip if already rendered (sent by us and appended live)
+        if (host.querySelector(`[data-message-id="${msg.message_id}"]`)) return;
+
+        appendMessage(msg);
+      } catch (e) {
+        console.warn("Bad SSE message:", e);
+      }
+    };
+
+    stream.onerror = () => {
+      console.warn("SSE stream error — browser will retry automatically");
+    };
+  };
+
+  Messages.closeStream = function () {
+    if (currentStream) {
+      currentStream.close();
+      currentStream = null;
+    }
+  };
+
+  window.addEventListener("beforeunload", () => {
+    Messages.closeStream();
+  });
+
+  // ============================================================
+  // Send message
   // ============================================================
   Messages.sendMessage = async function (convId) {
     const token_ = token();
@@ -204,7 +254,6 @@
         const detail = (data && data.detail) || "Failed to send message.";
         errorBox.textContent = detail;
         errorBox.classList.add("show");
-        // Keep text so user can edit and retry
         input.value = originalValue;
       }
     } catch (e) {
@@ -218,7 +267,7 @@
   };
 
   // ============================================================
-  // Append message — defensive + proper scroll timing
+  // Append message
   // ============================================================
   function appendMessage(msg) {
     const host = document.getElementById("chat-messages");
@@ -227,7 +276,6 @@
       return;
     }
 
-    // Remove any placeholder text (loading state)
     host.querySelectorAll(".loading-text, .empty-state").forEach((p) => p.remove());
 
     const myId = String(getUserId());
@@ -236,6 +284,7 @@
 
     const wrapper = document.createElement("div");
     wrapper.className = `msg-row ${side}`;
+    wrapper.setAttribute("data-message-id", msg.message_id);
     wrapper.innerHTML = `
       <div>
         <div class="msg-bubble">${esc(msg.message_text || "")}</div>
@@ -244,7 +293,6 @@
 
     host.appendChild(wrapper);
 
-    // Scroll AFTER browser paints the new element
     requestAnimationFrame(() => {
       host.scrollTop = host.scrollHeight;
     });

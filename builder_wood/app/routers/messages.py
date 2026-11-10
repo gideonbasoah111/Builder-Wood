@@ -8,23 +8,27 @@ Endpoints:
 - POST /conversations/{id}/messages — send a message
 - POST /conversations/{id}/mark-read — mark all messages as read
 - GET  /conversations/unread-count  — total unread
+- GET  /conversations/{id}/stream   — Server-Sent Events real-time stream
 
-Fixes applied:
-- Flagged messages (contact info attempts) are stored for admin audit,
-  but hidden from both participants in the chat view.
-- MySQL-compatible ordering (nullslast is PostgreSQL-only).
+Fixes:
+- Flagged messages hidden from participants
+- MySQL-compatible ordering (nullslast is PostgreSQL-only)
+- Real-time delivery via SSE so receiver doesn't need to refresh
 """
 from datetime import datetime, timedelta
 from typing import List, Optional
+import asyncio
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session, joinedload
 
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
-from builder_wood.app.auth import get_current_user
+from builder_wood.app.auth import get_current_user, decode_token
 from builder_wood.app.contact_filter import detect_contact_info
 
 logger = logging.getLogger(__name__)
@@ -88,10 +92,6 @@ def list_conversations(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    OPTIMIZED: 4 queries total regardless of conversation count.
-    MySQL ordering: NULL last via is_(None) boolean sort key.
-    """
     convs = (
         db.query(models.Conversation)
         .filter(
@@ -120,7 +120,6 @@ def list_conversations(
         for u in db.query(models.User).filter(models.User.user_id.in_(other_ids)).all()
     }
 
-    # Unread count excludes flagged messages
     stats_rows = (
         db.query(
             models.Message.conversation_id.label("conv_id"),
@@ -162,7 +161,6 @@ def list_conversations(
         stats = stats_map.get(conv.conversation_id, {"last_msg_id": None, "unread": 0})
         last_msg = last_msgs.get(stats["last_msg_id"]) if stats["last_msg_id"] else None
 
-        # Last message preview should also skip flagged (which shouldn't be last, but just in case)
         preview = None
         if last_msg and last_msg.message_text and not last_msg.is_flagged:
             preview = last_msg.message_text[:80]
@@ -187,7 +185,6 @@ def unread_count(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Single aggregate query, excluding flagged messages."""
     count = (
         db.query(func.count(models.Message.message_id))
         .join(models.Conversation, models.Message.conversation_id == models.Conversation.conversation_id)
@@ -234,6 +231,90 @@ def get_conversation(
 
 
 # ============================================================
+# GET /conversations/{id}/stream — REAL-TIME SSE
+# ============================================================
+@router.get("/conversations/{conversation_id}/stream")
+async def stream_conversation(
+    conversation_id: int,
+    token: str = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Server-Sent Events stream. Pushes new messages in real time.
+    Client stays connected; server pushes updates.
+    """
+    if not token:
+        raise HTTPException(401, "Token required")
+
+    try:
+        payload = decode_token(token)
+        user_id = payload.get("user_id")
+    except Exception:
+        raise HTTPException(401, "Invalid token")
+
+    if not user_id:
+        raise HTTPException(401, "Invalid token")
+
+    conv = db.query(models.Conversation).filter(
+        models.Conversation.conversation_id == conversation_id
+    ).first()
+
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    if user_id not in (conv.buyer_id, conv.seller_id):
+        raise HTTPException(403, "Not a participant")
+
+    async def event_generator():
+        last_message_id = 0
+        latest = db.query(func.max(models.Message.message_id)).filter(
+            models.Message.conversation_id == conversation_id
+        ).scalar()
+        if latest:
+            last_message_id = latest
+
+        while True:
+            await asyncio.sleep(2)
+
+            new_msgs = (
+                db.query(models.Message)
+                .options(joinedload(models.Message.sender))
+                .filter(
+                    models.Message.conversation_id == conversation_id,
+                    models.Message.message_id > last_message_id,
+                    models.Message.is_flagged.is_(False),
+                )
+                .order_by(models.Message.message_id.asc())
+                .all()
+            )
+
+            for m in new_msgs:
+                last_message_id = m.message_id
+                data = {
+                    "message_id": m.message_id,
+                    "conversation_id": m.conversation_id,
+                    "sender_id": m.sender_id,
+                    "sender_name": m.sender.name if m.sender else "Unknown",
+                    "message_text": m.message_text,
+                    "is_read": m.is_read,
+                    "is_flagged": m.is_flagged,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+
+            yield ": ping\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ============================================================
 # POST /conversations/{id}/messages
 # ============================================================
 @router.post("/conversations/{conversation_id}/messages", response_model=schemas.MessageOut)
@@ -271,7 +352,6 @@ def send_message(
             current_user.messaging_violations += 1
             violations = current_user.messaging_violations
 
-            # Save flagged message for admin audit — but NEVER shown to participants
             flagged = models.Message(
                 conversation_id=conversation_id,
                 sender_id=current_user.user_id,
@@ -361,12 +441,6 @@ def mark_read(
 # Internal helper
 # ============================================================
 def _build_conversation_detail(conv: models.Conversation, current_user: models.User, db: Session):
-    """
-    Fetches conversation detail with 3 queries:
-    1. Other party user
-    2. Wood context (if any)
-    3. Messages with senders eager-loaded (flagged excluded)
-    """
     other_id = conv.seller_id if conv.buyer_id == current_user.user_id else conv.buyer_id
     other = db.query(models.User).filter(models.User.user_id == other_id).first()
     other_role = "seller" if conv.buyer_id == current_user.user_id else "buyer"
@@ -383,7 +457,6 @@ def _build_conversation_detail(conv: models.Conversation, current_user: models.U
                 "price": float(wood.price_per_piece),
             }
 
-    # KEY FIX: exclude flagged messages from participant view
     messages = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))
