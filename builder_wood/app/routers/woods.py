@@ -13,7 +13,6 @@ from fastapi import (
     status,
 )
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
 from sqlalchemy import func as sqlfunc, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -90,7 +89,6 @@ def _serialize_seller(
     seller: Optional[models.User],
     *,
     include_contact: bool = False,
-    cache: Optional[dict[int, dict[str, Any]]] = None,
 ) -> Optional[dict[str, Any]]:
     """
     Public-safe seller shape by default.
@@ -99,26 +97,17 @@ def _serialize_seller(
     phone_number so contact information is only reachable through
     the in-app messaging system (/conversations/*).
 
-    Sellers viewing their own records still receive phone_number via
-    include_contact=True.
-
-    `cache` (keyed by user_id) avoids rebuilding the same dict for many
-    products owned by the same seller in a list response.
+    Sellers viewing their own records (my-products, create/update
+    responses) still receive phone_number via include_contact=True.
     """
     if not seller:
         return None
-    if cache is not None and seller.user_id in cache:
-        return cache[seller.user_id]
-
     payload: dict[str, Any] = {
         "user_id": seller.user_id,
         "name": seller.name,
     }
     if include_contact:
         payload["phone_number"] = seller.phone_number
-
-    if cache is not None:
-        cache[seller.user_id] = payload
     return payload
 
 
@@ -127,17 +116,7 @@ def _serialize_wood(
     *,
     full: bool = False,
     include_contact: bool = False,
-    light: bool = False,
-    seller_cache: Optional[dict[int, dict[str, Any]]] = None,
 ) -> dict[str, Any]:
-    """
-    Serialize a Wood row.
-
-    light=True  → omit the full `images` array, keep only `image_url`.
-                  Used by the catalogue list so the grid payload stays small.
-    full=True   → include the description field (detail / seller views).
-    include_contact=True → include seller.phone_number (seller-facing views).
-    """
     images = _serialize_images(wood)
     data: dict[str, Any] = {
         "wood_id": wood.wood_id,
@@ -168,12 +147,9 @@ def _serialize_wood(
             if wood.category
             else None
         ),
-        "seller": _serialize_seller(
-            wood.seller,
-            include_contact=include_contact,
-            cache=seller_cache,
-        ),
-        "images": [] if light else images,
+        "seller_id": wood.seller_id,
+        "seller": _serialize_seller(wood.seller, include_contact=include_contact),
+        "images": images,
         "image_url": images[0]["image_url"] if images else None,
     }
     if full:
@@ -243,14 +219,6 @@ def _delete_cloudinary_safely(url: Optional[str]) -> None:
 # Products explicitly disabled by the seller and soft-deleted products remain
 # hidden from the public catalogue.
 #
-# Optimizations vs. the unoptimized version:
-#   - light=True: catalogue rows omit the per-product images array and only
-#     include the primary image_url. The grid only uses image_url anyway.
-#   - X-Total-Count header so the frontend can paginate reliably.
-#   - category filter uses .has(...) instead of an extra join (avoids
-#     potential row duplication and a redundant JOIN in the SQL).
-#   - seller dict is cached per user_id within the response.
-#
 # Seller contact info (phone_number) is NOT included here. Buyers reach
 # the seller through /conversations/start.
 # ---------------------------------------------------------------------------
@@ -283,9 +251,9 @@ def list_woods(
     )
 
     if category:
-        # .has() produces an EXISTS subquery instead of an extra JOIN,
-        # so Wood rows cannot be duplicated by the relationship.
-        query = query.filter(models.Wood.category.has(slug=category))
+        query = query.join(models.Category).filter(
+            models.Category.slug == category
+        )
     if local_name:
         query = query.filter(models.Wood.local_name.ilike(local_name))
     if is_treated is not None:
@@ -316,21 +284,8 @@ def list_woods(
             models.Wood.created_at.desc(),
         )
 
-    total = query.order_by(None).count()
     rows = query.limit(limit).offset(offset).all()
-
-    seller_cache: dict[int, dict[str, Any]] = {}
-    payload = [
-        _serialize_wood(wood, light=True, seller_cache=seller_cache)
-        for wood in rows
-    ]
-    return JSONResponse(
-        content=payload,
-        headers={
-            "X-Total-Count": str(total),
-            "Access-Control-Expose-Headers": "X-Total-Count",
-        },
-    )
+    return [_serialize_wood(wood) for wood in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -401,12 +356,6 @@ def create_wood(
         )
 
     wood_data = payload.model_dump(exclude={"seller_id"})
-
-    # Keep is_available consistent with stock on creation so a 0-stock
-    # product does not briefly appear as available in the catalogue.
-    if wood_data.get("stock_quantity") is not None:
-        wood_data["is_available"] = wood_data["stock_quantity"] > 0
-
     wood = models.Wood(seller_id=current_seller.user_id, **wood_data)
 
     try:
@@ -515,12 +464,6 @@ def delete_wood(
 
 # ---------------------------------------------------------------------------
 # POST /woods/{wood_id}/images — upload product image
-#
-# Upload path is unchanged in this optimization pass:
-#   - content-type check
-#   - MAX_IMAGE_SIZE + 1 byte read (prevents unbounded buffering)
-#   - threadpool upload to Cloudinary
-#   - orphan cleanup if the DB insert fails
 # ---------------------------------------------------------------------------
 @router.post(
     "/{wood_id}/images",
