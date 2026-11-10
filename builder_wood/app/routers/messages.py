@@ -9,10 +9,9 @@ Endpoints:
 - POST /conversations/{id}/mark-read — mark all messages as read
 - GET  /conversations/unread-count — total unread
 
-Optimizations:
-- Batch-fetch users by ID (no per-conversation query)
-- Batch-fetch last message + unread count via correlated subqueries
-- joinedload for message.senders in conversation detail
+MySQL note:
+- NULLS LAST is PostgreSQL-only. MySQL sorts NULL first in ASC.
+- To force NULLs last, we sort by (last_message_at IS NULL) ASC, then DESC.
 """
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -81,7 +80,7 @@ def start_conversation(
 
 
 # ============================================================
-# GET /conversations — OPTIMIZED
+# GET /conversations — MySQL-compatible ordering
 # ============================================================
 @router.get("/conversations", response_model=List[schemas.ConversationSummaryOut])
 def list_conversations(
@@ -89,10 +88,9 @@ def list_conversations(
     current_user: models.User = Depends(get_current_user),
 ):
     """
-    OPTIMIZED: 3 queries total regardless of conversation count.
-    1. Fetch all conversations for the user
-    2. Batch-fetch all "other party" users
-    3. Batch-fetch last message + unread count per conversation (single query)
+    MySQL-compatible ordering:
+      ORDER BY (last_message_at IS NULL) ASC, last_message_at DESC
+    This puts NULL values last (they have is_null=1, sorted after is_null=0).
     """
     convs = (
         db.query(models.Conversation)
@@ -101,7 +99,10 @@ def list_conversations(
             | (models.Conversation.seller_id == current_user.user_id),
             models.Conversation.channel == "product",
         )
-        .order_by(models.Conversation.last_message_at.desc().nullslast())
+        .order_by(
+            models.Conversation.last_message_at.is_(None),
+            models.Conversation.last_message_at.desc(),
+        )
         .all()
     )
 
@@ -110,18 +111,15 @@ def list_conversations(
 
     conv_ids = [c.conversation_id for c in convs]
 
-    # Collect other-party user IDs in one pass
     other_ids = set()
     for c in convs:
         other_ids.add(c.seller_id if c.buyer_id == current_user.user_id else c.buyer_id)
 
-    # Batch fetch users
     users_map = {
         u.user_id: u
         for u in db.query(models.User).filter(models.User.user_id.in_(other_ids)).all()
     }
 
-    # Batch fetch last message + unread count per conversation (single query)
     stats_rows = (
         db.query(
             models.Message.conversation_id.label("conv_id"),
@@ -140,7 +138,6 @@ def list_conversations(
         .all()
     )
 
-    # Fetch the actual last messages for those convs
     last_msg_ids = [r.last_msg_id for r in stats_rows if r.last_msg_id]
     last_msgs = {}
     if last_msg_ids:
@@ -183,7 +180,6 @@ def unread_count(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Single aggregate query."""
     count = (
         db.query(func.count(models.Message.message_id))
         .join(models.Conversation, models.Message.conversation_id == models.Conversation.conversation_id)
@@ -199,7 +195,7 @@ def unread_count(
 
 
 # ============================================================
-# GET /conversations/{id} — OPTIMIZED
+# GET /conversations/{id}
 # ============================================================
 @router.get("/conversations/{conversation_id}", response_model=schemas.ConversationDetailOut)
 def get_conversation(
@@ -207,9 +203,6 @@ def get_conversation(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    OPTIMIZED: 1 query for conversation + 1 query for messages (with senders eager).
-    """
     conv = db.query(models.Conversation).filter(
         models.Conversation.conversation_id == conversation_id
     ).first()
@@ -352,15 +345,9 @@ def mark_read(
 
 
 # ============================================================
-# Internal helper — also optimized
+# Internal helper
 # ============================================================
 def _build_conversation_detail(conv: models.Conversation, current_user: models.User, db: Session):
-    """
-    OPTIMIZED: 3 queries total.
-    1. Fetch other party user
-    2. Fetch wood context (if any)
-    3. Fetch messages with senders eager-loaded
-    """
     other_id = conv.seller_id if conv.buyer_id == current_user.user_id else conv.buyer_id
     other = db.query(models.User).filter(models.User.user_id == other_id).first()
     other_role = "seller" if conv.buyer_id == current_user.user_id else "buyer"
@@ -377,7 +364,6 @@ def _build_conversation_detail(conv: models.Conversation, current_user: models.U
                 "price": float(wood.price_per_piece),
             }
 
-    # Single query with sender eager-loaded
     messages = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))
