@@ -22,6 +22,7 @@ from builder_wood.app.routers import (
     admin_wallet,
     auth,
     cart,
+    messages,
     orders,
     payments,
     seller,
@@ -48,19 +49,13 @@ async def lifespan(app: FastAPI):
             db = SessionLocal()
             try:
                 existing = db.query(User).filter(User.email == admin_email).first()
-                if existing:
-                    logger.info("Bootstrap admin already exists: %s", admin_email)
-                else:
-                    db.add(
-                        User(
-                            name=admin_name,
-                            email=admin_email,
-                            phone_number=admin_phone,
-                            password_hash=get_password_hash(admin_password),
-                            role="admin",
-                            is_active=True,
-                        )
-                    )
+                if not existing:
+                    db.add(User(
+                        name=admin_name, email=admin_email,
+                        phone_number=admin_phone,
+                        password_hash=get_password_hash(admin_password),
+                        role="admin", is_active=True,
+                    ))
                     db.commit()
                     logger.warning("Bootstrap admin created: %s", admin_email)
             finally:
@@ -74,7 +69,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="Timber marketplace",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -90,6 +85,7 @@ app.include_router(seller_payout.router)
 app.include_router(wallet.router)
 app.include_router(auth.router)
 app.include_router(cart.router)
+app.include_router(messages.router)          # ← NEW
 app.include_router(payments.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
@@ -160,6 +156,20 @@ def product_detail_page(request: Request, wood_id: int):
 def seller_wallet_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="seller_wallet.html", context={"shop_name": settings.APP_NAME}
+    )
+
+@app.get("/messages", response_class=HTMLResponse)
+def messages_inbox_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="messages_inbox.html", context={"shop_name": settings.APP_NAME}
+    )
+
+
+@app.get("/messages/{conversation_id}", response_class=HTMLResponse)
+def messages_chat_page(request: Request, conversation_id: int):
+    return templates.TemplateResponse(
+        request=request, name="messages_chat.html",
+        context={"shop_name": settings.APP_NAME, "conversation_id": conversation_id},
     )
 
 

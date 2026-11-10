@@ -23,6 +23,8 @@ class User(Base):
     payout_bank_name = Column(String(100), nullable=True)
     payout_account_number = Column(String(20), nullable=True)
     payout_account_name = Column(String(150), nullable=True)
+    messaging_violations = Column(Integer, nullable=False, default=0)
+    messaging_banned_until = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp(),
                         onupdate=func.current_timestamp())
@@ -105,7 +107,7 @@ class Wood(Base):
     images = relationship("WoodImage", back_populates="wood", cascade="all, delete-orphan",
                           order_by="WoodImage.display_order")
     order_items = relationship("OrderItem", back_populates="wood")
-    conversations = relationship("Conversation", back_populates="wood")
+    conversations = relationship("Conversation", back_populates="wood", foreign_keys="Conversation.wood_id")
 
     @property
     def size_label(self):
@@ -204,12 +206,14 @@ class Conversation(Base):
     buyer_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     seller_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="SET NULL"))
+    channel = Column(String(20), nullable=False, default="product")
+    last_context_wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="SET NULL"), nullable=True)
     last_message_at = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
-    __table_args__ = (UniqueConstraint("buyer_id", "seller_id", "wood_id", name="uq_conv"),)
+    __table_args__ = (UniqueConstraint("buyer_id", "seller_id", "channel", name="uq_conv_channel"),)
     buyer = relationship("User", back_populates="conversations_as_buyer", foreign_keys=[buyer_id])
     seller = relationship("User", back_populates="conversations_as_seller", foreign_keys=[seller_id])
-    wood = relationship("Wood", back_populates="conversations")
+    wood = relationship("Wood", back_populates="conversations", foreign_keys=[wood_id])
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan",
                             order_by="Message.created_at")
 
@@ -221,6 +225,8 @@ class Message(Base):
     sender_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     message_text = Column(Text)
     is_read = Column(Boolean, nullable=False, default=False)
+    is_flagged = Column(Boolean, nullable=False, default=False)
+    flag_reason = Column(String(100), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", back_populates="messages")

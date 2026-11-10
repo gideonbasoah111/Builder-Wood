@@ -114,6 +114,7 @@
       <a onclick="switchTab('orders')" id="tab-orders">📦 Orders</a>
       <a onclick="switchTab('withdrawals')" id="tab-withdrawals">💸 Withdrawals</a>
       <a onclick="switchTab('funds')" id="tab-funds">💰 Funds</a>
+      <a onclick="switchTab('messages')" id="tab-messages">💬 Messages</a>
     </div>
 
     <div id="users-view"><div id="list-container"><p class="empty-text">Loading...</p></div></div>
@@ -149,6 +150,14 @@
       <div id="funds-list-container"><p class="empty-text">Loading...</p></div>
     </div>
 
+    <div id="messages-view" style="display:none;">
+      <div class="sub-tabs">
+        <button class="active" onclick="switchModeration('flagged')" id="mod-tab-flagged">Flagged Messages</button>
+        <button onclick="switchModeration('users')" id="mod-tab-users">Users with Violations</button>
+      </div>
+      <div id="messages-list-container"><p class="empty-text">Loading...</p></div>
+    </div>
+
     <div class="msg" id="msg"></div>
   </main>
 
@@ -161,15 +170,18 @@
     const ordersContainer = document.getElementById("orders-list-container");
     const wdContainer = document.getElementById("withdrawals-list-container");
     const fundsContainer = document.getElementById("funds-list-container");
+    const modContainer = document.getElementById("messages-list-container");
     const usersView = document.getElementById("users-view");
     const ordersView = document.getElementById("orders-view");
     const wdView = document.getElementById("withdrawals-view");
     const fundsView = document.getElementById("funds-view");
+    const messagesView = document.getElementById("messages-view");
 
     let currentTab = "pending";
     let currentOrdersTab = "all";
     let currentFundsTab = "by-seller";
     let currentWdTab = "pending";
+    let currentModTab = "flagged";
 
     function fmtGHS(v) {
       const n = Number(v);
@@ -191,13 +203,15 @@
       currentTab = tab;
       document.querySelectorAll(".nav-tabs a").forEach(a => a.classList.remove("active"));
       document.getElementById("tab-" + tab).classList.add("active");
-      usersView.style.display = ["orders", "withdrawals", "funds"].includes(tab) ? "none" : "block";
+      usersView.style.display = ["orders", "withdrawals", "funds", "messages"].includes(tab) ? "none" : "block";
       ordersView.style.display = tab === "orders" ? "block" : "none";
       wdView.style.display = tab === "withdrawals" ? "block" : "none";
       fundsView.style.display = tab === "funds" ? "block" : "none";
+      messagesView.style.display = tab === "messages" ? "block" : "none";
       if (tab === "orders") loadOrders();
       else if (tab === "withdrawals") loadWithdrawals();
       else if (tab === "funds") { loadFundsSummary(); loadFundsData(); }
+      else if (tab === "messages") loadModerationData(currentModTab);
       else loadData();
     }
 
@@ -218,6 +232,12 @@
       document.querySelectorAll("#withdrawals-view .sub-tabs button").forEach(b => b.classList.remove("active"));
       document.getElementById("wd-tab-" + sub).classList.add("active");
       loadWithdrawals();
+    }
+    function switchModeration(sub) {
+      currentModTab = sub;
+      document.querySelectorAll("#messages-view .sub-tabs button").forEach(b => b.classList.remove("active"));
+      document.getElementById("mod-tab-" + sub).classList.add("active");
+      loadModerationData(sub);
     }
 
     async function loadData() {
@@ -379,7 +399,7 @@
       if (reason === null) return;
       try {
         const res = await fetch(`/admin/withdrawals/${id}/reject?reason=${encodeURIComponent(reason)}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
-        if (res.ok) { showMsg("✅ Rejected — funds refunded to seller wallet", false); loadWithdrawals(); }
+        if (res.ok) { showMsg("✅ Rejected — funds refunded", false); loadWithdrawals(); }
         else { const data = await res.json(); showMsg(`❌ ${data.detail || "Failed"}`, true); }
       } catch { showMsg("❌ Network error", true); }
     }
@@ -493,6 +513,51 @@
           <p><strong>Reason:</strong> ${f.transfer_failed_reason || "Unknown"}</p>
         </div>
       `).join("");
+    }
+
+    async function loadModerationData(sub) {
+      modContainer.innerHTML = '<p class="empty-text">Loading...</p>';
+      try {
+        if (sub === "flagged") {
+          const res = await fetch("/admin/messages/flagged", { headers: { "Authorization": `Bearer ${token}` } });
+          const data = await res.json();
+          if (!data.messages || !data.messages.length) {
+            modContainer.innerHTML = '<p class="empty-text">No flagged messages. ✅</p>';
+            return;
+          }
+          modContainer.innerHTML = `<table class="data-table">
+            <thead><tr><th>ID</th><th>Sender</th><th>Reason</th><th>Message</th><th>Date</th></tr></thead>
+            <tbody>${data.messages.map(m => `
+              <tr>
+                <td>#${m.message_id}</td>
+                <td>${m.sender_name}<br><span style="font-size:11px;color:var(--muted);">#${m.sender_id}</span></td>
+                <td><span class="status-badge status-failed">${m.flag_reason}</span></td>
+                <td style="max-width:300px;">${(m.message_text || "").slice(0, 100)}${(m.message_text || "").length > 100 ? "…" : ""}</td>
+                <td>${fmtDate(m.created_at)}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>`;
+        } else {
+          const res = await fetch("/admin/users/violations", { headers: { "Authorization": `Bearer ${token}` } });
+          const data = await res.json();
+          if (!data.users || !data.users.length) {
+            modContainer.innerHTML = '<p class="empty-text">No users with violations. ✅</p>';
+            return;
+          }
+          modContainer.innerHTML = `<table class="data-table">
+            <thead><tr><th>User</th><th>Email</th><th>Violations</th><th>Banned Until</th><th>Status</th></tr></thead>
+            <tbody>${data.users.map(u => `
+              <tr>
+                <td>${u.name}</td>
+                <td>${u.email}</td>
+                <td><span class="status-badge status-pending">${u.violations}</span></td>
+                <td>${u.messaging_banned_until ? fmtDate(u.messaging_banned_until) : "—"}</td>
+                <td>${u.is_active ? '<span class="status-badge status-active">Active</span>' : '<span class="status-badge status-inactive">Inactive</span>'}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>`;
+        }
+      } catch { modContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading moderation data.</p>`; }
     }
 
     async function releaseFunds(orderId) {

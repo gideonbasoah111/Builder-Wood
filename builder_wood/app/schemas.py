@@ -355,7 +355,7 @@ class FundsFailedOut(BaseModel):
 
 
 # ============================================================
-# CONVERSATIONS / MESSAGES
+# CONVERSATIONS / MESSAGES (basic — legacy)
 # ============================================================
 class ConversationCreate(BaseModel):
     seller_id: int
@@ -366,27 +366,55 @@ class MessageCreate(BaseModel):
     message_text: str = Field(min_length=1)
 
 
+# ============================================================
+# MESSAGING (full API)
+# ============================================================
+class StartConversationIn(BaseModel):
+    seller_id: int
+    wood_id: Optional[int] = None
+
+
+class MessageCreateIn(BaseModel):
+    message_text: str = Field(min_length=1, max_length=2000)
+
+
 class MessageOut(BaseModel):
     message_id: int
     conversation_id: int
     sender_id: int
+    sender_name: str
     message_text: Optional[str]
     is_read: bool
+    is_flagged: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class ConversationOut(BaseModel):
+class ConversationDetailOut(BaseModel):
     conversation_id: int
     buyer_id: int
     seller_id: int
-    wood_id: Optional[int] = None
+    channel: str
+    other_party_id: int
+    other_party_name: str
+    other_party_role: str
+    wood_context: Optional[dict] = None
+    messages: List[MessageOut] = []
+
+
+class ConversationSummaryOut(BaseModel):
+    conversation_id: int
+    other_party_name: str
+    other_party_role: str
+    last_message_preview: Optional[str] = None
     last_message_at: Optional[datetime] = None
-    created_at: datetime
+    unread_count: int = 0
 
-    model_config = ConfigDict(from_attributes=True)
 
+# ============================================================
+# PASSWORD RESET
+# ============================================================
 class ForgotPasswordIn(BaseModel):
     email: EmailStr
 

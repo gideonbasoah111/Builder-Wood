@@ -45,6 +45,56 @@
 
     .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
+    /* Upload progress bar */
+    .upload-progress {
+      margin-top: 14px;
+      padding: 16px;
+      background: var(--parchment);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .progress-bar-track {
+      height: 12px;
+      background: #e2d3b9;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--wood-med), var(--gold));
+      width: 0%;
+      transition: width 0.2s ease;
+      border-radius: 999px;
+    }
+    .progress-bar-fill.complete {
+      background: linear-gradient(90deg, var(--green), #2d5239);
+    }
+    .progress-bar-fill.error {
+      background: linear-gradient(90deg, var(--red), #7a1f1a);
+    }
+    .progress-label {
+      margin-top: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink-2);
+      text-align: center;
+    }
+    .progress-label .pct {
+      font-family: Fraunces, serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--wood-med);
+      margin-right: 8px;
+    }
+    .progress-label .stage {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
     @media (max-width: 700px) { .image-upload-section { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -70,6 +120,7 @@
       <a href="/seller/orders">My Orders</a>
       <a href="/seller/payout">Payout Account</a>
       <a href="/seller/wallet-page">💰 Wallet</a>
+      <a href="/messages">💬 Messages</a>
     </div>
 
     <div id="auth-warning" class="auth-warning">
@@ -130,7 +181,6 @@
         </div>
       </div>
 
-      <!-- FIX: numeric fields accept whole numbers OR decimals — no forced .5 steps -->
       <div class="row">
         <div class="form-group">
           <label for="thickness">Thickness (inches)</label>
@@ -193,6 +243,14 @@
       </div>
 
       <button type="submit" class="submit-btn" id="submit-btn">Publish to Store</button>
+
+      <div class="upload-progress" id="upload-progress" style="display:none;">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%;"></div>
+        </div>
+        <div class="progress-label" id="progress-label"></div>
+      </div>
+
       <div class="msg" id="msg" role="status" aria-live="polite"></div>
     </form>
   </main>
@@ -260,10 +318,14 @@
         return fallback;
       }
 
-      form.addEventListener("submit", async (e) => {
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
         msg.textContent = "";
         msg.className = "msg";
+
+        const progressBox = document.getElementById("upload-progress");
+        const progressFill = document.getElementById("progress-fill");
+        const progressLabel = document.getElementById("progress-label");
 
         if (!token) {
           msg.textContent = "You must be logged in.";
@@ -289,45 +351,97 @@
         formData.set("is_treated", form.is_treated.checked ? "true" : "false");
 
         submitBtn.disabled = true;
-        msg.textContent = "Uploading...";
-        msg.classList.add("success");
+        msg.textContent = "";
+        progressBox.style.display = "block";
+        progressFill.className = "progress-bar-fill";
+        progressFill.style.width = "0%";
+        progressLabel.innerHTML = `<span class="pct">0%</span><span class="stage">Preparing upload...</span>`;
 
-        try {
-          const res = await fetch("/seller/add-wood", {
-            method: "POST",
-            headers: { Authorization: "Bearer " + token },
-            body: formData,
-          });
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/seller/add-wood", true);
+        xhr.setRequestHeader("Authorization", "Bearer " + token);
 
-          if (res.status === 401) {
-            msg.textContent = "Session expired. Please log in again.";
-            msg.className = "msg error";
+        xhr.upload.onprogress = (event) => {
+          if (!event.lengthComputable) return;
+          const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
+          progressFill.style.width = pct + "%";
+
+          const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
+          const totalMB = (event.total / (1024 * 1024)).toFixed(1);
+
+          let stage;
+          if (pct < 25) stage = `Uploading photos… ${uploadedMB}/${totalMB} MB`;
+          else if (pct < 60) stage = `Sending images to Cloudinary… ${uploadedMB}/${totalMB} MB`;
+          else if (pct < 90) stage = `Processing on server… ${uploadedMB}/${totalMB} MB`;
+          else stage = `Almost done… ${uploadedMB}/${totalMB} MB`;
+
+          progressLabel.innerHTML = `<span class="pct">${pct}%</span><span class="stage">${stage}</span>`;
+        };
+
+        xhr.upload.onload = () => {
+          progressFill.style.width = "95%";
+          progressLabel.innerHTML = `<span class="pct">95%</span><span class="stage">Server is saving your listing…</span>`;
+        };
+
+        xhr.onload = () => {
+          let data = null;
+          try { data = JSON.parse(xhr.responseText); } catch (_) {}
+
+          if (xhr.status === 401) {
+            progressFill.className = "progress-bar-fill error";
+            progressFill.style.width = "100%";
+            progressLabel.innerHTML = `<span class="pct">Error</span><span class="stage">Session expired. Please log in again.</span>`;
             setTimeout(() => { window.location.href = "/login"; }, 1500);
             return;
           }
 
-          let data = null;
-          try { data = await res.json(); } catch (_) { /* non-JSON response */ }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            progressFill.className = "progress-bar-fill complete";
+            progressFill.style.width = "100%";
+            progressLabel.innerHTML = `<span class="pct">100%</span><span class="stage">✓ Wood #${data && data.wood_id ? data.wood_id : ""} published successfully</span>`;
 
-          if (res.ok) {
             msg.textContent = "Success! Wood #" + (data && data.wood_id ? data.wood_id : "") + " added.";
             msg.className = "msg success";
+
             form.reset();
             document.querySelectorAll(".preview-container").forEach((p) => {
               p.classList.remove("visible");
               const img = p.querySelector("img");
               if (img) img.src = "";
             });
+
+            setTimeout(() => { progressBox.style.display = "none"; }, 4000);
           } else {
-            msg.textContent = "Error: " + renderError(data, "HTTP " + res.status);
+            const errorText = renderError(data, "HTTP " + xhr.status);
+            progressFill.className = "progress-bar-fill error";
+            progressFill.style.width = "100%";
+            progressLabel.innerHTML = `<span class="pct">Failed</span><span class="stage">${errorText}</span>`;
+
+            msg.textContent = "Error: " + errorText;
             msg.className = "msg error";
+
+            setTimeout(() => { progressBox.style.display = "none"; }, 6000);
           }
-        } catch (err) {
-          msg.textContent = "Error: network failure — " + ((err && err.message) || "unknown");
-          msg.className = "msg error";
-        } finally {
+
           submitBtn.disabled = false;
-        }
+        };
+
+        xhr.onerror = () => {
+          progressFill.className = "progress-bar-fill error";
+          progressFill.style.width = "100%";
+          progressLabel.innerHTML = `<span class="pct">Error</span><span class="stage">Network failure. Please check your connection and retry.</span>`;
+          msg.textContent = "Error: network failure.";
+          msg.className = "msg error";
+          submitBtn.disabled = false;
+          setTimeout(() => { progressBox.style.display = "none"; }, 6000);
+        };
+
+        xhr.onabort = () => {
+          progressBox.style.display = "none";
+          submitBtn.disabled = false;
+        };
+
+        xhr.send(formData);
       });
     })();
   </script>

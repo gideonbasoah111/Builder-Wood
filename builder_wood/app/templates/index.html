@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <script defer src="/static/app.js"></script>
+  <script defer src="/static/messages.js"></script>
 
   <style>
     :root {
@@ -104,8 +105,6 @@
     .product-grid { min-width: 0; }
     .product-grid > * { min-width: 0; }
 
-    /* FIX: removed .product-grid { grid-template-columns: 1fr; }
-       so styles.css controls the mobile 2-column Jumia layout */
     @media (max-width: 480px) {
       .section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
       .result-bar   { flex-wrap: wrap; gap: 8px; }
@@ -174,6 +173,25 @@
       .section-head h2   { font-size: 22px; }
       .container         { padding-inline: 14px; }
     }
+
+    /* Messages link badge */
+    #messages-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    #messages-badge {
+      display: none;
+      background: var(--red);
+      color: #fff;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      min-width: 16px;
+      text-align: center;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -206,6 +224,9 @@
           </div>
           <div id="auth-logged-in" class="auth-logged-in">
             <span id="user-greeting" class="user-greeting"></span>
+            <a href="/messages" id="messages-link" class="btn btn-outline" style="display:none;">
+              💬 Messages <span id="messages-badge">0</span>
+            </a>
             <a href="/my-orders" id="buyer-orders-link" class="btn btn-outline">My Orders</a>
             <a href="/seller/orders" id="dashboard-link" class="btn btn-outline">Dashboard</a>
             <button id="logout-btn" class="btn btn-outline logout-btn" type="button">Logout</button>
@@ -491,7 +512,6 @@
     </footer>
   </aside>
 
-  <!-- Floating cart pill — appears when cart has items -->
   <a href="#" class="floating-cart" id="floating-cart" aria-label="Open cart">
     <span class="floating-cart-icon">🛒</span>
     <span class="floating-cart-count" id="floating-cart-count">0</span>

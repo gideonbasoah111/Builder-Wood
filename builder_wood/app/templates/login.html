@@ -17,14 +17,20 @@
       padding-bottom: env(safe-area-inset-bottom, 0px);
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
+      background: var(--parchment);
     }
 
+    /* FIX 1: smaller top gap on desktop, minimal on phone */
     .auth-page {
-      max-width: 520px; margin: 60px auto; padding: 30px;
-      background: #fff; border: 1px solid var(--line);
+      max-width: 520px;
+      margin: 40px auto 40px;
+      padding: 30px;
+      background: #fff;
+      border: 1px solid var(--line);
       border-radius: var(--radius-lg);
       overflow-wrap: anywhere;
     }
+
     .header-main { flex-wrap: wrap; gap: 12px; }
     .header-main .catnav-quote { margin-left: auto; }
     @media (max-width: 480px) {
@@ -57,18 +63,34 @@
       font-family: inherit; font-size: 14px;
       background: #fff; color: var(--ink); outline: 0;
       transition: border-color .15s;
+      /* Prevent iOS zoom on focus */
+      -webkit-text-size-adjust: 100%;
     }
-    .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); }
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--wood-med);
+      box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.1);
+    }
 
-    /* Password eye toggle */
+    /* FIX 3: bigger tap target for the eye toggle */
     .password-field { position: relative; }
-    .password-field input { padding-right: 48px; }
+    .password-field input { padding-right: 56px; }
     .password-toggle {
-      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-      background: transparent; border: 0; padding: 6px 10px;
-      cursor: pointer; font-size: 16px; color: var(--muted);
-      border-radius: 6px; transition: background .15s, color .15s;
-      -webkit-tap-highlight-color: transparent; line-height: 1;
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: 0;
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--muted);
+      border-radius: 8px;
+      transition: background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .password-toggle:hover { color: var(--wood-med); background: var(--parchment); }
     .password-toggle:focus-visible { outline: 2px solid var(--wood-med); outline-offset: 2px; }
@@ -76,6 +98,8 @@
     .forgot-password-row { text-align: right; margin-top: -8px; margin-bottom: 12px; }
     .forgot-password-link {
       font-size: 12.5px; color: var(--wood-med); text-decoration: none; font-weight: 600;
+      padding: 8px 4px;
+      display: inline-block;
     }
     .forgot-password-link:hover { color: var(--wood-dark); text-decoration: underline; }
 
@@ -131,7 +155,6 @@
       line-height: 1.5;
     }
 
-    /* Payout section inside seller fields */
     .payout-section {
       margin-top: 14px;
       padding-top: 14px;
@@ -150,14 +173,17 @@
       line-height: 1.4;
     }
 
+    /* FIX 6: allow wrapping for payout type toggle on narrow screens */
     .payout-type-toggle {
       display: flex;
       gap: 8px;
       margin-bottom: 14px;
+      flex-wrap: wrap;
     }
     .payout-type-btn {
-      flex: 1;
-      padding: 10px;
+      flex: 1 1 140px;
+      min-height: 44px;
+      padding: 10px 12px;
       border: 1px solid var(--line-2);
       border-radius: 8px;
       background: #fff;
@@ -166,6 +192,7 @@
       cursor: pointer;
       text-align: center;
       transition: border-color .15s, background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .payout-type-btn.active {
       border-color: var(--wood-med);
@@ -176,18 +203,30 @@
     .payout-form { display: none; }
     .payout-form.active { display: block; }
 
+    /* Mobile responsive */
     @media (max-width: 600px) {
-      .auth-page { margin: 20px 12px; padding: 22px 18px; border-radius: 12px; }
+      /* FIX 1: tighter top gap on phone */
+      .auth-page { margin: 16px auto; padding: 20px 16px; border-radius: 12px; }
+
+      /* FIX 4: prevent iOS zoom on input focus */
       .form-group input, .form-group select { font-size: 16px; }
+
+      /* Bigger touch targets */
+      .submit-btn { min-height: 52px; font-size: 16px; }
+      .role-option { min-height: 52px; font-size: 14px; }
     }
+
     @media (max-width: 420px) {
-      .role-selector { flex-direction: column; }
-      .payout-type-toggle { flex-direction: column; }
+      /* FIX 5: keep role buttons side by side but readable */
+      .role-selector { flex-direction: row; gap: 8px; }
+      .role-option { padding: 10px 6px; font-size: 12.5px; }
       .auth-page { margin: 12px 8px; padding: 18px 14px; }
     }
+
     @media (max-width: 360px) {
       .auth-page { margin: 8px 4px; padding: 16px 12px; }
       .auth-tab { font-size: 13px; }
+      .role-option { font-size: 12px; padding: 8px 4px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -217,7 +256,8 @@
       <div class="form-group">
         <label for="login-email">Email</label>
         <input id="login-email" type="email" name="username" required
-               placeholder="you@example.com" autocomplete="email">
+               placeholder="you@example.com" autocomplete="email"
+               inputmode="email" autocapitalize="off" autocorrect="off">
       </div>
       <div class="form-group">
         <label for="login-password">Password</label>
@@ -249,18 +289,21 @@
 
       <div class="form-group">
         <label for="reg-name">Full Name</label>
-        <input id="reg-name" type="text" name="name" required autocomplete="name">
+        <input id="reg-name" type="text" name="name" required autocomplete="name"
+               autocapitalize="words">
       </div>
       <div class="form-group">
         <label for="reg-email">Email</label>
-        <input id="reg-email" type="email" name="email" required autocomplete="email">
+        <input id="reg-email" type="email" name="email" required autocomplete="email"
+               inputmode="email" autocapitalize="off" autocorrect="off">
       </div>
       <div class="form-group">
         <label for="reg-phone">Phone Number</label>
-        <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel">
+        <input id="reg-phone" type="tel" name="phone_number" required autocomplete="tel"
+               inputmode="tel">
       </div>
 
-      <!-- Seller-only fields (company/location/payout) -->
+      <!-- Seller-only fields -->
       <div class="seller-fields" id="seller-fields">
         <p class="seller-fields-note">
           These details will appear on your seller profile and are used for payouts. You can update them later in your dashboard.
@@ -268,12 +311,14 @@
         <div class="form-group">
           <label for="reg-company">Company / Shop Name</label>
           <input id="reg-company" type="text" name="company_name"
-                 placeholder="e.g. Mensah Timber" autocomplete="organization">
+                 placeholder="e.g. Mensah Timber" autocomplete="organization"
+                 autocapitalize="words">
         </div>
         <div class="form-group">
           <label for="reg-location">Location</label>
           <input id="reg-location" type="text" name="location"
-                 placeholder="e.g. Sokoban Wood Village, Kumasi" autocomplete="address-level2">
+                 placeholder="e.g. Sokoban Wood Village, Kumasi" autocomplete="address-level2"
+                 autocapitalize="words">
         </div>
 
         <!-- Payout account section -->
@@ -299,11 +344,13 @@
             </div>
             <div class="form-group">
               <label for="payout-momo-number">Mobile Number</label>
-              <input id="payout-momo-number" type="tel" placeholder="0244123456">
+              <input id="payout-momo-number" type="tel" placeholder="0244123456"
+                     inputmode="tel" autocomplete="tel">
             </div>
             <div class="form-group">
               <label for="payout-momo-name">Account Holder Name</label>
-              <input id="payout-momo-name" type="text" placeholder="Full name on the MoMo account">
+              <input id="payout-momo-name" type="text" placeholder="Full name on the MoMo account"
+                     autocapitalize="words">
             </div>
           </div>
 
@@ -317,11 +364,13 @@
             </div>
             <div class="form-group">
               <label for="payout-bank-number">Account Number</label>
-              <input id="payout-bank-number" type="text" placeholder="1234567890">
+              <input id="payout-bank-number" type="text" placeholder="1234567890"
+                     inputmode="numeric">
             </div>
             <div class="form-group">
               <label for="payout-bank-holder">Account Holder Name</label>
-              <input id="payout-bank-holder" type="text" placeholder="Full name on the bank account">
+              <input id="payout-bank-holder" type="text" placeholder="Full name on the bank account"
+                     autocapitalize="words">
             </div>
           </div>
         </div>
@@ -409,7 +458,6 @@
         loadPayoutOptions();
       } else {
         sellerFields.classList.remove("show");
-        // Clear seller fields
         document.getElementById("reg-company").value = "";
         document.getElementById("reg-location").value = "";
         document.getElementById("payout-momo-number").value = "";
@@ -444,15 +492,13 @@
       });
     });
 
-    // --- Load payout options (networks + banks) from API ---
+    // --- Load payout options ---
     let payoutOptionsLoaded = false;
 
     async function loadPayoutOptions() {
       if (payoutOptionsLoaded) return;
 
       try {
-        // Get a temporary admin token for the options endpoint
-        // (payout options are a public read — no auth needed if endpoint allows)
         const res = await fetch("/seller/payout/options-public");
         if (!res.ok) {
           console.warn("Payout options endpoint not available yet");
@@ -465,7 +511,6 @@
           networkSel.innerHTML = '<option value="">Select network</option>' +
             data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
         } else {
-          // Fallback: hardcoded telco codes
           networkSel.innerHTML = `
             <option value="">Select network</option>
             <option value="MTN">MTN Mobile Money</option>
@@ -483,7 +528,6 @@
         payoutOptionsLoaded = true;
       } catch (err) {
         console.warn("Could not load payout options:", err);
-        // Fallback networks
         const networkSel = document.getElementById("payout-momo-network");
         networkSel.innerHTML = `
           <option value="">Select network</option>
@@ -535,10 +579,7 @@
           localStorage.setItem("bw_token", data.access_token);
           localStorage.setItem("bw_role", data.role || "");
           localStorage.setItem("bw_name", data.name || "");
-          localStorage.setItem(
-            "bw_user_id",
-            data.user_id != null ? String(data.user_id) : ""
-          );
+          localStorage.setItem("bw_user_id", data.user_id != null ? String(data.user_id) : "");
 
           setMsg(msg, "Login successful! Redirecting...", "var(--green)");
           setTimeout(() => { window.location.href = "/"; }, 700);
@@ -569,12 +610,10 @@
         role: roleInput.value,
       };
 
-      // Add seller fields
       if (isSeller) {
         payload.company_name = document.getElementById("reg-company").value.trim() || null;
         payload.location = document.getElementById("reg-location").value.trim() || null;
 
-        // Add payout details
         if (currentPayoutType === "mobile_money") {
           const network = document.getElementById("payout-momo-network").value;
           const number = document.getElementById("payout-momo-number").value.trim();
@@ -604,7 +643,6 @@
         }
       }
 
-      // Client-side validation
       if (!payload.name || !payload.email || !payload.phone_number || payload.password.length < 6) {
         setMsg(msg, "Please fill in all required fields (password ≥ 6 chars).", "var(--red)");
         return;

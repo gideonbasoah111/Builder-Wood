@@ -25,9 +25,6 @@
     .empty-text { text-align: center; padding: 40px; color: var(--muted); }
     .btn { padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-block; }
     .btn-primary { background: var(--wood-med); color: #fff; }
-    .msg { margin-top: 15px; text-align: center; font-weight: 600; min-height: 20px; }
-    .msg.ok { color: var(--green); }
-    .msg.err { color: var(--red); }
   </style>
 </head>
 <body>
@@ -53,13 +50,12 @@
       <a href="/seller/orders">My Orders</a>
       <a href="/seller/payout">Payout Account</a>
       <a href="/seller/wallet-page">💰 Wallet</a>
+      <a href="/messages">💬 Messages</a>
     </div>
 
     <div id="products-grid" class="product-grid">
       <p class="empty-text">Loading...</p>
     </div>
-
-    <div class="msg" id="msg"></div>
   </main>
 
   <script>

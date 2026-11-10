@@ -104,10 +104,10 @@
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
-      var phone = p.seller_phone ? p.seller_phone.replace(/\D/g, '') : '';
-      var waLink = phone
-        ? `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(p.seller_name)}, I am interested in buying ${encodeURIComponent(p.display_name)}`
-        : '#';
+      // In-app message button (replaces WhatsApp link)
+      var msgSellerBtn = !isMyProduct
+        ? '<button class="add-btn" style="background:var(--green);" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller">💬</button>'
+        : '';
 
       var addButton;
       if (isMyProduct) {
@@ -140,7 +140,7 @@
                 '<small>per piece</small>' +
               '</div>' +
               '<div style="display:flex; gap:5px;">' +
-                '<a href="' + waLink + '" target="_blank" class="add-btn" style="background:var(--green); text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Contact Seller">💬</a>' +
+                msgSellerBtn +
                 addButton +
               '</div>' +
             '</div>' +
@@ -274,18 +274,18 @@
       );
     }).join("");
 
+    // Keep the seller contact option at the bottom (still uses phone/WhatsApp for cart-wide question)
     var firstItem = state.cart[0];
-    if (firstItem && firstItem.seller_phone) {
-        var phone = firstItem.seller_phone.replace(/\D/g, '');
-        var waLink = `https://wa.me/233${phone.slice(-9)}?text=Hello ${encodeURIComponent(firstItem.seller_name || "seller")}, I have a question about my cart.`;
-
-        cartHtml += `
-          <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">
-            <a href="${waLink}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px;">
-                💬 Message Seller Before Buying
-            </a>
-          </div>
-        `;
+    if (firstItem && firstItem.seller_phone && window.Messages && firstItem.seller_id) {
+      cartHtml += `
+        <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">
+          <button type="button"
+                  style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px; background:#fff; cursor:pointer;"
+                  onclick="window.Messages.startConversation('${esc(firstItem.seller_id)}', '${esc(firstItem.wood_id)}')">
+              💬 Message Seller Before Buying
+          </button>
+        </div>
+      `;
     }
 
     host.innerHTML = cartHtml;
@@ -336,6 +336,18 @@
   }
 
   document.addEventListener("click", function (e) {
+    // In-app messaging button (product cards)
+    var msgBtn = e.target.closest("[data-message-seller]");
+    if (msgBtn) {
+      e.preventDefault();
+      if (window.Messages) {
+        window.Messages.startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId);
+      } else {
+        toast("Messaging is loading. Try again.");
+      }
+      return;
+    }
+
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
@@ -419,12 +431,19 @@
     var greeting = document.getElementById("user-greeting");
     var dashboardLink = document.getElementById("dashboard-link");
     var buyerOrdersLink = document.getElementById("buyer-orders-link");
+    var messagesLink = document.getElementById("messages-link");
 
     if (loggedOut && loggedIn) {
       if (token && name) {
         loggedOut.style.display = "none";
         loggedIn.style.display = "flex";
         greeting.textContent = "Hi, " + name.split(" ")[0];
+
+        // Show Messages link for all logged-in users
+        if (messagesLink) {
+          messagesLink.style.display = "inline-flex";
+          if (window.Messages) window.Messages.refreshUnreadBadge();
+        }
 
         if (role === "seller" || role === "admin") {
           dashboardLink.style.display = "inline-block";
@@ -438,6 +457,7 @@
       } else {
         loggedOut.style.display = "flex";
         loggedIn.style.display = "none";
+        if (messagesLink) messagesLink.style.display = "none";
       }
     }
 
