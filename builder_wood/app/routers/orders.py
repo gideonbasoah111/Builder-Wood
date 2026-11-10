@@ -22,7 +22,6 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 MIN_DISTANCE_KM = Decimal("1.0")
 COMMISSION_RATE = Decimal("0.05")
-PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
 
 
 # ============================================================
@@ -122,73 +121,22 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
 
 
 # ============================================================
-# Paystack transfer (with DEMO_MODE support)
+# Release order to WALLET (no Paystack)
 # ============================================================
 def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
     """
-    Initiate a Paystack transfer to the seller.
-    In DEMO_MODE, simulates success without calling Paystack.
+    Release order payout to the seller's WALLET (not Paystack).
+
+    The Paystack transfer happens later, only when the seller
+    requests a withdrawal (via admin_wallet.approve_withdrawal).
     """
-    if order.settlement_status in ("transferring", "settled"):
-        raise HTTPException(400, "Settlement already in progress or complete.")
-    if order.is_funds_released:
-        raise HTTPException(400, "Funds already released.")
-    if not order.seller_payout_amount or order.seller_payout_amount <= 0:
-        raise HTTPException(400, "No payout amount set on this order.")
-
-    seller = db.query(models.User).filter(models.User.user_id == order.seller_id).first()
-    if not seller:
-        raise HTTPException(404, "Seller not found.")
-    if not seller.paystack_recipient_code:
-        raise HTTPException(400, "Seller has not registered a payout account.")
-
-    reference = f"BW-PAYOUT-{order.order_id}-{uuid.uuid4().hex[:8]}".lower()
-
-    # ---------- DEMO MODE ----------
-    if os.getenv("DEMO_MODE", "false").lower() == "true":
-        logger.warning(
-            f"[DEMO MODE] Simulating transfer for order {order.order_id}, ref: {reference}"
-        )
-        order.settlement_status = "settled"
-        order.transfer_reference = reference
-        order.funds_released_at = datetime.utcnow()
-        order.is_funds_released = True
-        order.transfer_failed_reason = None
-        db.commit()
-        return reference
-    # ---------- END DEMO MODE ----------
-
-    amount_pesewas = int(
-        (Decimal(str(order.seller_payout_amount)) * 100).quantize(Decimal("1"))
+    from builder_wood.app.wallet_service import (
+        release_order_to_wallet,
+        auto_create_withdrawal_if_eligible,
     )
 
-    try:
-        resp = requests.post(
-            PAYSTACK_TRANSFER_URL,
-            headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"},
-            json={
-                "source": "balance",
-                "amount": amount_pesewas,
-                "recipient": seller.paystack_recipient_code,
-                "reason": f"Builder Wood payout for order #{order.order_id}",
-                "reference": reference,
-            },
-            timeout=20,
-        )
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise HTTPException(502, f"Paystack unreachable: {exc}")
-
-    if not data.get("status"):
-        order.settlement_status = "not_eligible"
-        order.transfer_failed_reason = data.get("message", "Unknown transfer error")
-        db.commit()
-        raise HTTPException(400, f"Transfer rejected: {data.get('message')}")
-
-    order.settlement_status = "transferring"
-    order.transfer_reference = reference
-    order.transfer_failed_reason = None
-    db.commit()
+    reference = release_order_to_wallet(db, order)
+    auto_create_withdrawal_if_eligible(db, order.seller_id)
     return reference
 
 
@@ -341,7 +289,7 @@ def create_order(
 
 
 # ============================================================
-# Update order status (seller marks shipped/delivered)
+# Update order status
 # ============================================================
 @router.patch("/{order_id}/status", response_model=OrderOut)
 def update_order_status(
@@ -386,7 +334,7 @@ def update_order_status(
 
 
 # ============================================================
-# Admin release funds
+# Admin release funds → credits WALLET (no Paystack)
 # ============================================================
 @router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
 def admin_release_funds(
@@ -419,7 +367,7 @@ def admin_release_funds(
 
 
 # ============================================================
-# Buyer confirms delivery
+# Buyer confirms delivery → credits WALLET (no Paystack)
 # ============================================================
 @router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
 def buyer_confirm_delivery(
@@ -518,6 +466,8 @@ def open_dispute(
     order.dispute_reason = payload.reason
     order.disputed_at = datetime.utcnow()
     order.auto_confirm_at = None
+    order.frozen_payout = True
+    order.frozen_at = datetime.utcnow()
 
     db.add(models.OrderStatusHistory(
         order_id=order.order_id, old_status="delivered",
