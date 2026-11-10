@@ -2,31 +2,36 @@
 In-app messaging between buyers and sellers.
 
 Endpoints:
-- POST /conversations/start         — get or create conversation
-- GET  /conversations               — list user's conversations
-- GET  /conversations/{id}          — get conversation with messages
-- POST /conversations/{id}/messages — send a message
+- POST /conversations/start          — get or create conversation
+- GET  /conversations                — list user's conversations
+- GET  /conversations/{id}           — get conversation with messages
+- POST /conversations/{id}/messages  — send a message (contact-info filtered)
 - POST /conversations/{id}/mark-read — mark all messages as read
-- GET  /conversations/unread-count  — total unread
-- GET  /conversations/{id}/stream   — Server-Sent Events real-time stream
+- GET  /conversations/unread-count   — total unread
+- GET  /conversations/{id}/stream    — Server-Sent Events real-time stream
 
-Fixes:
-- Flagged messages hidden from participants
-- MySQL-compatible ordering (nullslast is PostgreSQL-only)
-- Real-time delivery via SSE so receiver doesn't need to refresh
+Delivery:
+- Messages appear to the receiver within ~1s (SSE poll interval = 1s).
+- SSE uses a short-lived DB session per poll so a connection is never pinned.
+
+Rules:
+- All buyer/seller communication goes through here.
+- Messages containing contact info are stored flagged (invisible to both
+  parties), counted as violations, and escalate to a temporary or permanent ban.
+- Flagged messages are never shown to participants.
 """
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import List
 import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session, joinedload
 
-from builder_wood.app.database import get_db
+from builder_wood.app.database import get_db, SessionLocal
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_user, decode_token
 from builder_wood.app.contact_filter import detect_contact_info
@@ -34,6 +39,10 @@ from builder_wood.app.contact_filter import detect_contact_info
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["messaging"])
+
+# How often the SSE loop polls for new messages. 1s keeps delivery
+# comfortably under the 3s SLA.
+SSE_POLL_INTERVAL_SECONDS = 1
 
 
 # ============================================================
@@ -237,11 +246,13 @@ def get_conversation(
 async def stream_conversation(
     conversation_id: int,
     token: str = None,
-    db: Session = Depends(get_db),
 ):
     """
-    Server-Sent Events stream. Pushes new messages in real time.
-    Client stays connected; server pushes updates.
+    Server-Sent Events stream.
+
+    Pushes new messages to the client within ~1s of them being saved.
+    Each poll opens a short-lived DB session so a pooled connection
+    is never held for the lifetime of the stream.
     """
     if not token:
         raise HTTPException(401, "Token required")
@@ -255,60 +266,73 @@ async def stream_conversation(
     if not user_id:
         raise HTTPException(401, "Invalid token")
 
-    conv = db.query(models.Conversation).filter(
-        models.Conversation.conversation_id == conversation_id
-    ).first()
+    with SessionLocal() as db:
+        conv = db.query(models.Conversation).filter(
+            models.Conversation.conversation_id == conversation_id
+        ).first()
 
-    if not conv:
-        raise HTTPException(404, "Conversation not found")
+        if not conv:
+            raise HTTPException(404, "Conversation not found")
 
-    if user_id not in (conv.buyer_id, conv.seller_id):
-        raise HTTPException(403, "Not a participant")
+        if user_id not in (conv.buyer_id, conv.seller_id):
+            raise HTTPException(403, "Not a participant")
 
-    async def event_generator():
-        last_message_id = 0
         latest = db.query(func.max(models.Message.message_id)).filter(
             models.Message.conversation_id == conversation_id
         ).scalar()
-        if latest:
-            last_message_id = latest
+
+    async def event_generator():
+        last_message_id = latest or 0
+
+        # Tell the client the stream is live so it can hide a spinner.
+        yield "event: open\ndata: {}\n\n"
 
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(SSE_POLL_INTERVAL_SECONDS)
 
-            new_msgs = (
-                db.query(models.Message)
-                .options(joinedload(models.Message.sender))
-                .filter(
-                    models.Message.conversation_id == conversation_id,
-                    models.Message.message_id > last_message_id,
-                    models.Message.is_flagged.is_(False),
-                )
-                .order_by(models.Message.message_id.asc())
-                .all()
-            )
+            try:
+                with SessionLocal() as db:
+                    new_msgs = (
+                        db.query(models.Message)
+                        .options(joinedload(models.Message.sender))
+                        .filter(
+                            models.Message.conversation_id == conversation_id,
+                            models.Message.message_id > last_message_id,
+                            models.Message.is_flagged.is_(False),
+                        )
+                        .order_by(models.Message.message_id.asc())
+                        .all()
+                    )
+                    payloads = [
+                        {
+                            "message_id": m.message_id,
+                            "conversation_id": m.conversation_id,
+                            "sender_id": m.sender_id,
+                            "sender_name": m.sender.name if m.sender else "Unknown",
+                            "message_text": m.message_text,
+                            "is_read": m.is_read,
+                            "is_flagged": m.is_flagged,
+                            "created_at": m.created_at.isoformat() if m.created_at else None,
+                        }
+                        for m in new_msgs
+                    ]
+            except Exception:
+                logger.exception("SSE poll failed for conversation %s", conversation_id)
+                payloads = []
 
-            for m in new_msgs:
-                last_message_id = m.message_id
-                data = {
-                    "message_id": m.message_id,
-                    "conversation_id": m.conversation_id,
-                    "sender_id": m.sender_id,
-                    "sender_name": m.sender.name if m.sender else "Unknown",
-                    "message_text": m.message_text,
-                    "is_read": m.is_read,
-                    "is_flagged": m.is_flagged,
-                    "created_at": m.created_at.isoformat() if m.created_at else None,
-                }
-                yield f"data: {json.dumps(data)}\n\n"
+            for data in payloads:
+                last_message_id = data["message_id"]
+                yield f"event: message\ndata: {json.dumps(data)}\n\n"
 
+            # Keep proxies from closing an idle connection.
             yield ": ping\n\n"
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
     )
@@ -324,12 +348,24 @@ def send_message(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if current_user.messaging_banned_until and current_user.messaging_banned_until > datetime.utcnow():
-        raise HTTPException(
-            403,
-            f"Messaging suspended until {current_user.messaging_banned_until.isoformat()}. "
-            f"Reason: repeated contact info sharing.",
-        )
+    now = datetime.now(timezone.utc)
+
+    banned_until = current_user.messaging_banned_until
+    if banned_until is not None:
+        if banned_until.tzinfo is None:
+            banned_until = banned_until.replace(tzinfo=timezone.utc)
+        if banned_until > now:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                {
+                    "code": "messaging_banned",
+                    "until": banned_until.isoformat(),
+                    "message": (
+                        f"Messaging suspended until {banned_until.isoformat()}. "
+                        "Reason: repeated contact info sharing."
+                    ),
+                },
+            )
 
     if not current_user.is_active:
         raise HTTPException(403, "Account inactive")
@@ -344,12 +380,14 @@ def send_message(
     if current_user.user_id not in (conv.buyer_id, conv.seller_id):
         raise HTTPException(403, "Not a participant")
 
-    text = payload.message_text.strip()
+    text = (payload.message_text or "").strip()
+    if not text:
+        raise HTTPException(400, "Message cannot be empty.")
 
     if conv.channel == "product":
         detection = detect_contact_info(text)
         if detection["detected"]:
-            current_user.messaging_violations += 1
+            current_user.messaging_violations = (current_user.messaging_violations or 0) + 1
             violations = current_user.messaging_violations
 
             flagged = models.Message(
@@ -366,10 +404,10 @@ def send_message(
             if violations == 1:
                 ban_msg = "This is your first warning."
             elif violations == 2:
-                current_user.messaging_banned_until = datetime.utcnow() + timedelta(hours=24)
+                current_user.messaging_banned_until = now + timedelta(hours=24)
                 ban_msg = "Your messaging is suspended for 24 hours."
             elif violations == 3:
-                current_user.messaging_banned_until = datetime.utcnow() + timedelta(days=7)
+                current_user.messaging_banned_until = now + timedelta(days=7)
                 ban_msg = "Your messaging is suspended for 7 days."
             elif violations >= 4:
                 current_user.is_active = False
@@ -378,9 +416,16 @@ def send_message(
             db.commit()
 
             raise HTTPException(
-                422,
-                f"Your message contains contact information ({detection['type']}). "
-                f"Please keep all communication on Builder Wood. {ban_msg}",
+                status.HTTP_403_FORBIDDEN,
+                {
+                    "code": "contact_info_blocked",
+                    "type": detection["type"],
+                    "violations": violations,
+                    "message": (
+                        f"Your message contains contact information ({detection['type']}). "
+                        f"Please keep all communication on Builder Wood. {ban_msg}"
+                    ).strip(),
+                },
             )
 
     msg = models.Message(
@@ -391,7 +436,7 @@ def send_message(
         is_flagged=False,
     )
     db.add(msg)
-    conv.last_message_at = datetime.utcnow()
+    conv.last_message_at = now
     db.commit()
     db.refresh(msg)
 
@@ -457,17 +502,19 @@ def _build_conversation_detail(conv: models.Conversation, current_user: models.U
                 "price": float(wood.price_per_piece),
             }
 
-    messages = (
+    # Newest 200 messages, returned oldest-to-newest for display.
+    newest = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))
         .filter(
             models.Message.conversation_id == conv.conversation_id,
             models.Message.is_flagged.is_(False),
         )
-        .order_by(models.Message.created_at.asc())
+        .order_by(models.Message.created_at.desc())
         .limit(200)
         .all()
     )
+    messages = list(reversed(newest))
 
     return {
         "conversation_id": conv.conversation_id,

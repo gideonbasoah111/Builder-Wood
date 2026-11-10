@@ -1,378 +1,168 @@
-/* ============================================================
-   In-app messaging shared JS.
-
-   Used by:
-   - messages_inbox.html (inbox list)
-   - messages_chat.html  (single conversation)
-   - index.html          (product card [💬] buttons + unread badge)
-
-   Features:
-   - Real-time delivery via Server-Sent Events (SSE)
-   - Live append of sent messages without refresh
-   - Defensive appendMessage with proper scroll timing
-   - Keeps text in input on error
-   ============================================================ */
-(function (window) {
+(() => {
   "use strict";
 
-  const Messages = {};
+  const token = localStorage.getItem("bw_token");
+  const convId = Number(
+    (window.location.pathname.match(/\/messages\/(\d+)/) || [])[1]
+  );
 
-  function token() {
-    return localStorage.getItem("bw_token");
+  const form = document.getElementById("message-form");
+  const input = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-btn");
+  const list = document.getElementById("messages-list");
+  const banner = document.getElementById("message-banner");
+  const statusPill = document.getElementById("conn-status");
+
+  let sending = false;
+  const renderedIds = new Set();
+
+  function showBanner(text, kind = "err") {
+    if (!banner) return;
+    banner.textContent = text;
+    banner.className = `message-banner ${kind}`;
+    banner.hidden = false;
+  }
+  function clearBanner() {
+    if (!banner) return;
+    banner.hidden = true;
+    banner.textContent = "";
   }
 
-  function getUserId() {
-    return localStorage.getItem("bw_user_id");
+  function setStatus(text, cls = "") {
+    if (!statusPill) return;
+    statusPill.textContent = text;
+    statusPill.className = `conn-status ${cls}`;
   }
 
-  function fmtTime(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) {
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  function appendMessage(m, opts = {}) {
+    if (!list || !m || m.is_flagged) return;
+    const id = Number(m.message_id);
+    if (Number.isFinite(id) && renderedIds.has(id)) return;
+    if (Number.isFinite(id)) renderedIds.add(id);
+
+    const el = document.createElement("div");
+    el.className = "msg-bubble";
+    if (m.sender_id && String(m.sender_id) === String(localStorage.getItem("bw_user_id"))) {
+      el.classList.add("mine");
     }
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+    el.dataset.messageId = m.message_id ?? "";
+    el.textContent = m.message_text;
+    if (opts.pending) el.classList.add("pending");
+
+    list.appendChild(el);
+    list.scrollTop = list.scrollHeight;
   }
 
-  function esc(v) {
-    return String(v == null ? "" : v).replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-    );
-  }
+  async function sendMessage(e) {
+    if (e) e.preventDefault();
+    if (sending) return;
 
-  // ============================================================
-  // Inbox
-  // ============================================================
-  Messages.loadInbox = async function (containerId) {
-    const host = document.getElementById(containerId);
-    const token_ = token();
-    if (!token_) {
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const res = await fetch("/conversations", {
-        headers: { Authorization: `Bearer ${token_}` },
-      });
-      if (!res.ok) throw new Error("Failed");
-      const convs = await res.json();
-
-      if (!convs.length) {
-        host.innerHTML = `
-          <div class="empty-state">
-            <div class="mark">💬</div>
-            <p><strong>No conversations yet.</strong></p>
-            <p>When you message a seller about a product, it will appear here.</p>
-          </div>`;
-        return;
-      }
-
-      const totalUnread = convs.reduce((s, c) => s + (c.unread_count || 0), 0);
-      const badge = document.getElementById("total-unread");
-      if (badge) {
-        badge.textContent = totalUnread > 0 ? `${totalUnread} unread` : "";
-      }
-
-      host.innerHTML = convs.map((c) => {
-        const initial = (c.other_party_name || "?").charAt(0).toUpperCase();
-        const unread = c.unread_count > 0;
-        return `
-          <a href="/messages/${c.conversation_id}" class="conv-item ${unread ? "unread" : ""}">
-            <div class="conv-avatar">${esc(initial)}</div>
-            <div class="conv-body">
-              <div class="conv-head">
-                <span class="conv-name">${esc(c.other_party_name)}</span>
-                <span class="conv-time">${fmtTime(c.last_message_at)}</span>
-              </div>
-              <div class="conv-role">${esc(c.other_party_role)}</div>
-              <div class="conv-preview">${esc(c.last_message_preview || "No messages yet")}</div>
-            </div>
-            ${unread ? `<span class="conv-badge">${c.unread_count}</span>` : ""}
-          </a>`;
-      }).join("");
-    } catch (e) {
-      host.innerHTML = `<p class="empty-state">Could not load conversations.</p>`;
-    }
-  };
-
-  // ============================================================
-  // Chat view
-  // ============================================================
-  let currentConvId = null;
-  let currentStream = null;
-
-  Messages.loadChat = async function (convId) {
-    currentConvId = convId;
-    const token_ = token();
-    if (!token_) {
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const res = await fetch(`/conversations/${convId}`, {
-        headers: { Authorization: `Bearer ${token_}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to load conversation");
-      }
-      const conv = await res.json();
-
-      document.getElementById("chat-title").textContent = conv.other_party_name || "Chat";
-      document.getElementById("chat-role").textContent = conv.other_party_role || "";
-
-      if (conv.wood_context) {
-        const banner = document.getElementById("wood-context");
-        banner.style.display = "block";
-        banner.innerHTML = `
-          About: <a href="/product/${conv.wood_context.wood_id}">${esc(conv.wood_context.local_name)} ${esc(conv.wood_context.size_label)}</a>
-          · GH₵${Number(conv.wood_context.price).toFixed(2)}`;
-      }
-
-      renderMessages(conv.messages);
-
-      // Open SSE stream for real-time updates
-      Messages.openStream(convId);
-    } catch (e) {
-      document.getElementById("chat-messages").innerHTML =
-        `<p class="loading-text">Could not load conversation.</p>`;
-    }
-  };
-
-  function renderMessages(messages) {
-    const host = document.getElementById("chat-messages");
-    if (!messages || !messages.length) {
-      host.innerHTML = `<p class="loading-text">No messages yet. Say hello 👋</p>`;
-      return;
-    }
-
-    const myId = String(getUserId());
-    host.innerHTML = messages.map((m) => {
-      const mine = String(m.sender_id) === myId;
-      const side = mine ? "sent" : "received";
-      return `
-        <div class="msg-row ${side}" data-message-id="${m.message_id}">
-          <div>
-            <div class="msg-bubble">${esc(m.message_text)}</div>
-            <div class="msg-meta">${mine ? "You" : esc(m.sender_name)} · ${fmtTime(m.created_at)}</div>
-          </div>
-        </div>`;
-    }).join("");
-
-    requestAnimationFrame(() => {
-      host.scrollTop = host.scrollHeight;
-    });
-  }
-
-  // ============================================================
-  // SSE — real-time incoming messages
-  // ============================================================
-  Messages.openStream = function (convId) {
-    if (currentStream) {
-      currentStream.close();
-      currentStream = null;
-    }
-
-    const token_ = token();
-    if (!token_) return;
-
-    const url = `/conversations/${convId}/stream?token=${encodeURIComponent(token_)}`;
-    const stream = new EventSource(url);
-    currentStream = stream;
-
-    stream.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        const host = document.getElementById("chat-messages");
-        if (!host) return;
-
-        // Dedupe: skip if already rendered (sent by us and appended live)
-        if (host.querySelector(`[data-message-id="${msg.message_id}"]`)) return;
-
-        appendMessage(msg);
-      } catch (e) {
-        console.warn("Bad SSE message:", e);
-      }
-    };
-
-    stream.onerror = () => {
-      console.warn("SSE stream error — browser will retry automatically");
-    };
-  };
-
-  Messages.closeStream = function () {
-    if (currentStream) {
-      currentStream.close();
-      currentStream = null;
-    }
-  };
-
-  window.addEventListener("beforeunload", () => {
-    Messages.closeStream();
-  });
-
-  // ============================================================
-  // Send message
-  // ============================================================
-  Messages.sendMessage = async function (convId) {
-    const token_ = token();
-    const input = document.getElementById("msg-input");
-    const btn = document.getElementById("msg-send");
-    const errorBox = document.getElementById("chat-error");
-
-    const text = input.value.trim();
+    const text = input?.value.trim() || "";
     if (!text) return;
 
-    errorBox.classList.remove("show");
-    errorBox.textContent = "";
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
 
-    btn.disabled = true;
-    const originalValue = input.value;
+    sending = true;
+    if (sendBtn) sendBtn.disabled = true;
+    clearBanner();
+
+    // Optimistic render so the sender sees it instantly.
+    const tempId = `tmp-${Date.now()}`;
+    appendMessage({ message_id: tempId, message_text: text }, { pending: true });
+    input.value = "";
 
     try {
       const res = await fetch(`/conversations/${convId}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token_}`,
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ message_text: text }),
       });
 
-      let data = null;
-      try { data = await res.json(); } catch (_) {}
-
       if (res.ok) {
-        input.value = "";
-        input.style.height = "auto";
-        appendMessage(data);
-      } else {
-        const detail = (data && data.detail) || "Failed to send message.";
-        errorBox.textContent = detail;
-        errorBox.classList.add("show");
-        input.value = originalValue;
-      }
-    } catch (e) {
-      errorBox.textContent = "Network error. Please try again.";
-      errorBox.classList.add("show");
-      input.value = originalValue;
-    } finally {
-      btn.disabled = false;
-      input.focus();
-    }
-  };
-
-  // ============================================================
-  // Append message
-  // ============================================================
-  function appendMessage(msg) {
-    const host = document.getElementById("chat-messages");
-    if (!host) {
-      console.warn("chat-messages element not found");
-      return;
-    }
-
-    host.querySelectorAll(".loading-text, .empty-state").forEach((p) => p.remove());
-
-    const myId = String(getUserId());
-    const mine = String(msg.sender_id) === myId;
-    const side = mine ? "sent" : "received";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = `msg-row ${side}`;
-    wrapper.setAttribute("data-message-id", msg.message_id);
-    wrapper.innerHTML = `
-      <div>
-        <div class="msg-bubble">${esc(msg.message_text || "")}</div>
-        <div class="msg-meta">${mine ? "You" : esc(msg.sender_name || "Unknown")} · ${fmtTime(msg.created_at)}</div>
-      </div>`;
-
-    host.appendChild(wrapper);
-
-    requestAnimationFrame(() => {
-      host.scrollTop = host.scrollHeight;
-    });
-  }
-
-  // ============================================================
-  // Start conversation from a product [💬] button
-  // ============================================================
-  Messages.startConversation = async function (sellerId, woodId) {
-    const token_ = token();
-    if (!token_) {
-      window.location.href = "/login";
-      return;
-    }
-
-    if (String(sellerId) === String(getUserId())) {
-      alert("You can't message yourself.");
-      return;
-    }
-
-    try {
-      const res = await fetch("/conversations/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token_}`,
-        },
-        body: JSON.stringify({
-          seller_id: parseInt(sellerId, 10),
-          wood_id: woodId ? parseInt(woodId, 10) : null,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        alert(data.detail || "Could not open conversation");
+        const msg = await res.json().catch(() => null);
+        // Remove the optimistic placeholder; the server echo will arrive
+        // via SSE and be rendered once (deduped by message_id).
+        const placeholder = list?.querySelector(`[data-message-id="${tempId}"]`);
+        if (placeholder) placeholder.remove();
+        if (msg) appendMessage(msg);
+        input.focus();
         return;
       }
 
-      const conv = await res.json();
-      window.location.href = `/messages/${conv.conversation_id}`;
-    } catch (e) {
-      alert("Network error");
-    }
-  };
+      // Non-OK: remove the optimistic bubble and restore the text.
+      const placeholder = list?.querySelector(`[data-message-id="${tempId}"]`);
+      if (placeholder) placeholder.remove();
+      input.value = text;
 
-  // ============================================================
-  // Unread badge (header)
-  // ============================================================
-  Messages.refreshUnreadBadge = async function () {
-    const token_ = token();
-    if (!token_) return 0;
+      const data = await res.json().catch(() => ({}));
+      const detail = data.detail;
 
-    try {
-      const res = await fetch("/conversations/unread-count", {
-        headers: { Authorization: `Bearer ${token_}` },
-      });
-      if (!res.ok) return 0;
-      const data = await res.json();
-      const badge = document.getElementById("messages-badge");
-      if (badge) {
-        if (data.unread_count > 0) {
-          badge.textContent = data.unread_count > 99 ? "99+" : data.unread_count;
-          badge.style.display = "inline-grid";
-        } else {
-          badge.style.display = "none";
-        }
+      if (res.status === 403 && detail && detail.code === "contact_info_blocked") {
+        showBanner(detail.message || "Contact info is not allowed.", "warn");
+        return;
       }
-      return data.unread_count;
-    } catch (e) {
-      return 0;
-    }
-  };
+      if (res.status === 403 && detail && detail.code === "messaging_banned") {
+        showBanner(detail.message || "Messaging is suspended.", "err");
+        if (sendBtn) sendBtn.disabled = true;
+        input.disabled = true;
+        return;
+      }
+      if (res.status === 422) {
+        showBanner("Your message could not be sent. Please rephrase.", "err");
+        return;
+      }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    if (document.getElementById("messages-badge")) {
-      Messages.refreshUnreadBadge();
-      setInterval(Messages.refreshUnreadBadge, 30000);
+      showBanner(
+        typeof detail === "string" ? detail : "Could not send message.",
+        "err"
+      );
+    } catch (err) {
+      const placeholder = list?.querySelector(`[data-message-id="${tempId}"]`);
+      if (placeholder) placeholder.remove();
+      input.value = text;
+      showBanner("Network error. Please try again.", "err");
+    } finally {
+      sending = false;
+      if (sendBtn) sendBtn.disabled = false;
     }
-  });
+  }
 
-  window.Messages = Messages;
-})(window);
+  // ONE submit path. No onclick on the button, no separate Enter handler.
+  form?.addEventListener("submit", sendMessage);
+
+  // Mark existing messages as read once the page is open.
+  if (token && convId) {
+    fetch(`/conversations/${convId}/mark-read`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+    }).catch(() => { /* best-effort */ });
+  }
+
+  // Real-time feed — events arrive within ~1s.
+  if (token && convId) {
+    setStatus("Connecting…", "connecting");
+    const es = new EventSource(
+      `/conversations/${convId}/stream?token=${encodeURIComponent(token)}`
+    );
+
+    es.addEventListener("open", () => setStatus("Live", "live"));
+
+    es.addEventListener("message", (ev) => {
+      try {
+        appendMessage(JSON.parse(ev.data));
+      } catch { /* ignore malformed */ }
+    });
+
+    // Keep EventSource alive on transient errors (browser auto-reconnects),
+    // but reflect the state to the user.
+    es.onerror = () => setStatus("Reconnecting…", "connecting");
+
+    window.addEventListener("beforeunload", () => es.close());
+  }
+})();
