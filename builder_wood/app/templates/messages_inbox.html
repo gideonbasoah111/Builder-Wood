@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Messages — Builder Wood</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .msg-page { max-width: 720px; margin: 40px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+    .msg-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 20px; }
+    .msg-header h2 { font-family: Fraunces, serif; margin: 0; }
+    .conv-list { display: flex; flex-direction: column; gap: 2px; }
+    .conv-item { display: flex; gap: 14px; padding: 14px 16px; border-radius: 10px; text-decoration: none; color: inherit; transition: background 0.15s; }
+    .conv-item:hover { background: var(--parchment); }
+    .conv-item.unread { background: #fdf7ee; }
+    .conv-item.unread:hover { background: var(--parchment); }
+    .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--wood-med); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+    .conv-body { flex: 1; min-width: 0; }
+    .conv-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+    .conv-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+    .conv-time { font-size: 11px; color: var(--muted); white-space: nowrap; margin-left: 8px; }
+    .conv-preview { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-badge { min-width: 20px; height: 20px; padding: 0 6px; background: var(--red); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; margin-top: 4px; }
+    .conv-role { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state .mark { font-size: 48px; opacity: 0.6; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-main">
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span>
+        <span class="brand-text">Builder<em>Wood</em><small>Messages</small></span>
+      </a>
+      <a class="catnav-quote" href="/" style="margin-left:auto;padding:8px 14px;color:var(--gold-2);font-weight:700;">← Back to shop</a>
+    </div>
+  </header>
+
+  <main class="msg-page">
+    <div class="msg-header">
+      <h2>💬 Messages</h2>
+      <span id="total-unread" style="font-size: 12.5px; color: var(--muted);"></span>
+    </div>
+
+    <div id="conv-list" class="conv-list">
+      <p class="empty-state">Loading...</p>
+    </div>
+  </main>
+
+  <script src="/static/messages.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      Messages.loadInbox("conv-list");
+    });
+  </script>
+</body>
+</html>

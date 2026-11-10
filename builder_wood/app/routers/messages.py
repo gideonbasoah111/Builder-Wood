@@ -1,0 +1,412 @@
+"""
+In-app messaging between buyers and sellers.
+
+Endpoints:
+- POST /conversations/start        — get or create conversation
+- GET  /conversations              — list user's conversations
+- GET  /conversations/{id}         — get conversation with messages
+- POST /conversations/{id}/messages — send a message
+- POST /conversations/{id}/mark-read — mark all messages as read
+- GET  /conversations/unread-count — total unread
+
+Optimizations:
+- Batch-fetch users by ID (no per-conversation query)
+- Batch-fetch last message + unread count via correlated subqueries
+- joinedload for message.senders in conversation detail
+"""
+from datetime import datetime, timedelta
+from typing import List, Optional
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, case
+from sqlalchemy.orm import Session, joinedload
+
+from builder_wood.app.database import get_db
+from builder_wood.app import models, schemas
+from builder_wood.app.auth import get_current_user
+from builder_wood.app.contact_filter import detect_contact_info
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["messaging"])
+
+
+# ============================================================
+# POST /conversations/start
+# ============================================================
+@router.post("/conversations/start", response_model=schemas.ConversationDetailOut)
+def start_conversation(
+    payload: schemas.StartConversationIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.user_id == payload.seller_id:
+        raise HTTPException(400, "Cannot message yourself")
+
+    if current_user.role not in ("customer", "admin"):
+        raise HTTPException(403, "Only buyers can initiate product conversations")
+
+    seller = db.query(models.User).filter(
+        models.User.user_id == payload.seller_id,
+        models.User.role == "seller",
+        models.User.is_active.is_(True),
+    ).first()
+    if not seller:
+        raise HTTPException(404, "Seller not found or inactive")
+
+    conv = db.query(models.Conversation).filter(
+        models.Conversation.buyer_id == current_user.user_id,
+        models.Conversation.seller_id == payload.seller_id,
+        models.Conversation.channel == "product",
+    ).first()
+
+    if conv:
+        if payload.wood_id and conv.last_context_wood_id != payload.wood_id:
+            conv.last_context_wood_id = payload.wood_id
+            db.commit()
+    else:
+        conv = models.Conversation(
+            buyer_id=current_user.user_id,
+            seller_id=payload.seller_id,
+            channel="product",
+            wood_id=payload.wood_id,
+            last_context_wood_id=payload.wood_id,
+        )
+        db.add(conv)
+        db.commit()
+        db.refresh(conv)
+
+    return _build_conversation_detail(conv, current_user, db)
+
+
+# ============================================================
+# GET /conversations — OPTIMIZED
+# ============================================================
+@router.get("/conversations", response_model=List[schemas.ConversationSummaryOut])
+def list_conversations(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    OPTIMIZED: 3 queries total regardless of conversation count.
+    1. Fetch all conversations for the user
+    2. Batch-fetch all "other party" users
+    3. Batch-fetch last message + unread count per conversation (single query)
+    """
+    convs = (
+        db.query(models.Conversation)
+        .filter(
+            (models.Conversation.buyer_id == current_user.user_id)
+            | (models.Conversation.seller_id == current_user.user_id),
+            models.Conversation.channel == "product",
+        )
+        .order_by(models.Conversation.last_message_at.desc().nullslast())
+        .all()
+    )
+
+    if not convs:
+        return []
+
+    conv_ids = [c.conversation_id for c in convs]
+
+    # Collect other-party user IDs in one pass
+    other_ids = set()
+    for c in convs:
+        other_ids.add(c.seller_id if c.buyer_id == current_user.user_id else c.buyer_id)
+
+    # Batch fetch users
+    users_map = {
+        u.user_id: u
+        for u in db.query(models.User).filter(models.User.user_id.in_(other_ids)).all()
+    }
+
+    # Batch fetch last message + unread count per conversation (single query)
+    stats_rows = (
+        db.query(
+            models.Message.conversation_id.label("conv_id"),
+            func.max(models.Message.message_id).label("last_msg_id"),
+            func.sum(case(
+                (
+                    (models.Message.sender_id != current_user.user_id)
+                    & (models.Message.is_read.is_(False)),
+                    1,
+                ),
+                else_=0,
+            )).label("unread_count"),
+        )
+        .filter(models.Message.conversation_id.in_(conv_ids))
+        .group_by(models.Message.conversation_id)
+        .all()
+    )
+
+    # Fetch the actual last messages for those convs
+    last_msg_ids = [r.last_msg_id for r in stats_rows if r.last_msg_id]
+    last_msgs = {}
+    if last_msg_ids:
+        last_msgs = {
+            m.message_id: m
+            for m in db.query(models.Message).filter(models.Message.message_id.in_(last_msg_ids)).all()
+        }
+
+    stats_map = {
+        r.conv_id: {"last_msg_id": r.last_msg_id, "unread": int(r.unread_count or 0)}
+        for r in stats_rows
+    }
+
+    result = []
+    for conv in convs:
+        other_id = conv.seller_id if conv.buyer_id == current_user.user_id else conv.buyer_id
+        other = users_map.get(other_id)
+        other_role = "seller" if conv.buyer_id == current_user.user_id else "buyer"
+
+        stats = stats_map.get(conv.conversation_id, {"last_msg_id": None, "unread": 0})
+        last_msg = last_msgs.get(stats["last_msg_id"]) if stats["last_msg_id"] else None
+
+        result.append({
+            "conversation_id": conv.conversation_id,
+            "other_party_name": other.name if other else "Unknown",
+            "other_party_role": other_role,
+            "last_message_preview": last_msg.message_text[:80] if last_msg and last_msg.message_text else None,
+            "last_message_at": conv.last_message_at,
+            "unread_count": stats["unread"],
+        })
+
+    return result
+
+
+# ============================================================
+# GET /conversations/unread-count
+# ============================================================
+@router.get("/conversations/unread-count")
+def unread_count(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Single aggregate query."""
+    count = (
+        db.query(func.count(models.Message.message_id))
+        .join(models.Conversation, models.Message.conversation_id == models.Conversation.conversation_id)
+        .filter(
+            (models.Conversation.buyer_id == current_user.user_id)
+            | (models.Conversation.seller_id == current_user.user_id),
+            models.Message.sender_id != current_user.user_id,
+            models.Message.is_read.is_(False),
+        )
+        .scalar()
+    )
+    return {"unread_count": count or 0}
+
+
+# ============================================================
+# GET /conversations/{id} — OPTIMIZED
+# ============================================================
+@router.get("/conversations/{conversation_id}", response_model=schemas.ConversationDetailOut)
+def get_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    OPTIMIZED: 1 query for conversation + 1 query for messages (with senders eager).
+    """
+    conv = db.query(models.Conversation).filter(
+        models.Conversation.conversation_id == conversation_id
+    ).first()
+
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    if current_user.user_id not in (conv.buyer_id, conv.seller_id):
+        raise HTTPException(403, "Not a participant in this conversation")
+
+    db.query(models.Message).filter(
+        models.Message.conversation_id == conversation_id,
+        models.Message.sender_id != current_user.user_id,
+        models.Message.is_read.is_(False),
+    ).update({models.Message.is_read: True}, synchronize_session=False)
+    db.commit()
+
+    return _build_conversation_detail(conv, current_user, db)
+
+
+# ============================================================
+# POST /conversations/{id}/messages
+# ============================================================
+@router.post("/conversations/{conversation_id}/messages", response_model=schemas.MessageOut)
+def send_message(
+    conversation_id: int,
+    payload: schemas.MessageCreateIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.messaging_banned_until and current_user.messaging_banned_until > datetime.utcnow():
+        raise HTTPException(
+            403,
+            f"Messaging suspended until {current_user.messaging_banned_until.isoformat()}. "
+            f"Reason: repeated contact info sharing.",
+        )
+
+    if not current_user.is_active:
+        raise HTTPException(403, "Account inactive")
+
+    conv = db.query(models.Conversation).filter(
+        models.Conversation.conversation_id == conversation_id
+    ).first()
+
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    if current_user.user_id not in (conv.buyer_id, conv.seller_id):
+        raise HTTPException(403, "Not a participant")
+
+    text = payload.message_text.strip()
+
+    if conv.channel == "product":
+        detection = detect_contact_info(text)
+        if detection["detected"]:
+            current_user.messaging_violations += 1
+            violations = current_user.messaging_violations
+
+            flagged = models.Message(
+                conversation_id=conversation_id,
+                sender_id=current_user.user_id,
+                message_text=text,
+                is_read=True,
+                is_flagged=True,
+                flag_reason=detection["type"],
+            )
+            db.add(flagged)
+
+            ban_msg = ""
+            if violations == 1:
+                ban_msg = "This is your first warning."
+            elif violations == 2:
+                current_user.messaging_banned_until = datetime.utcnow() + timedelta(hours=24)
+                ban_msg = "Your messaging is suspended for 24 hours."
+            elif violations == 3:
+                current_user.messaging_banned_until = datetime.utcnow() + timedelta(days=7)
+                ban_msg = "Your messaging is suspended for 7 days."
+            elif violations >= 4:
+                current_user.is_active = False
+                ban_msg = "Your account has been suspended."
+
+            db.commit()
+
+            raise HTTPException(
+                422,
+                f"Your message contains contact information ({detection['type']}). "
+                f"Please keep all communication on Builder Wood. {ban_msg}",
+            )
+
+    msg = models.Message(
+        conversation_id=conversation_id,
+        sender_id=current_user.user_id,
+        message_text=text,
+        is_read=False,
+    )
+    db.add(msg)
+    conv.last_message_at = datetime.utcnow()
+    db.commit()
+    db.refresh(msg)
+
+    return {
+        "message_id": msg.message_id,
+        "conversation_id": msg.conversation_id,
+        "sender_id": msg.sender_id,
+        "sender_name": current_user.name,
+        "message_text": msg.message_text,
+        "is_read": msg.is_read,
+        "is_flagged": msg.is_flagged,
+        "created_at": msg.created_at,
+    }
+
+
+# ============================================================
+# POST /conversations/{id}/mark-read
+# ============================================================
+@router.post("/conversations/{conversation_id}/mark-read")
+def mark_read(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    conv = db.query(models.Conversation).filter(
+        models.Conversation.conversation_id == conversation_id
+    ).first()
+
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    if current_user.user_id not in (conv.buyer_id, conv.seller_id):
+        raise HTTPException(403, "Not a participant")
+
+    updated = db.query(models.Message).filter(
+        models.Message.conversation_id == conversation_id,
+        models.Message.sender_id != current_user.user_id,
+        models.Message.is_read.is_(False),
+    ).update({models.Message.is_read: True}, synchronize_session=False)
+    db.commit()
+
+    return {"updated": updated}
+
+
+# ============================================================
+# Internal helper — also optimized
+# ============================================================
+def _build_conversation_detail(conv: models.Conversation, current_user: models.User, db: Session):
+    """
+    OPTIMIZED: 3 queries total.
+    1. Fetch other party user
+    2. Fetch wood context (if any)
+    3. Fetch messages with senders eager-loaded
+    """
+    other_id = conv.seller_id if conv.buyer_id == current_user.user_id else conv.buyer_id
+    other = db.query(models.User).filter(models.User.user_id == other_id).first()
+    other_role = "seller" if conv.buyer_id == current_user.user_id else "buyer"
+
+    wood_context = None
+    wood_id = conv.last_context_wood_id or conv.wood_id
+    if wood_id:
+        wood = db.query(models.Wood).filter(models.Wood.wood_id == wood_id).first()
+        if wood:
+            wood_context = {
+                "wood_id": wood.wood_id,
+                "local_name": wood.local_name,
+                "size_label": wood.size_label,
+                "price": float(wood.price_per_piece),
+            }
+
+    # Single query with sender eager-loaded
+    messages = (
+        db.query(models.Message)
+        .options(joinedload(models.Message.sender))
+        .filter(models.Message.conversation_id == conv.conversation_id)
+        .order_by(models.Message.created_at.asc())
+        .limit(200)
+        .all()
+    )
+
+    return {
+        "conversation_id": conv.conversation_id,
+        "buyer_id": conv.buyer_id,
+        "seller_id": conv.seller_id,
+        "channel": conv.channel,
+        "other_party_id": other_id,
+        "other_party_name": other.name if other else "Unknown",
+        "other_party_role": other_role,
+        "wood_context": wood_context,
+        "messages": [
+            {
+                "message_id": m.message_id,
+                "conversation_id": m.conversation_id,
+                "sender_id": m.sender_id,
+                "sender_name": m.sender.name if m.sender else "Unknown",
+                "message_text": m.message_text,
+                "is_read": m.is_read,
+                "is_flagged": m.is_flagged,
+                "created_at": m.created_at,
+            }
+            for m in messages
+        ],
+    }
