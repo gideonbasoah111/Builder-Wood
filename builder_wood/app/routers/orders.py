@@ -9,9 +9,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
 from builder_wood.app.database import get_db
-from builder_wood.app import models, schemas
+from builder_wood.app import models
 from builder_wood.app.auth import get_current_user, get_current_active_seller, get_current_admin
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
+from builder_wood.app.schemas import (
+    OrderOut,
+    DistanceEstimateIn,
+    DistanceEstimateOut,
+    SettlementStatusOut,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ MONEY_PLACES = Decimal("0.01")
 
 
 # ============================================================
-# Request/Response schemas (unchanged)
+# Request schemas (only those local to the router)
 # ============================================================
 class OrderItemIn(BaseModel):
     wood_id: int
@@ -46,38 +52,6 @@ class OrderStatusUpdateIn(BaseModel):
 
 class DisputeIn(BaseModel):
     reason: str
-
-
-class OrderItemOut(BaseModel):
-    order_item_id: int
-    wood_id: int
-    wood_name_snap: str
-    size_snap: str
-    quantity: int
-    price_at_purchase: Decimal
-
-    class Config:
-        from_attributes = True
-
-
-class OrderOut(BaseModel):
-    order_id: int
-    status: str
-    payment_status: Optional[str] = None
-    delivery_status: Optional[str] = None
-    settlement_status: Optional[str] = None
-    total_pieces: int
-    subtotal: Decimal
-    delivery_fee: Decimal
-    total_price: Decimal
-    currency: str
-    vehicle_id: Optional[int] = None
-    delivery_address: str
-    order_date: Optional[datetime] = None
-    items: List[OrderItemOut] = []
-
-    class Config:
-        from_attributes = True
 
 
 # ============================================================
@@ -138,8 +112,8 @@ def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
 # ============================================================
 # Distance quote
 # ============================================================
-@router.post("/estimate-distance", response_model=schemas.DistanceEstimateOut)
-def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends(get_db)):
+@router.post("/estimate-distance", response_model=DistanceEstimateOut)
+def estimate_distance(payload: DistanceEstimateIn, db: Session = Depends(get_db)):
     try:
         result = estimate_distance_from_address(payload.address, db)
     except DistanceError as exc:
@@ -155,8 +129,6 @@ def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends
 # Shared query helper
 # ============================================================
 def _order_query(db: Session):
-    # joinedload(items) → one LEFT JOIN, one result set.
-    # MySQL handles this efficiently with the FK index on order_items.order_id.
     return db.query(models.Order).options(joinedload(models.Order.items))
 
 
@@ -207,9 +179,6 @@ def create_order(
         except DistanceError as exc:
             raise HTTPException(400, f"Delivery distance failed: {exc}") from exc
 
-    # ------------------------------------------------------------------
-    # 1. Aggregate quantities per wood_id (a cart may repeat a product).
-    # ------------------------------------------------------------------
     requested_qty: Dict[int, int] = {}
     for line in payload.items:
         requested_qty[line.wood_id] = requested_qty.get(line.wood_id, 0) + line.quantity
@@ -219,18 +188,6 @@ def create_order(
 
     requested_ids = list(requested_qty.keys())
 
-    # ------------------------------------------------------------------
-    # 2. One SELECT with FOR UPDATE.
-    #
-    # MySQL (InnoDB):
-    #   SELECT ... WHERE wood_id IN (...) FOR UPDATE
-    # locks every matching row in the same transaction. That prevents two
-    # concurrent checkouts from both reading stock=1 and both decrementing.
-    #
-    # InnoDB only applies FOR UPDATE on the rows that satisfy the WHERE,
-    # so we filter on wood_id first. is_available / deleted_at are checked
-    # afterwards in Python to keep the lock set as small as possible.
-    # ------------------------------------------------------------------
     woods = (
         db.query(models.Wood)
         .filter(models.Wood.wood_id.in_(requested_ids))
@@ -239,9 +196,6 @@ def create_order(
     )
     woods_by_id: Dict[int, models.Wood] = {w.wood_id: w for w in woods}
 
-    # ------------------------------------------------------------------
-    # 3. Validate every line before mutating anything.
-    # ------------------------------------------------------------------
     items_by_seller: Dict[int, List[dict]] = {}
     for wood_id, qty in requested_qty.items():
         wood = woods_by_id.get(wood_id)
@@ -321,14 +275,6 @@ def create_order(
         current_user.address = payload.delivery_address
         current_user.location = payload.delivery_address
 
-    # ------------------------------------------------------------------
-    # 4. Bulk-delete the cart.
-    #
-    # MySQL + SQLAlchemy: the default synchronize_session=True makes
-    # SQLAlchemy SELECT every cart row so it can update in-memory objects.
-    # That's wasted work — the caller doesn't hold cart rows, and we're
-    # about to return orders. synchronize_session=False skips it.
-    # ------------------------------------------------------------------
     db.query(models.CartItem).filter(
         models.CartItem.user_id == current_user.user_id
     ).delete(synchronize_session=False)
@@ -398,7 +344,7 @@ def update_order_status(
 # ============================================================
 # Admin release funds
 # ============================================================
-@router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
+@router.post("/{order_id}/admin-release", response_model=SettlementStatusOut)
 def admin_release_funds(
     order_id: int,
     db: Session = Depends(get_db),
@@ -431,7 +377,7 @@ def admin_release_funds(
 # ============================================================
 # Buyer confirms delivery
 # ============================================================
-@router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
+@router.post("/{order_id}/confirm-delivery", response_model=SettlementStatusOut)
 def buyer_confirm_delivery(
     order_id: int,
     db: Session = Depends(get_db),
@@ -473,7 +419,7 @@ def buyer_confirm_delivery(
 # ============================================================
 # Settlement status
 # ============================================================
-@router.get("/{order_id}/settlement", response_model=schemas.SettlementStatusOut)
+@router.get("/{order_id}/settlement", response_model=SettlementStatusOut)
 def get_settlement_status(
     order_id: int,
     db: Session = Depends(get_db),
