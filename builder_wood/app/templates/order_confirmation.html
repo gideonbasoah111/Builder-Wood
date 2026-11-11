@@ -166,6 +166,12 @@
     @media (hover: hover) {
       .confirm-actions .btn:hover { filter: brightness(0.95); }
     }
+    .confirm-note {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
 
     /* ---------- tablet ---------- */
     @media (max-width: 720px) {
@@ -252,7 +258,7 @@
         <div class="confirm-mark">✓</div>
         <span class="confirm-status" id="status">Pending</span>
         <h1>Order received.</h1>
-        <p>We've sent your order to the seller. They'll confirm delivery and contact you shortly.</p>
+        <p>We've sent your order to the seller. They'll confirm delivery and reply through Builder Wood messages.</p>
         <div class="confirm-id" id="order-id">Loading order…</div>
 
         <table class="confirm-table" id="items-table">
@@ -275,8 +281,14 @@
 
         <div class="confirm-actions">
           <a class="btn btn-primary" href="/">Back to shop</a>
-          <a class="btn btn-gold" href="#" id="whatsapp-link">Message the seller</a>
+          <button class="btn btn-gold" id="msg-seller-btn" type="button" disabled>
+            💬 Message the seller
+          </button>
         </div>
+
+        <p class="confirm-note">
+          All communication with the seller happens securely inside Builder Wood.
+        </p>
       </div>
     </div>
   </main>
@@ -305,6 +317,8 @@
         return;
       }
 
+      let currentOrder = null;
+
       fetch("/orders/" + encodeURIComponent(orderId), {
         headers: { Authorization: "Bearer " + token },
       })
@@ -317,6 +331,8 @@
           throw new Error("HTTP " + r.status);
         })
         .then((order) => {
+          currentOrder = order;
+
           $("#order-id").textContent = "Order #" + (order.order_id ?? "");
           const s = String(order.status || "");
           $("#status").textContent = s ? s.charAt(0).toUpperCase() + s.slice(1) : "—";
@@ -329,8 +345,7 @@
             const sizeText =
               i.size_snap && i.size_snap !== "None" ? i.size_snap : "—";
             const qty = Number(i.quantity) || 0;
-            const lineTotal =
-              (Number(i.price_at_purchase) || 0) * qty;
+            const lineTotal = (Number(i.price_at_purchase) || 0) * qty;
 
             return (
               "<tr>" +
@@ -348,19 +363,56 @@
             );
           }).join("");
 
-          const text =
-            "Hello, about order #" + (order.order_id ?? "") +
-            " (" + money(order.total_price) + ") — my delivery address is " +
-            (order.delivery_address || "") + ".";
-          $("#whatsapp-link").href =
-            "https://wa.me/?text=" + encodeURIComponent(text);
+          const btn = $("#msg-seller-btn");
+          if (btn) btn.disabled = !(order.seller_id && order.order_id);
         })
         .catch((err) => {
           $("#order-id").textContent = "Order not found";
           $("#items-table").hidden = true;
           $("#totals").hidden = true;
+          const btn = $("#msg-seller-btn");
+          if (btn) btn.disabled = true;
           console.error(err);
         });
+
+      // ---------- in-app messaging ----------
+      $("#msg-seller-btn")?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        if (!currentOrder || !currentOrder.seller_id || !currentOrder.order_id) return;
+
+        if (!token) { window.location.href = "/login"; return; }
+
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = "Opening chat…";
+
+        try {
+          const res = await fetch("/conversations/start", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              seller_id: currentOrder.seller_id,
+              order_id: currentOrder.order_id,
+            }),
+          });
+
+          if (res.status === 401) { window.location.href = "/login"; return; }
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(
+            typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`
+          );
+
+          window.location.href = `/messages/${data.conversation_id}`;
+        } catch (err) {
+          btn.disabled = false;
+          btn.innerHTML = original;
+          alert(err.message || "Could not open the conversation.");
+        }
+      });
     })();
   </script>
 </body>

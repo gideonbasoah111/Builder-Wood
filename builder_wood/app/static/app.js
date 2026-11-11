@@ -59,7 +59,6 @@
           category_name: catObj.category_name || p.category_name || "",
           seller_id:     p.seller_id || null,
           seller_name:   sellerObj.name || p.seller_name || "Builder Wood",
-          seller_phone:  sellerObj.phone_number || p.seller_phone || "",
           size_label:    p.size_label || "",
           image_url:     p.image_url || (images[0] && images[0].image_url) || "",
           is_treated:    Boolean(p.is_treated),
@@ -84,6 +83,10 @@
     $("#catalog-title").textContent = title;
     $("#result-count").textContent = state.products.length + " item" + (state.products.length === 1 ? "" : "s");
 
+    // remove the loading skeleton once products render
+    var skeleton = document.getElementById("product-skeleton");
+    if (skeleton) skeleton.remove();
+
     if (!state.products.length) {
       grid.innerHTML = ""; empty.hidden = false; return;
     }
@@ -104,7 +107,6 @@
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
-      // In-app message button (replaces WhatsApp link)
       var msgSellerBtn = !isMyProduct
         ? '<button class="add-btn" style="background:var(--green);" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller">💬</button>'
         : '';
@@ -234,7 +236,6 @@
     $("#drawer-count").textContent = `(${count})`;
     $("#cart-subtotal").textContent = money(subtotal);
 
-    // Update floating cart pill
     var floatPill = document.getElementById("floating-cart");
     var floatCount = document.getElementById("floating-cart-count");
     var floatTotal = document.getElementById("floating-cart-total");
@@ -274,15 +275,16 @@
       );
     }).join("");
 
-    // Keep the seller contact option at the bottom (still uses phone/WhatsApp for cart-wide question)
+    // In-app message seller button (no phone, no WhatsApp)
     var firstItem = state.cart[0];
-    if (firstItem && firstItem.seller_phone && window.Messages && firstItem.seller_id) {
+    if (firstItem && firstItem.seller_id) {
       cartHtml += `
         <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">
           <button type="button"
-                  style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px; background:#fff; cursor:pointer;"
-                  onclick="window.Messages.startConversation('${esc(firstItem.seller_id)}', '${esc(firstItem.wood_id)}')">
-              💬 Message Seller Before Buying
+                  data-cart-message-seller="${esc(firstItem.seller_id)}"
+                  data-cart-message-wood="${esc(firstItem.wood_id ?? "")}"
+                  style="display:inline-flex; align-items:center; gap:8px; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px; background:#fff; cursor:pointer;">
+            💬 Message Seller Before Buying
           </button>
         </div>
       `;
@@ -335,16 +337,62 @@
     host.classList.toggle("show", filtered.length > 0);
   }
 
+  async function startConversation(sellerId, woodId, btnEl) {
+    var token = getToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!sellerId) { toast("Seller unavailable."); return; }
+
+    var original = btnEl ? btnEl.innerHTML : null;
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = "Opening…"; }
+
+    try {
+      const res = await fetch("/conversations/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          seller_id: Number(sellerId),
+          wood_id: woodId ? Number(woodId) : null,
+        }),
+      });
+
+      if (res.status === 401) { window.location.href = "/login"; return; }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(
+        typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`
+      );
+
+      window.location.href = `/messages/${data.conversation_id}`;
+    } catch (err) {
+      if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = original; }
+      toast(err.message || "Could not open the conversation.");
+    }
+  }
+
   document.addEventListener("click", function (e) {
     // In-app messaging button (product cards)
     var msgBtn = e.target.closest("[data-message-seller]");
     if (msgBtn) {
       e.preventDefault();
-      if (window.Messages) {
-        window.Messages.startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId);
-      } else {
-        toast("Messaging is loading. Try again.");
-      }
+      startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId, msgBtn);
+      return;
+    }
+
+    // In-app messaging button (cart drawer)
+    var cartMsgBtn = e.target.closest("[data-cart-message-seller]");
+    if (cartMsgBtn) {
+      e.preventDefault();
+      startConversation(
+        cartMsgBtn.dataset.cartMessageSeller,
+        cartMsgBtn.dataset.cartMessageWood || null,
+        cartMsgBtn
+      );
       return;
     }
 
@@ -399,6 +447,15 @@
   $("#clear-filters").addEventListener("click", function () { state.category = ""; state.search = ""; state.sort = "featured"; $("#search-input").value = ""; $("#sort-select").value = "featured"; fetchProducts(); });
   $("#empty-clear").addEventListener("click", function () { $("#clear-filters").click(); });
 
+  var errorRetry = document.getElementById("error-retry");
+  if (errorRetry) {
+    errorRetry.addEventListener("click", function () {
+      var errorState = document.getElementById("error-state");
+      if (errorState) errorState.hidden = true;
+      fetchProducts();
+    });
+  }
+
   $("#cart-open").addEventListener("click", function (e) { e.preventDefault(); openCart(); });
   $("#cart-close").addEventListener("click", closeCart);
   $("#drawer-backdrop").addEventListener("click", closeCart);
@@ -409,7 +466,6 @@
     window.location.href = "/checkout";
   });
 
-  // Wire floating cart pill
   var floatingCartBtn = document.getElementById("floating-cart");
   if (floatingCartBtn) {
     floatingCartBtn.addEventListener("click", function (e) {
@@ -439,7 +495,6 @@
         loggedIn.style.display = "flex";
         greeting.textContent = "Hi, " + name.split(" ")[0];
 
-        // Show Messages link for all logged-in users
         if (messagesLink) {
           messagesLink.style.display = "inline-flex";
           if (window.Messages) window.Messages.refreshUnreadBadge();
@@ -499,4 +554,8 @@
   refreshUserData();
   loadCartFromDB();
   fetchProducts();
+
+  // Expose for other scripts (e.g. messages.js) that want to reuse
+  window.BW = window.BW || {};
+  window.BW.startConversation = startConversation;
 })();

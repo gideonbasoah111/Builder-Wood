@@ -372,6 +372,7 @@ class MessageCreate(BaseModel):
 class StartConversationIn(BaseModel):
     seller_id: int
     wood_id: Optional[int] = None
+    order_id: Optional[int] = None
 
 
 class MessageCreateIn(BaseModel):

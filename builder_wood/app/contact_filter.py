@@ -8,6 +8,7 @@ Used by the messaging router to block messages that try to move
 communication off-platform.
 """
 import re
+import unicodedata
 from typing import Optional
 
 
@@ -37,6 +38,22 @@ SPELLED_PHONE_PATTERNS = [
     r'\b\d[\s\-]+(?:zero|one|two|three|four|five|six|seven|eight|nine)',
 ]
 
+_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"), None)
+_SPOKEN = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+}
+
+
+def _normalize(text: str) -> str:
+    t = text.translate(_ZERO_WIDTH)
+    t = unicodedata.normalize("NFKC", t)
+    for w, d in _SPOKEN.items():
+        t = re.sub(rf"\b{w}\b", d, t, flags=re.I)
+    t = re.sub(r"\s*[\[\(]\s*at\s*[\]\)]\s*", "@", t, flags=re.I)
+    t = re.sub(r"\s*[\[\(]\s*dot\s*[\]\)]\s*", ".", t, flags=re.I)
+    return t
+
 
 def detect_contact_info(text: str) -> dict:
     """
@@ -50,6 +67,7 @@ def detect_contact_info(text: str) -> dict:
     if not text:
         return {"detected": False, "type": None, "matches": []}
 
+    text = _normalize(text)
     matches = []
 
     # Phone
