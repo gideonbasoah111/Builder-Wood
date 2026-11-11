@@ -825,4 +825,218 @@
           return;
         }
 
-        const btn = document
+        const btn = document.getElementById("message-seller-btn");
+        if (!btn || btn.disabled) return;
+
+        isOpeningConversation = true;
+        btn.disabled = true;
+        btn.innerHTML = "<span>Opening chat…</span>";
+
+        try {
+          const res = await fetch("/conversations/start", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              seller_id: Number(currentProduct.seller_id),
+              wood_id: Number(currentProduct.wood_id),
+            }),
+          });
+
+          if (res.status === 401) {
+            showToast("Your session may have expired. Please log in again.", "error");
+            setTimeout(() => { window.location.href = "/login"; }, 900);
+            return;
+          }
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(
+              typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`
+            );
+          }
+
+          window.location.href = `/messages/${data.conversation_id}`;
+        } catch (err) {
+          showToast(err.message || "Could not open the conversation.", "error");
+          btn.disabled = false;
+          btn.innerHTML = '<span aria-hidden="true">💬</span><span>Message Seller</span>';
+        } finally {
+          isOpeningConversation = false;
+        }
+      }
+
+      // ---------- load ----------
+      async function loadProduct() {
+        const pathParts = window.location.pathname.split("/").filter(Boolean);
+        const woodId = pathParts[pathParts.length - 1];
+
+        if (!woodId || !/^\d+$/.test(woodId) || Number(woodId) < 1) {
+          showError("Invalid product",
+            "The product address is invalid. Return to the shop and select a product.");
+          return;
+        }
+
+        container.setAttribute("aria-busy", "true");
+
+        try {
+          const response = await fetch(`/woods/${encodeURIComponent(woodId)}`, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+          });
+
+          if (response.status === 404) {
+            showError("Product not found",
+              "This timber product may have been removed or is no longer available.");
+            return;
+          }
+          if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+          const product = await response.json();
+          if (!product || typeof product !== "object" || !product.wood_id) {
+            throw new Error("Invalid product response");
+          }
+          renderProduct(product);
+        } catch (error) {
+          console.error("Builder Wood product details error:", error);
+          showError("Unable to load product",
+            "Please check your connection and try again.", true);
+        }
+      }
+
+      // ---------- stock refresh ----------
+      async function refreshStock() {
+        if (!currentProduct) return;
+        try {
+          const res = await fetch(`/woods/${encodeURIComponent(currentProduct.wood_id)}`, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+          });
+          if (!res.ok) return;
+          const fresh = await res.json();
+          if (fresh && typeof fresh === "object" && fresh.wood_id) {
+            currentProduct.stock_quantity = fresh.stock_quantity;
+            currentProduct.is_available = fresh.is_available;
+            const totalEl = document.getElementById("estimated-total");
+            const price = Number(currentProduct.price_per_piece);
+            const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
+            const currency = currentProduct.currency || "GH₵";
+            const input = document.getElementById("product-quantity");
+            if (input) {
+              input.max = String(Math.max(1, stock));
+              if (Number(input.value) > stock) {
+                input.value = String(Math.max(1, stock));
+                currentQuantity = Math.max(1, stock);
+              }
+            }
+            if (totalEl && Number.isFinite(price) && price >= 0) {
+              totalEl.textContent = money(price * currentQuantity, currency);
+            }
+            syncAddButton();
+          }
+        } catch { /* silent — best-effort */ }
+      }
+
+      // ---------- add to cart ----------
+      async function addToCart(woodId, quantity) {
+        if (isAddingToCart) return;
+
+        if (!token) {
+          showToast("Please log in before adding items to your cart.", "error");
+          setTimeout(() => { window.location.href = "/login"; }, 900);
+          return;
+        }
+
+        if (!currentProduct || Number(woodId) !== Number(currentProduct.wood_id)) {
+          showToast("Invalid product. Please reload the page.", "error");
+          return;
+        }
+
+        if (isMyProduct(currentProduct)) {
+          showToast("You can't add your own product to your cart.", "error");
+          return;
+        }
+
+        const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
+        const price = Number(currentProduct.price_per_piece);
+        const requestedQuantity = Number(quantity);
+
+        if (!Number.isInteger(requestedQuantity) ||
+            requestedQuantity < 1 ||
+            requestedQuantity > stock) {
+          showToast("Please select a valid quantity within available stock.", "error");
+          return;
+        }
+        if (!Number.isFinite(price) || price < 0) {
+          showToast("The product price is invalid. Please contact the seller.", "error");
+          return;
+        }
+
+        isAddingToCart = true;
+        const button = document.getElementById("add-to-cart-btn");
+        if (button) {
+          button.disabled = true;
+          button.innerHTML = "<span>Adding to cart...</span>";
+        }
+
+        try {
+          const response = await fetch("/cart/add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              wood_id: Number(woodId),
+              quantity: requestedQuantity
+            })
+          });
+
+          if (response.status === 401) {
+            showToast("Your session may have expired. Please log in again.", "error");
+            setTimeout(() => { window.location.href = "/login"; }, 900);
+            return;
+          }
+          if (response.status === 403) {
+            let detail = "You cannot add this item to your cart.";
+            try {
+              const data = await response.json();
+              if (typeof data.detail === "string") detail = data.detail;
+            } catch { /* keep fallback */ }
+            showToast(detail, "error");
+            return;
+          }
+          if (!response.ok) {
+            let errorMessage = "Could not add this product to your cart.";
+            try {
+              const data = await response.json();
+              if (typeof data.detail === "string") errorMessage = data.detail;
+            } catch { /* keep fallback */ }
+            showToast(errorMessage, "error");
+            return;
+          }
+
+          showToast(
+            `${requestedQuantity} piece${requestedQuantity === 1 ? "" : "s"} added to your cart.`,
+            "success"
+          );
+
+          await refreshStock();
+        } catch (error) {
+          console.error("Builder Wood add-to-cart error:", error);
+          showToast("Network error. Please check your connection and try again.", "error");
+        } finally {
+          isAddingToCart = false;
+          syncAddButton();
+        }
+      }
+
+      window.addToCart = (id, quantity = 1) => addToCart(id, quantity);
+
+      loadProduct();
+    });
+  </script>
+</body>
+</html>
