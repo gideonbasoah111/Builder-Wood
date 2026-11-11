@@ -1,11 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import List, Optional
-import os
+from typing import Dict, List, Optional
 import logging
 import uuid
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -13,7 +11,6 @@ from sqlalchemy.orm import Session, joinedload
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_user, get_current_active_seller, get_current_admin
-from builder_wood.app.config import settings
 from builder_wood.app.distance import DistanceError, estimate_distance_from_address
 
 logger = logging.getLogger(__name__)
@@ -22,10 +19,11 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 MIN_DISTANCE_KM = Decimal("1.0")
 COMMISSION_RATE = Decimal("0.05")
+MONEY_PLACES = Decimal("0.01")
 
 
 # ============================================================
-# Request/Response schemas
+# Request/Response schemas (unchanged)
 # ============================================================
 class OrderItemIn(BaseModel):
     wood_id: int
@@ -101,7 +99,8 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
     preferred_substr = method_to_substr.get(preferred_method)
 
     def _fee(v):
-        return Decimal(str(round(float(v.base_fee) + float(v.rate_per_km) * float(distance_km), 2)))
+        fee = Decimal(str(v.base_fee)) + Decimal(str(v.rate_per_km)) * Decimal(str(distance_km))
+        return fee.quantize(MONEY_PLACES)
 
     if preferred_substr:
         for v in active:
@@ -109,11 +108,14 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
                 continue
             if total_pieces > v.max_pieces:
                 raise HTTPException(400, f"{v.name} can carry up to {v.max_pieces} pieces, but this order has {total_pieces}.")
-            if distance_km > v.max_distance_km:
+            if Decimal(str(distance_km)) > Decimal(str(v.max_distance_km)):
                 raise HTTPException(400, f"{v.name} can deliver up to {v.max_distance_km} km, but your address is {distance_km} km away.")
             return v, _fee(v)
 
-    candidates = [v for v in active if v.max_pieces >= total_pieces and v.max_distance_km >= distance_km]
+    candidates = [
+        v for v in active
+        if v.max_pieces >= total_pieces and Decimal(str(v.max_distance_km)) >= Decimal(str(distance_km))
+    ]
     if not candidates:
         raise HTTPException(400, f"No vehicle can deliver {total_pieces} pieces over {distance_km} km.")
     v = min(candidates, key=lambda x: x.max_pieces)
@@ -121,20 +123,13 @@ def _allocate_vehicle(db: Session, total_pieces: int, distance_km: Decimal, pref
 
 
 # ============================================================
-# Release order to WALLET (no Paystack)
+# Release order to WALLET (unchanged)
 # ============================================================
 def _initiate_seller_transfer(db: Session, order: models.Order) -> str:
-    """
-    Release order payout to the seller's WALLET (not Paystack).
-
-    The Paystack transfer happens later, only when the seller
-    requests a withdrawal (via admin_wallet.approve_withdrawal).
-    """
     from builder_wood.app.wallet_service import (
         release_order_to_wallet,
         auto_create_withdrawal_if_eligible,
     )
-
     reference = release_order_to_wallet(db, order)
     auto_create_withdrawal_if_eligible(db, order.seller_id)
     return reference
@@ -157,6 +152,15 @@ def estimate_distance(payload: schemas.DistanceEstimateIn, db: Session = Depends
 
 
 # ============================================================
+# Shared query helper
+# ============================================================
+def _order_query(db: Session):
+    # joinedload(items) → one LEFT JOIN, one result set.
+    # MySQL handles this efficiently with the FK index on order_items.order_id.
+    return db.query(models.Order).options(joinedload(models.Order.items))
+
+
+# ============================================================
 # List orders
 # ============================================================
 @router.get("/seller/orders", response_model=List[OrderOut])
@@ -165,8 +169,7 @@ def get_seller_orders(
     current_seller: models.User = Depends(get_current_active_seller),
 ):
     return (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
+        _order_query(db)
         .filter(models.Order.seller_id == current_seller.user_id)
         .order_by(models.Order.order_date.desc())
         .all()
@@ -179,8 +182,7 @@ def get_my_orders(
     current_user: models.User = Depends(get_current_user),
 ):
     return (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
+        _order_query(db)
         .filter(models.Order.customer_id == current_user.user_id)
         .order_by(models.Order.order_date.desc())
         .all()
@@ -188,7 +190,7 @@ def get_my_orders(
 
 
 # ============================================================
-# Create order
+# Create order — MySQL-safe batching and row locks
 # ============================================================
 @router.post("/", response_model=List[OrderOut], status_code=201)
 def create_order(
@@ -201,33 +203,71 @@ def create_order(
     else:
         try:
             dist = estimate_distance_from_address(payload.delivery_address, db)
-            effective_distance = max(dist.distance_km, MIN_DISTANCE_KM)
+            effective_distance = max(Decimal(str(dist.distance_km)), MIN_DISTANCE_KM)
         except DistanceError as exc:
             raise HTTPException(400, f"Delivery distance failed: {exc}") from exc
 
-    items_by_seller = {}
+    # ------------------------------------------------------------------
+    # 1. Aggregate quantities per wood_id (a cart may repeat a product).
+    # ------------------------------------------------------------------
+    requested_qty: Dict[int, int] = {}
     for line in payload.items:
-        wood = (
-            db.query(models.Wood)
-            .filter(
-                models.Wood.wood_id == line.wood_id,
-                models.Wood.is_available.is_(True),
-                models.Wood.deleted_at.is_(None),
-            )
-            .first()
-        )
-        if not wood:
-            raise HTTPException(404, "Wood not found")
-        if wood.stock_quantity < line.quantity:
-            raise HTTPException(400, f"Only {wood.stock_quantity} of {wood.local_name} in stock")
-        items_by_seller.setdefault(wood.seller_id, []).append({"wood": wood, "quantity": line.quantity})
+        requested_qty[line.wood_id] = requested_qty.get(line.wood_id, 0) + line.quantity
 
-    created_orders = []
+    if not requested_qty:
+        raise HTTPException(400, "Cart is empty.")
+
+    requested_ids = list(requested_qty.keys())
+
+    # ------------------------------------------------------------------
+    # 2. One SELECT with FOR UPDATE.
+    #
+    # MySQL (InnoDB):
+    #   SELECT ... WHERE wood_id IN (...) FOR UPDATE
+    # locks every matching row in the same transaction. That prevents two
+    # concurrent checkouts from both reading stock=1 and both decrementing.
+    #
+    # InnoDB only applies FOR UPDATE on the rows that satisfy the WHERE,
+    # so we filter on wood_id first. is_available / deleted_at are checked
+    # afterwards in Python to keep the lock set as small as possible.
+    # ------------------------------------------------------------------
+    woods = (
+        db.query(models.Wood)
+        .filter(models.Wood.wood_id.in_(requested_ids))
+        .with_for_update()
+        .all()
+    )
+    woods_by_id: Dict[int, models.Wood] = {w.wood_id: w for w in woods}
+
+    # ------------------------------------------------------------------
+    # 3. Validate every line before mutating anything.
+    # ------------------------------------------------------------------
+    items_by_seller: Dict[int, List[dict]] = {}
+    for wood_id, qty in requested_qty.items():
+        wood = woods_by_id.get(wood_id)
+        if not wood or wood.deleted_at is not None or not wood.is_available:
+            raise HTTPException(404, f"Wood {wood_id} not found or unavailable")
+        if wood.stock_quantity < qty:
+            raise HTTPException(
+                400,
+                f"Only {wood.stock_quantity} of {wood.local_name} in stock",
+            )
+        items_by_seller.setdefault(wood.seller_id, []).append(
+            {"wood": wood, "quantity": qty}
+        )
+
+    created_order_ids: List[int] = []
+
     for seller_id, items in items_by_seller.items():
         total_pieces = sum(i["quantity"] for i in items)
-        subtotal = sum(i["wood"].price_per_piece * i["quantity"] for i in items)
-        vehicle, delivery_fee = _allocate_vehicle(db, total_pieces, effective_distance, payload.delivery_method)
-        total_price = subtotal + delivery_fee
+        subtotal = sum(
+            (Decimal(str(i["wood"].price_per_piece)) * i["quantity"]) for i in items
+        ).quantize(MONEY_PLACES)
+
+        vehicle, delivery_fee = _allocate_vehicle(
+            db, total_pieces, effective_distance, payload.delivery_method
+        )
+        total_price = (subtotal + delivery_fee).quantize(MONEY_PLACES)
 
         order = models.Order(
             customer_id=current_user.user_id,
@@ -242,12 +282,12 @@ def create_order(
             currency="GHS",
             status="pending",
             notes=payload.notes,
-            platform_commission=total_price * COMMISSION_RATE,
-            seller_payout_amount=total_price * (1 - COMMISSION_RATE),
+            platform_commission=(total_price * COMMISSION_RATE).quantize(MONEY_PLACES),
+            seller_payout_amount=(total_price * (1 - COMMISSION_RATE)).quantize(MONEY_PLACES),
             is_funds_released=False,
         )
         db.add(order)
-        db.flush()
+        db.flush()  # assign order_id
 
         for item in items:
             wood = item["wood"]
@@ -256,34 +296,53 @@ def create_order(
                 order_id=order.order_id,
                 wood_id=wood.wood_id,
                 wood_name_snap=wood.local_name,
-                size_snap=wood.size_label,
+                size_snap=getattr(wood, "size_label", None) or "",
                 quantity=item["quantity"],
                 price_at_purchase=wood.price_per_piece,
             ))
 
         db.add(models.OrderStatusHistory(
-            order_id=order.order_id, old_status=None,
-            new_status="pending", changed_by=None,
+            order_id=order.order_id,
+            old_status=None,
+            new_status="pending",
+            changed_by=None,
         ))
         db.add(models.PaymentTransaction(
             order_id=order.order_id,
             reference=f"BW-{order.order_id}-{uuid.uuid4().hex[:6].upper()}",
-            provider="paystack", amount=total_price,
-            currency="GHS", status="pending",
+            provider="paystack",
+            amount=total_price,
+            currency="GHS",
+            status="pending",
         ))
-        created_orders.append(order)
+        created_order_ids.append(order.order_id)
 
     if payload.delivery_address:
         current_user.address = payload.delivery_address
         current_user.location = payload.delivery_address
 
-    db.query(models.CartItem).filter(models.CartItem.user_id == current_user.user_id).delete()
-    db.commit()
+    # ------------------------------------------------------------------
+    # 4. Bulk-delete the cart.
+    #
+    # MySQL + SQLAlchemy: the default synchronize_session=True makes
+    # SQLAlchemy SELECT every cart row so it can update in-memory objects.
+    # That's wasted work — the caller doesn't hold cart rows, and we're
+    # about to return orders. synchronize_session=False skips it.
+    # ------------------------------------------------------------------
+    db.query(models.CartItem).filter(
+        models.CartItem.user_id == current_user.user_id
+    ).delete(synchronize_session=False)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("create_order commit failed for user %s", current_user.user_id)
+        raise
 
     return (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
-        .filter(models.Order.order_id.in_([o.order_id for o in created_orders]))
+        _order_query(db)
+        .filter(models.Order.order_id.in_(created_order_ids))
         .all()
     )
 
@@ -315,26 +374,29 @@ def update_order_status(
     if payload.status == "shipped":
         order.delivery_status = "shipped"
     if payload.status == "delivered":
+        now = datetime.now(timezone.utc)
         order.delivery_status = "delivered"
-        order.auto_confirm_at = datetime.utcnow() + timedelta(hours=48)
+        order.auto_confirm_at = now + timedelta(hours=48)
         order.settlement_status = "eligible"
         order.settlement_eligible_at = order.auto_confirm_at
 
     db.add(models.OrderStatusHistory(
-        order_id=order.order_id, old_status=old_status,
-        new_status=payload.status, changed_by=current_seller.user_id,
+        order_id=order.order_id,
+        old_status=old_status,
+        new_status=payload.status,
+        changed_by=current_seller.user_id,
     ))
     db.commit()
+
     return (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
+        _order_query(db)
         .filter(models.Order.order_id == order.order_id)
         .first()
     )
 
 
 # ============================================================
-# Admin release funds → credits WALLET (no Paystack)
+# Admin release funds
 # ============================================================
 @router.post("/{order_id}/admin-release", response_model=schemas.SettlementStatusOut)
 def admin_release_funds(
@@ -367,7 +429,7 @@ def admin_release_funds(
 
 
 # ============================================================
-# Buyer confirms delivery → credits WALLET (no Paystack)
+# Buyer confirms delivery
 # ============================================================
 @router.post("/{order_id}/confirm-delivery", response_model=schemas.SettlementStatusOut)
 def buyer_confirm_delivery(
@@ -391,7 +453,7 @@ def buyer_confirm_delivery(
         raise HTTPException(400, "Settlement already in progress or complete.")
 
     order.settlement_status = "eligible"
-    order.settlement_eligible_at = datetime.utcnow()
+    order.settlement_eligible_at = datetime.now(timezone.utc)
     _initiate_seller_transfer(db, order)
     db.refresh(order)
 
@@ -462,16 +524,19 @@ def open_dispute(
     if order.is_funds_released:
         raise HTTPException(400, "Funds already released")
 
+    now = datetime.now(timezone.utc)
     order.status = "disputed"
     order.dispute_reason = payload.reason
-    order.disputed_at = datetime.utcnow()
+    order.disputed_at = now
     order.auto_confirm_at = None
     order.frozen_payout = True
-    order.frozen_at = datetime.utcnow()
+    order.frozen_at = now
 
     db.add(models.OrderStatusHistory(
-        order_id=order.order_id, old_status="delivered",
-        new_status="disputed", changed_by=current_user.user_id,
+        order_id=order.order_id,
+        old_status="delivered",
+        new_status="disputed",
+        changed_by=current_user.user_id,
     ))
     db.commit()
     return {"status": "success", "message": "Dispute opened."}
@@ -487,8 +552,7 @@ def get_order(
     current_user: models.User = Depends(get_current_user),
 ):
     order = (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
+        _order_query(db)
         .filter(models.Order.order_id == order_id)
         .first()
     )
