@@ -1,31 +1,20 @@
 """
 In-app messaging between buyers and sellers.
 
+Real-time delivery:
+  - In-process asyncio.Condition per conversation wakes the receiver's SSE
+    stream the instant the sender's POST commits (sub-100ms, same worker).
+  - 1s fallback poll for cross-worker safety (Render WEB_CONCURRENCY > 1).
+  - Short-lived DB session per poll — never pin a connection for the stream.
+
 Endpoints:
-- POST /conversations/start          — get or create conversation
-- GET  /conversations                — list user's conversations
-- GET  /conversations/{id}           — get conversation with messages
-- POST /conversations/{id}/messages  — send a message (contact-info filtered)
-- POST /conversations/{id}/mark-read — mark all messages as read
-- GET  /conversations/unread-count   — total unread
-- GET  /conversations/{id}/stream    — Server-Sent Events real-time stream
-
-Delivery model (real-time):
-- A per-conversation asyncio.Condition ("event bus") lives in this process.
-- When a message is committed, the sender's request calls notify_conversation()
-  which wakes every SSE stream waiting on that conversation. The receiver gets
-  the message in the same event-loop tick — no polling latency, no refresh.
-- SSE also polls every FALLBACK_POLL_SECONDS (1s) in case the sender was
-  handled by a different worker (Render WEB_CONCURRENCY>1). Same-process
-  delivery is instant; cross-worker delivery is <= 1s.
-- Each SSE stream opens a short-lived DB session per wake/poll so a pooled
-  connection is never held for the lifetime of the stream.
-
-Rules:
-- All buyer/seller communication goes through here.
-- Messages containing contact info are stored flagged (invisible to both
-  parties), counted as violations, and escalate to a temporary or permanent ban.
-- Flagged messages are never shown to participants.
+  POST /conversations/start
+  GET  /conversations
+  GET  /conversations/unread-count
+  GET  /conversations/{id}
+  GET  /conversations/{id}/stream
+  POST /conversations/{id}/messages
+  POST /conversations/{id}/mark-read
 """
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
@@ -47,33 +36,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["messaging"])
 
-# Cross-worker safety net: even without an in-process notification, the stream
-# will re-check the DB at most this often.
 FALLBACK_POLL_SECONDS = 1.0
-
-# How long a single SSE stream can sit idle before sending a ping comment.
-# Keeps proxies (Render) from tearing down an idle connection.
 HEARTBEAT_SECONDS = 15.0
 
 
 # ============================================================
 # In-process event bus (per conversation)
 # ============================================================
-# conversation_id -> asyncio.Condition
-#
-# All SSE streams for a conversation wait() on the same Condition. When a
-# message is committed by send_message(), the endpoint calls notify_conversation
-# which acquires the same Condition and notify_all()s. Every waiting stream
-# wakes, re-queries for messages newer than its last_message_id, and yields.
-#
-# Because asyncio is single-threaded per worker, this is race-free within one
-# process: the wait is re-armed before the next await.
 _conversation_conditions: Dict[int, asyncio.Condition] = {}
 _conditions_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def _get_condition(conversation_id: int) -> asyncio.Condition:
-    """Return (and lazily create) the asyncio.Condition for a conversation."""
     async with _conditions_lock:
         cond = _conversation_conditions.get(conversation_id)
         if cond is None:
@@ -83,12 +57,6 @@ async def _get_condition(conversation_id: int) -> asyncio.Condition:
 
 
 async def _notify_conversation(conversation_id: int) -> None:
-    """
-    Wake every SSE stream currently waiting on this conversation.
-
-    Called synchronously (via run_coroutine) right after a message is
-    committed. If no one is listening, this is a no-op.
-    """
     cond = await _get_condition(conversation_id)
     async with cond:
         cond.notify_all()
@@ -117,7 +85,6 @@ def start_conversation(
     if not seller:
         raise HTTPException(404, "Seller not found or inactive")
 
-    # Resolve context: an order (if given) pins the conversation to that order.
     context_wood_id = payload.wood_id
     if payload.order_id is not None:
         order = db.query(models.Order).filter(
@@ -310,18 +277,6 @@ async def stream_conversation(
     conversation_id: int,
     token: str = None,
 ):
-    """
-    Server-Sent Events stream.
-
-    Delivers new messages to the connected client in real time:
-      - Same worker that handled the POST → the Condition is notified and
-        the stream yields on the same event-loop tick (sub-100ms).
-      - Different worker (WEB_CONCURRENCY > 1) → the 1s fallback poll picks
-        it up. Still well under the 3s SLA.
-
-    Each iteration opens a short-lived DB session so pooled connections are
-    never held for the lifetime of the stream.
-    """
     if not token:
         raise HTTPException(401, "Token required")
 
@@ -334,35 +289,38 @@ async def stream_conversation(
     if not user_id:
         raise HTTPException(401, "Invalid token")
 
-    # Validate access with a short-lived session that closes immediately.
-    with SessionLocal() as db:
-        conv = db.query(models.Conversation).filter(
-            models.Conversation.conversation_id == conversation_id
-        ).first()
+    try:
+        with SessionLocal() as db:
+            conv = db.query(models.Conversation).filter(
+                models.Conversation.conversation_id == conversation_id
+            ).first()
 
-        if not conv:
-            raise HTTPException(404, "Conversation not found")
+            if not conv:
+                raise HTTPException(404, "Conversation not found")
 
-        if user_id not in (conv.buyer_id, conv.seller_id):
-            raise HTTPException(403, "Not a participant")
+            if user_id not in (conv.buyer_id, conv.seller_id):
+                raise HTTPException(403, "Not a participant")
 
-        latest = db.query(func.max(models.Message.message_id)).filter(
-            models.Message.conversation_id == conversation_id
-        ).scalar()
+            latest = db.query(func.max(models.Message.message_id)).filter(
+                models.Message.conversation_id == conversation_id
+            ).scalar() or 0
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("stream_conversation access check failed")
+        raise HTTPException(500, "Could not open the stream")
 
     async def event_generator():
-        last_message_id = latest or 0
+        last_message_id = latest
         last_ping = asyncio.get_event_loop().time()
 
-        # Tell the client the stream is live so it can hide a spinner.
+        # Send the open frame FIRST, before touching the DB again.
+        # This unblocks the client immediately and lets the UI render.
         yield "event: open\ndata: {}\n\n"
 
         condition = await _get_condition(conversation_id)
 
         while True:
-            # Wait for either a notification from send_message() or the
-            # fallback poll timeout, whichever comes first.
-            notified = False
             try:
                 async with condition:
                     try:
@@ -370,14 +328,11 @@ async def stream_conversation(
                             condition.wait(),
                             timeout=FALLBACK_POLL_SECONDS,
                         )
-                        notified = True
                     except asyncio.TimeoutError:
-                        notified = False
+                        pass
             except asyncio.CancelledError:
-                # Client disconnected while waiting.
                 return
 
-            # Fetch anything newer than what we've already yielded.
             try:
                 with SessionLocal() as db:
                     new_msgs = (
@@ -412,9 +367,6 @@ async def stream_conversation(
                 last_message_id = data["message_id"]
                 yield f"event: message\ndata: {json.dumps(data)}\n\n"
 
-            # Send a heartbeat comment if we've been idle for a while. This
-            # keeps proxies from closing the connection. Only send if we did
-            # not just deliver real data (no point pinging immediately after).
             if not payloads:
                 now = asyncio.get_event_loop().time()
                 if now - last_ping >= HEARTBEAT_SECONDS:
@@ -534,9 +486,6 @@ async def send_message(
     db.commit()
     db.refresh(msg)
 
-    # Wake every SSE stream for this conversation in the same worker.
-    # If the receiver is on a different worker, their 1s fallback poll
-    # picks it up. Either way, delivery is < 3s.
     await _notify_conversation(conversation_id)
 
     return {
@@ -601,7 +550,6 @@ def _build_conversation_detail(conv: models.Conversation, current_user: models.U
                 "price": float(wood.price_per_piece),
             }
 
-    # Newest 200 messages, returned oldest-to-newest for display.
     newest = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))

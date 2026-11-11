@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#3e2723">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="Explore timber products, compare specifications, check availability and contact sellers on Builder Wood.">
+  <meta name="description" content="Explore timber products, compare specifications, check availability and message sellers on Builder Wood.">
   <title>Product Details — Builder Wood</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -245,6 +245,19 @@
     }
     .cart-icon { font-size: 17px; }
 
+    /* In-app "Message Seller" button — replaces the old WhatsApp link */
+    .btn-msg {
+      display: flex; align-items: center; justify-content: center;
+      gap: 9px; width: 100%; min-height: 47px;
+      margin-top: 12px; padding: 12px 16px;
+      border: 1px solid var(--detail-wood); border-radius: 8px;
+      background: var(--detail-wood); color: #fff;
+      cursor: pointer; font-size: 13px; font-weight: 700;
+      transition: background .2s;
+    }
+    .btn-msg:hover:not(:disabled) { background: var(--detail-dark); }
+    .btn-msg:disabled { opacity: .55; cursor: not-allowed; }
+
     .order-total {
       display: flex; align-items: center; justify-content: space-between;
       gap: 10px; margin-top: 17px; padding-top: 14px;
@@ -257,19 +270,6 @@
       margin: 11px 0 0; color: var(--detail-muted);
       font-size: 11px; line-height: 1.6;
     }
-
-    .btn-wa {
-      display: flex; align-items: center; justify-content: center;
-      gap: 9px; width: 100%; min-height: 47px;
-      margin-top: 12px; padding: 12px 16px;
-      border: 1px solid #d4e4d5; border-radius: 8px;
-      background: #eff6ef; color: #315b38;
-      text-align: center; text-decoration: none;
-      font-size: 13px; font-weight: 700;
-      transition: background .2s;
-    }
-    .btn-wa:hover { background: #e0eee0; }
-    .btn-wa.disabled { opacity: .5; pointer-events: none; }
 
     .detail-message {
       padding: 45px 20px;
@@ -368,7 +368,7 @@
       <p class="detail-footer-note">
         Builder Wood connects customers with timber sellers.
         Confirm product dimensions, availability and delivery arrangements
-        with the seller before completing your purchase.
+        with the seller through Builder Wood messages before completing your purchase.
       </p>
     </div>
   </main>
@@ -387,6 +387,7 @@
       let currentProduct = null;
       let currentQuantity = 1;
       let isAddingToCart = false;
+      let isOpeningConversation = false;
       let toastTimer = null;
 
       // ---------- helpers ----------
@@ -435,13 +436,13 @@
         return parts.length ? parts.join(" × ") : "Not specified";
       }
 
+      // Returns true only if the logged-in user *is* the seller of this product.
+      // If the user is not logged in, or bw_user_id is missing, this is false
+      // — which is correct: a buyer must be able to see the Message Seller button.
       function isMyProduct(product) {
         const loggedInUserId = localStorage.getItem("bw_user_id");
-        return Boolean(
-          product.seller_id &&
-          loggedInUserId &&
-          String(product.seller_id) === String(loggedInUserId)
-        );
+        if (!loggedInUserId || !product.seller_id) return false;
+        return String(product.seller_id) === String(loggedInUserId);
       }
 
       function showToast(message, type = "success") {
@@ -469,25 +470,6 @@
           </div>
         `;
         document.getElementById("retry-product")?.addEventListener("click", loadProduct);
-      }
-
-      function normalizeGhanaPhone(value) {
-        let phone = String(value || "").replace(/\D/g, "");
-        if (phone.startsWith("00")) phone = phone.slice(2);
-        if (phone.startsWith("233")) phone = phone.slice(3);
-        else if (phone.startsWith("0")) phone = phone.slice(1);
-        if (!/^\d{9}$/.test(phone)) return "";
-        return "233" + phone;
-      }
-
-      function makeWhatsAppURL(product, sellerName, phoneValue) {
-        const phone = normalizeGhanaPhone(phoneValue);
-        if (!phone) return "";
-        const message =
-          `Hello ${sellerName}, I am interested in buying ` +
-          `${displayName(product)} on Builder Wood. ` +
-          `Could you confirm its availability, dimensions and delivery options?`;
-        return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       }
 
       // ---------- gallery ----------
@@ -573,9 +555,6 @@
             const wasActive = button.classList.contains("active");
             button.hidden = true;
 
-            // If the failed thumbnail was the active one, promote the
-            // first still-visible thumbnail so the main image matches
-            // the active state in the row.
             const fallback =
               thumbnails.find(t => !t.hidden && t.classList.contains("active")) ||
               thumbnails.find(t => !t.hidden) ||
@@ -602,7 +581,7 @@
         updateCounter(thumbnails[0]);
       }
 
-      // ---------- single source of truth for the add button ----------
+      // ---------- add button ----------
       function syncAddButton() {
         const button = document.getElementById("add-to-cart-btn");
         const minus = document.getElementById("quantity-minus");
@@ -653,7 +632,6 @@
             ? `Only ${stock} piece${stock === 1 ? "" : "s"} available`
             : `${stock.toLocaleString("en-GH")} pieces available`;
 
-        const whatsappURL = makeWhatsAppURL(product, sellerName, seller.phone_number || "");
         const description = product.description || "No description provided for this timber.";
         const validPrice = Number.isFinite(price) && price >= 0;
 
@@ -749,6 +727,12 @@
                   </button>
                 </div>
 
+                <button type="button" class="btn-msg" id="message-seller-btn"
+                        ${mine ? "disabled" : ""}>
+                  <span aria-hidden="true">💬</span>
+                  <span>${mine ? "This is your product" : "Message Seller"}</span>
+                </button>
+
                 <div class="order-total">
                   <span>Estimated item total</span>
                   <strong id="estimated-total">
@@ -760,21 +744,9 @@
                   This is an estimated product subtotal. Delivery charges,
                   if applicable, are not included.
                 </p>
-
-                <a class="btn-wa ${whatsappURL ? "" : "disabled"}"
-                   id="message-seller"
-                   href="${whatsappURL ? escapeHTML(whatsappURL) : "#"}"
-                   ${whatsappURL ? 'target="_blank" rel="noopener noreferrer"' : 'aria-disabled="true"'}>
-                  <span aria-hidden="true">💬</span>
-                  Message Seller on WhatsApp
-                </a>
-
-                ${!whatsappURL ? `
-                  <p class="purchase-hint">
-                    Seller contact details are not available for WhatsApp.
-                    Please use the seller's other contact options if provided.
-                  </p>
-                ` : ""}
+                <p class="purchase-hint">
+                  All messages with the seller happen securely inside Builder Wood.
+                </p>
               </div>
             </div>
           </div>
@@ -782,6 +754,9 @@
 
         bindGalleryEvents();
         bindPurchaseEvents();
+        document
+          .getElementById("message-seller-btn")
+          ?.addEventListener("click", startConversation);
         syncAddButton();
       }
 
@@ -836,179 +811,18 @@
         updateQuantity();
       }
 
-      // ---------- load ----------
-      async function loadProduct() {
-        const pathParts = window.location.pathname.split("/").filter(Boolean);
-        const woodId = pathParts[pathParts.length - 1];
-
-        if (!woodId || !/^\d+$/.test(woodId) || Number(woodId) < 1) {
-          showError("Invalid product",
-            "The product address is invalid. Return to the shop and select a product.");
-          return;
-        }
-
-        container.setAttribute("aria-busy", "true");
-
-        try {
-          const response = await fetch(`/woods/${encodeURIComponent(woodId)}`, {
-            method: "GET",
-            headers: { "Accept": "application/json" }
-          });
-
-          if (response.status === 404) {
-            showError("Product not found",
-              "This timber product may have been removed or is no longer available.");
-            return;
-          }
-          if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-
-          const product = await response.json();
-          if (!product || typeof product !== "object" || !product.wood_id) {
-            throw new Error("Invalid product response");
-          }
-          renderProduct(product);
-        } catch (error) {
-          console.error("Builder Wood product details error:", error);
-          showError("Unable to load product",
-            "Please check your connection and try again.", true);
-        }
-      }
-
-      // ---------- refresh stock quietly after add-to-cart ----------
-      async function refreshStock() {
-        if (!currentProduct) return;
-        try {
-          const res = await fetch(`/woods/${encodeURIComponent(currentProduct.wood_id)}`, {
-            method: "GET",
-            headers: { "Accept": "application/json" }
-          });
-          if (!res.ok) return;
-          const fresh = await res.json();
-          if (fresh && typeof fresh === "object" && fresh.wood_id) {
-            currentProduct.stock_quantity = fresh.stock_quantity;
-            currentProduct.is_available = fresh.is_available;
-            // keep UI in sync without re-rendering the whole page
-            const totalEl = document.getElementById("estimated-total");
-            const price = Number(currentProduct.price_per_piece);
-            const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
-            const currency = currentProduct.currency || "GH₵";
-            const input = document.getElementById("product-quantity");
-            if (input) {
-              input.max = String(Math.max(1, stock));
-              if (Number(input.value) > stock) {
-                input.value = String(Math.max(1, stock));
-                currentQuantity = Math.max(1, stock);
-              }
-            }
-            if (totalEl && Number.isFinite(price) && price >= 0) {
-              totalEl.textContent = money(price * currentQuantity, currency);
-            }
-            syncAddButton();
-          }
-        } catch { /* silent — best-effort */ }
-      }
-
-      // ---------- add to cart ----------
-      async function addToCart(woodId, quantity) {
-        if (isAddingToCart) return;
+      // ---------- in-app conversation ----------
+      async function startConversation() {
+        if (isOpeningConversation) return;
 
         if (!token) {
-          showToast("Please log in before adding items to your cart.", "error");
+          showToast("Please log in to message the seller.", "error");
           setTimeout(() => { window.location.href = "/login"; }, 900);
           return;
         }
-
-        if (!currentProduct || Number(woodId) !== Number(currentProduct.wood_id)) {
-          showToast("Invalid product. Please reload the page.", "error");
+        if (!currentProduct || isMyProduct(currentProduct)) {
+          showToast("You can't message yourself about your own product.", "error");
           return;
         }
 
-        if (isMyProduct(currentProduct)) {
-          showToast("You can't add your own product to your cart.", "error");
-          return;
-        }
-
-        const stock = Math.max(0, Number(currentProduct.stock_quantity) || 0);
-        const price = Number(currentProduct.price_per_piece);
-        const requestedQuantity = Number(quantity);
-
-        if (!Number.isInteger(requestedQuantity) ||
-            requestedQuantity < 1 ||
-            requestedQuantity > stock) {
-          showToast("Please select a valid quantity within available stock.", "error");
-          return;
-        }
-        if (!Number.isFinite(price) || price < 0) {
-          showToast("The product price is invalid. Please contact the seller.", "error");
-          return;
-        }
-
-        isAddingToCart = true;
-        const button = document.getElementById("add-to-cart-btn");
-        if (button) {
-          button.disabled = true;
-          button.innerHTML = "<span>Adding to cart...</span>";
-        }
-
-        try {
-          const response = await fetch("/cart/add", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              wood_id: Number(woodId),
-              quantity: requestedQuantity
-            })
-          });
-
-          if (response.status === 401) {
-            showToast("Your session may have expired. Please log in again.", "error");
-            setTimeout(() => { window.location.href = "/login"; }, 900);
-            return;
-          }
-          if (response.status === 403) {
-            let detail = "You cannot add this item to your cart.";
-            try {
-              const data = await response.json();
-              if (typeof data.detail === "string") detail = data.detail;
-            } catch { /* keep fallback */ }
-            showToast(detail, "error");
-            return;
-          }
-          if (!response.ok) {
-            let errorMessage = "Could not add this product to your cart.";
-            try {
-              const data = await response.json();
-              if (typeof data.detail === "string") errorMessage = data.detail;
-            } catch { /* keep fallback */ }
-            showToast(errorMessage, "error");
-            return;
-          }
-
-          showToast(
-            `${requestedQuantity} piece${requestedQuantity === 1 ? "" : "s"} added to your cart.`,
-            "success"
-          );
-
-          // Re-check stock so the button reflects what's actually left
-          // if another buyer raced us for the last piece.
-          await refreshStock();
-        } catch (error) {
-          console.error("Builder Wood add-to-cart error:", error);
-          showToast("Network error. Please check your connection and try again.", "error");
-        } finally {
-          isAddingToCart = false;
-          syncAddButton();
-        }
-      }
-
-      // Keep compatibility with other scripts that call window.addToCart.
-      window.addToCart = (id, quantity = 1) => addToCart(id, quantity);
-
-      loadProduct();
-    });
-  </script>
-</body>
-</html>
+        const btn = document
