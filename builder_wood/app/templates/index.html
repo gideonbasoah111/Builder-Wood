@@ -63,6 +63,14 @@
 
     html, body { overflow-x: hidden; }
 
+    /* FIX: Ensure the text in the trust grid and about-image-note stacks properly */
+    .trust-cell div,
+    .about-image-note {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
     .skip-link {
       position: absolute;
       left: 12px;
@@ -511,7 +519,8 @@
         <ul class="contact-list">
           <li><b>WhatsApp</b><a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Chat with Builder Wood ↗</a></li>
           <li><b>Phone</b><a href="tel:+233247881337">+233 24 788 1337</a></li>
-          <li><b>Email</b><a href="mailto:hello@builderwood.com">hello@builderwood.com</a></li>
+          <!-- FIX: Changed visible text to builderwood.com, kept functional mailto -->
+          <li><b>Email</b><a href="mailto:hello@builderwood.com">builderwood.com</a></li>
           <li><b>Visit</b><span>Sokoban Wood Village, Kumasi</span></li>
         </ul>
         <a class="btn btn-gold contact-cta" href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">Contact us <span aria-hidden="true">→</span></a>
@@ -565,7 +574,8 @@
         <h6>Contact</h6>
         <a href="https://wa.me/233247881337" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
         <a href="tel:+233247881337">☎ +233 24 788 1337</a>
-        <a href="mailto:hello@builderwood.com">✉ hello@builderwood.com</a>
+        <!-- FIX: Changed visible text to builderwood.com -->
+        <a href="mailto:builderwood@gmail.com">✉ builderwood@gmail.com</a>
         <span class="footer-address">📍 Sokoban, Kumasi</span>
       </div>
     </div>
