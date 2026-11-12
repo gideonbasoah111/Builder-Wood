@@ -74,20 +74,33 @@
     .drawer-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
     .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
 
-    /* --- PROMO BANNERS --- */
+    /* --- PROMO BANNERS (Updated with Quality Timber Image) --- */
     .banner-section { padding: 20px 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
     @media (max-width: 600px) { .banner-section { grid-template-columns: 1fr; } }
-    .promo-card { position: relative; border-radius: 12px; overflow: hidden; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-    .promo-card.dark { background: #1a1a1a; color: #fff; }
-    .promo-card.orange { background: #e87423; color: #fff; }
-    .promo-card h3 { font-family: 'Manrope', sans-serif; font-size: 22px; font-weight: 800; margin: 0 0 8px 0; line-height: 1.1; text-transform: uppercase; }
-    .promo-card p { margin: 0; font-size: 13px; opacity: 0.9; }
+
+    .promo-card { position: relative; border-radius: 12px; overflow: hidden; padding: 24px; display: flex; flex-direction: column; justify-content: flex-end; min-height: 200px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+    /* The new quality timber background */
+    .promo-card.deals {
+      background-image: url('https://images.unsplash.com/photo-1546470966-60476641a03f?q=80&w=800&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+    }
+    .promo-card.deals::before {
+      content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 100%);
+    }
+    .promo-card.deals > * { position: relative; z-index: 1; }
+
+    .promo-card.orange { background: #e87423; color: #fff; justify-content: space-between; }
+
+    .promo-card h3 { font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 800; margin: 0 0 8px 0; line-height: 1.1; text-transform: uppercase; color: #fff;}
+    .promo-card p { margin: 0; font-size: 13px; opacity: 0.9; color: #fff; }
     .promo-card .btn-shop { align-self: flex-start; margin-top: 16px; background: #fff; color: #1a1a1a; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 12px; text-transform: uppercase; }
     .promo-card.orange .btn-shop { background: #1a1a1a; color: #fff; }
 
     /* --- PRODUCT GRID --- */
     .section-head { display: flex; justify-content: space-between; align-items: center; padding: 24px 0 16px; }
-    .section-head h2 { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; margin: 0; }
+    .section-head h2 { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; margin: 0; color: #242019; }
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
     .product-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; position: relative; transition: transform 0.2s; }
     .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
@@ -222,10 +235,15 @@
 
     <!-- PROMO BANNERS -->
     <section class="banner-section">
-      <div class="promo-card dark">
-        <div><h3>Timber<br>Deals</h3><p>Up to 20% off selected hardwood.</p></div>
+      <!-- Updated Quality Timber Image Card -->
+      <div class="promo-card deals">
+        <div>
+          <h3>Premium<br>Timber</h3>
+          <p>Top quality hardwood direct from the yard.</p>
+        </div>
         <a href="#products" class="btn-shop">Shop Now</a>
       </div>
+
       <div class="promo-card orange">
         <div><h3>Fast<br>Delivery</h3><p>Direct to your site in Kumasi.</p></div>
         <a href="#delivery" class="btn-shop">Learn More</a>
@@ -235,7 +253,8 @@
     <!-- PRODUCT GRID -->
     <section id="products">
       <div class="section-head">
-        <h2 id="catalog-title">All Products</h2>
+        <!-- Removed "Top Selling" -->
+        <h2 id="catalog-title">Available Goods</h2>
         <span id="result-count" style="font-size: 13px; color: #666;"></span>
       </div>
 
