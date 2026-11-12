@@ -62,7 +62,6 @@ def _get_user_name_map(db: Session, user_ids: set) -> dict:
 
 
 def _money(v) -> float:
-    """Display-only conversion. Never use this for arithmetic sums."""
     return float(v) if v is not None else 0.0
 
 
@@ -80,7 +79,7 @@ def _serialize_order_item(i: models.OrderItem) -> dict:
 
 
 # ============================================================
-# USER MANAGEMENT (paginated)
+# USER MANAGEMENT
 # ============================================================
 @router.get("/pending-sellers", response_model=List[schemas.UserOut])
 def get_pending_sellers(
@@ -270,12 +269,18 @@ def admin_release_funds_v2(
     if order.delivery_status != "delivered":
         raise HTTPException(400, "Order must be marked delivered by the seller first.")
 
-    reference = _initiate_seller_transfer(db, order)
+    try:
+        reference = _initiate_seller_transfer(db, order)
+        db.commit()  # THIS IS THE FIX: commits the wallet balance to the DB
+    except Exception:
+        db.rollback()
+        raise
+
     return {
         "status": "transfer_initiated",
         "order_id": order.order_id,
         "reference": reference,
-        "message": "Funds will be released once Paystack confirms the transfer.",
+        "message": "Funds released to seller wallet.",
     }
 
 
@@ -625,32 +630,3 @@ def resolve_dispute(
         raise
 
     return {"status": "success", "new_status": order.status}
-@router.post("/orders/{order_id}/release-funds-v2")
-def admin_release_funds_v2(
-    order_id: int,
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
-):
-    from builder_wood.app.routers.orders import _initiate_seller_transfer
-
-    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
-    if not order:
-        raise HTTPException(404, "Order not found.")
-    if order.payment_status != "paid":
-        raise HTTPException(400, "Order has not been paid.")
-    if order.delivery_status != "delivered":
-        raise HTTPException(400, "Order must be marked delivered by the seller first.")
-
-    try:
-        reference = _initiate_seller_transfer(db, order)
-        db.commit()  # <--- THIS IS THE MISSING PIECE
-    except Exception:
-        db.rollback()
-        raise
-
-    return {
-        "status": "transfer_initiated",
-        "order_id": order.order_id,
-        "reference": reference,
-        "message": "Funds will be released once Paystack confirms the transfer.",
-    }
