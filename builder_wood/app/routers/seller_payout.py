@@ -1,18 +1,5 @@
 """
 Seller payout account registration.
-
-Supports two recipient types:
-- Bank (GHIPSS): bank account number + bank code
-- Mobile Money: mobile number + telco code (MTN, Telecel, AT)
-
-Both use Paystack /transferrecipient to create a recipient_code that
-_initiate_seller_transfer() uses for payouts.
-
-Endpoints:
-- GET  /seller/payout/account          (auth) — fetch current payout account
-- POST /seller/payout/account          (auth) — register or update payout account
-- GET  /seller/payout/options          (auth) — banks + MoMo telcos for form
-- GET  /seller/payout/options-public   (public) — same, for register form
 """
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -40,7 +27,6 @@ class PayoutAccountIn(BaseModel):
 
 
 def _fetch_payout_options() -> dict:
-    """Shared logic — fetch banks + MoMo telcos from Paystack."""
     secret = settings.PAYSTACK_SECRET_KEY
     if not secret:
         raise HTTPException(500, "Paystack not configured")
@@ -99,13 +85,11 @@ def get_payout_account(
 def get_payout_options(
     current_seller: models.User = Depends(get_current_active_seller),
 ):
-    """Returns banks and mobile money telcos for the seller form (auth required)."""
     return _fetch_payout_options()
 
 
 @router.get("/options-public")
 def get_payout_options_public():
-    """Returns banks and mobile money telcos (public — for register form)."""
     return _fetch_payout_options()
 
 
@@ -115,7 +99,6 @@ def set_payout_account(
     db: Session = Depends(get_db),
     current_seller: models.User = Depends(get_current_active_seller),
 ):
-    """Register or update the seller's payout account with Paystack."""
     if not settings.PAYSTACK_SECRET_KEY:
         raise HTTPException(500, "Paystack not configured on server")
 

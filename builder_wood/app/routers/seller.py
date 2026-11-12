@@ -1,4 +1,3 @@
-# builder_wood/app/routers/seller.py
 from __future__ import annotations
 
 import math
@@ -28,30 +27,23 @@ from builder_wood.app.auth import get_current_active_seller
 from builder_wood.app.config import settings
 from builder_wood.app.database import get_db
 
-# Ensure Cloudinary always returns https URLs, regardless of dashboard setting.
-# Reads CLOUDINARY_URL from the environment on first use.
 cloudinary.config(secure=True)
 
 router = APIRouter(prefix="/seller", tags=["seller"])
 
-# builder_wood/app/routers/seller.py → builder_wood/app/templates
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-
-MAX_IMAGE_BYTES = 10 * 1024 * 1024   # 10 MB per file
-READ_CHUNK = 256 * 1024              # 256 KB per chunk
-CLOUDINARY_TIMEOUT = 30              # seconds
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+READ_CHUNK = 256 * 1024
+CLOUDINARY_TIMEOUT = 30
 
 MAX_NAME_LEN = 200
 MAX_STOCK = 1_000_000
-LOW_STOCK_THRESHOLD = 10             # pieces
+LOW_STOCK_THRESHOLD = 10
 
 
-# ---------------------------------------------------------------------------
-# validation helpers
-# ---------------------------------------------------------------------------
 def _validate_positive(name: str, value: Optional[float]) -> None:
     if value is None or not math.isfinite(value) or value <= 0:
         raise HTTPException(
@@ -115,10 +107,7 @@ async def _read_capped(upload: UploadFile, limit: int) -> bytes:
         if total > limit:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=(
-                    f"Image '{upload.filename}' exceeds "
-                    f"{limit // (1024 * 1024)} MB."
-                ),
+                detail=f"Image '{upload.filename}' exceeds {limit // (1024 * 1024)} MB.",
             )
         chunks.append(chunk)
     return b"".join(chunks)
@@ -157,13 +146,10 @@ async def _upload_to_cloudinary(upload: UploadFile, wood_id: int, tag: str) -> s
             detail="Cloudinary returned no secure_url",
         )
 
-    _upload_to_cloudinary.last_public_id = returned_pid  # type: ignore[attr-defined]
+    _upload_to_cloudinary.last_public_id = returned_pid
     return secure_url
 
 
-# ---------------------------------------------------------------------------
-# POST /seller/add-wood
-# ---------------------------------------------------------------------------
 @router.post(
     "/add-wood",
     status_code=status.HTTP_201_CREATED,
@@ -293,9 +279,6 @@ async def add_wood(
     return {"status": "success", "wood_id": new_wood.wood_id}
 
 
-# ---------------------------------------------------------------------------
-# GET /seller/low-stock — items needing restock (stock <= threshold)
-# ---------------------------------------------------------------------------
 @router.get("/low-stock")
 def seller_low_stock(
     db: Session = Depends(get_db),
@@ -323,9 +306,6 @@ def seller_low_stock(
     ]
 
 
-# ---------------------------------------------------------------------------
-# Seller dashboard pages (GET)
-# ---------------------------------------------------------------------------
 @router.get("/upload", response_class=HTMLResponse, include_in_schema=False)
 def seller_upload_page(request: Request):
     return templates.TemplateResponse(

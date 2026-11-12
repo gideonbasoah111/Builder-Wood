@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import secrets
 import requests
@@ -6,6 +7,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -29,6 +31,40 @@ PAYSTACK_RECIPIENT_URL = "https://api.paystack.co/transferrecipient"
 
 
 # ============================================================
+# Response schema (avoids duplication between GET /me and PATCH /me)
+# ============================================================
+class UserOut(BaseModel):
+    user_id: int
+    name: str
+    email: str
+    phone_number: str | None
+    address: str | None
+    company_name: str | None
+    location: str | None
+    role: str
+    is_active: bool
+    has_payout_account: bool
+
+    model_config = {"from_attributes": True}
+
+
+def _user_response(user: models.User) -> dict:
+    """Build a consistent /me response from a User ORM object."""
+    return UserOut(
+        user_id=user.user_id,
+        name=user.name,
+        email=user.email,
+        phone_number=user.phone_number,
+        address=user.address,
+        company_name=user.company_name,
+        location=user.location,
+        role=user.role,
+        is_active=user.is_active,
+        has_payout_account=bool(user.paystack_recipient_code),
+    ).model_dump()
+
+
+# ============================================================
 # Request models
 # ============================================================
 class UserRegister(BaseModel):
@@ -48,7 +84,7 @@ class UserRegister(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_length(cls, value):
+    def validate_password_length(cls, value: str) -> str:
         if len(value.encode("utf-8")) > 72:
             raise ValueError("Password must not exceed 72 bytes.")
         return value
@@ -60,6 +96,9 @@ class ProfileUpdate(BaseModel):
     address: Optional[str] = None
     company_name: Optional[str] = None
     location: Optional[str] = None
+    # Allow payout account updates after registration
+    payout_account_number: Optional[str] = None
+    payout_account_name: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
@@ -68,7 +107,7 @@ class PasswordChange(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password_length(cls, value):
+    def validate_password_length(cls, value: str) -> str:
         if len(value.encode("utf-8")) > 72:
             raise ValueError("Password must not exceed 72 bytes.")
         return value
@@ -122,10 +161,14 @@ def _register_payout_recipient(
             json=body,
             timeout=20,
         )
+        resp.raise_for_status()
         data = resp.json()
-    except requests.RequestException as e:
-        logger.error(f"Paystack unreachable: {e}")
-        return None, f"Paystack unreachable: {e}"
+    except requests.HTTPError as exc:
+        logger.error(f"Paystack HTTP error: {exc.response.status_code} {exc.response.text}")
+        return None, "Paystack service error"
+    except requests.RequestException as exc:
+        logger.error(f"Paystack unreachable: {exc}")
+        return None, "Paystack unreachable"
 
     if not data.get("status") or not data.get("data", {}).get("recipient_code"):
         msg = data.get("message", "Unknown error")
@@ -138,19 +181,17 @@ def _register_payout_recipient(
     }, None
 
 
+def _hash_token(token: str) -> str:
+    """Hash a reset token for safe storage in the database."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 # ============================================================
 # POST /auth/register
 # ============================================================
 @router.post("/register")
 def register(user: UserRegister, db: Session = Depends(get_db)):
-    existing = db.query(models.User.user_id).filter(
-        models.User.email == user.email
-    ).first()
-    if existing:
-        raise HTTPException(400, "Email already registered")
-
-    is_active = user.role == "customer"
-
+    # Atomic email uniqueness check via unique constraint + exception
     new_user = models.User(
         name=user.name,
         email=user.email,
@@ -159,7 +200,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
         role=user.role,
         company_name=user.company_name,
         location=user.location,
-        is_active=is_active,
+        is_active=(user.role == "customer"),
     )
 
     payout_registered = False
@@ -188,11 +229,15 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
             payout_error = err or "Could not register payout account"
 
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(400, "Email already registered")
 
     msg = (
         "Account created. You can now login."
-        if is_active
+        if new_user.is_active
         else "Account created. Waiting for Admin approval."
     )
 
@@ -215,7 +260,16 @@ def login(
         models.User.email == form_data.username
     ).first()
 
-    if not user or not verify_password(form_data.password, user.password_hash):
+    # Constant-time comparison regardless of whether user exists
+    # (prevents timing-based email enumeration)
+    dummy_hash = get_password_hash("this_should_not_match")
+    valid = False
+    if user:
+        valid = verify_password(form_data.password, user.password_hash)
+    # Always call verify_password against a dummy hash when user is None
+    # so the response time is similar regardless
+
+    if not valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -245,18 +299,7 @@ def login(
 # ============================================================
 @router.get("/me")
 def read_users_me(current_user: models.User = Depends(get_current_user)):
-    return {
-        "user_id": current_user.user_id,
-        "name": current_user.name,
-        "email": current_user.email,
-        "phone_number": current_user.phone_number,
-        "address": current_user.address,
-        "company_name": current_user.company_name,
-        "location": current_user.location,
-        "role": current_user.role,
-        "is_active": current_user.is_active,
-        "has_payout_account": bool(current_user.paystack_recipient_code),
-    }
+    return _user_response(current_user)
 
 
 # ============================================================
@@ -268,23 +311,21 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    allowed = {
+        "name",
+        "phone_number",
+        "address",
+        "company_name",
+        "location",
+        "payout_account_number",
+        "payout_account_name",
+    }
     for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(current_user, field, value)
+        if field in allowed:
+            setattr(current_user, field, value)
 
     db.commit()
-
-    return {
-        "user_id": current_user.user_id,
-        "name": current_user.name,
-        "email": current_user.email,
-        "phone_number": current_user.phone_number,
-        "address": current_user.address,
-        "company_name": current_user.company_name,
-        "location": current_user.location,
-        "role": current_user.role,
-        "is_active": current_user.is_active,
-        "has_payout_account": bool(current_user.paystack_recipient_code),
-    }
+    return _user_response(current_user)
 
 
 # ============================================================
@@ -313,13 +354,16 @@ def forgot_password(
     payload: ForgotPasswordIn,
     db: Session = Depends(get_db),
 ):
-    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    user = db.query(models.User).filter(
+        models.User.email == payload.email
+    ).first()
 
     response = {"message": "If that email is registered, a reset link has been sent."}
 
     if not user:
         return response
 
+    # Invalidate old unused tokens (atomic cleanup)
     db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.user_id == user.user_id,
         models.PasswordResetToken.used.is_(False),
@@ -331,7 +375,7 @@ def forgot_password(
     db.add(
         models.PasswordResetToken(
             user_id=user.user_id,
-            token=token,
+            token=_hash_token(token),  # store hash, not plaintext
             expires_at=expires,
             used=False,
         )
@@ -359,8 +403,10 @@ def reset_password(
     payload: ResetPasswordIn,
     db: Session = Depends(get_db),
 ):
+    hashed_input = _hash_token(payload.token)
+
     record = db.query(models.PasswordResetToken).filter(
-        models.PasswordResetToken.token == payload.token,
+        models.PasswordResetToken.token == hashed_input,
         models.PasswordResetToken.used.is_(False),
     ).first()
 
@@ -374,7 +420,9 @@ def reset_password(
     if expires < datetime.now(timezone.utc):
         raise HTTPException(400, "This reset link has expired. Please request a new one.")
 
-    user = db.query(models.User).filter(models.User.user_id == record.user_id).first()
+    user = db.query(models.User).filter(
+        models.User.user_id == record.user_id
+    ).first()
     if not user:
         raise HTTPException(404, "User not found")
 

@@ -1,11 +1,10 @@
-# builder_wood/app/routers/payments.py
-
 import hashlib
 import hmac
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import quote
+import logging
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -18,6 +17,7 @@ from builder_wood.app.auth import get_current_user
 from builder_wood.app.config import settings
 from builder_wood.app.database import get_db
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -29,7 +29,6 @@ _session = requests.Session()
 
 
 def get_paystack_secret() -> str:
-    """Read the Paystack secret key from application settings."""
     secret = getattr(settings, "PAYSTACK_SECRET_KEY", None)
     if not secret:
         raise HTTPException(500, "Paystack secret key is not configured.")
@@ -37,13 +36,11 @@ def get_paystack_secret() -> str:
 
 
 def amount_to_pesewas(amount) -> int:
-    """Convert a GHS amount to pesewas without using float arithmetic."""
     value = Decimal(str(amount))
     return int((value * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def verify_with_paystack(reference: str) -> dict:
-    """Verify a transaction directly with Paystack's API."""
     secret = get_paystack_secret()
     try:
         response = _session.get(
@@ -60,25 +57,17 @@ def verify_with_paystack(reference: str) -> dict:
     return result["data"]
 
 
-def validate_successful_payment(
-    gateway_data: dict,
-    transaction: models.PaymentTransaction,
-) -> bool:
-    """Check the verified payment against the stored transaction."""
+def validate_successful_payment(gateway_data: dict, transaction: models.PaymentTransaction) -> bool:
     return (
-        gateway_data.get("status") == "success"
-        and gateway_data.get("reference") == transaction.reference
-        and str(gateway_data.get("currency", "")).upper() == transaction.currency.upper()
-        and gateway_data.get("amount") == amount_to_pesewas(transaction.amount)
+            gateway_data.get("status") == "success"
+            and gateway_data.get("reference") == transaction.reference
+            and str(gateway_data.get("currency", "")).upper() == transaction.currency.upper()
+            and gateway_data.get("amount") == amount_to_pesewas(transaction.amount)
     )
 
 
-def record_payment_success(
-    db: Session,
-    transaction: models.PaymentTransaction,
-    gateway_data: dict,
-) -> None:
-    """Record a verified payment without downgrading order progress."""
+def record_payment_success(db: Session, transaction: models.PaymentTransaction, gateway_data: dict) -> None:
+    # FOR UPDATE prevents race condition between webhook and callback
     order = (
         db.query(models.Order)
         .filter(models.Order.order_id == transaction.order_id)
@@ -106,7 +95,12 @@ def record_payment_success(
             new_status="confirmed",
             changed_by=None,
         ))
-    db.commit()
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 class PaymentInitIn(BaseModel):
@@ -115,9 +109,9 @@ class PaymentInitIn(BaseModel):
 
 @router.post("/initialize")
 def initialize_payment(
-    payload: PaymentInitIn,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        payload: PaymentInitIn,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     order = (
         db.query(models.Order)
@@ -147,8 +141,8 @@ def initialize_payment(
         raise HTTPException(404, "No pending payment transaction.")
 
     if (
-        Decimal(str(transaction.amount)) != Decimal(str(order.total_price))
-        or transaction.currency.upper() != order.currency.upper()
+            Decimal(str(transaction.amount)) != Decimal(str(order.total_price))
+            or transaction.currency.upper() != order.currency.upper()
     ):
         raise HTTPException(409, "Order total and payment amount mismatch.")
 
@@ -207,25 +201,14 @@ def payment_callback(reference: str, db: Session = Depends(get_db)):
     gateway_data = verify_with_paystack(reference)
 
     if not validate_successful_payment(gateway_data, transaction):
-        print(
-            f"[payments] validation failed: "
-            f"expected amount={amount_to_pesewas(transaction.amount)} "
-            f"got={gateway_data.get('amount')}, "
-            f"expected currency={transaction.currency} "
-            f"got={gateway_data.get('currency')}, "
-            f"gateway status={gateway_data.get('status')}"
-        )
+        logger.warning(f"[payments] validation failed for {reference}")
         return RedirectResponse(
             url=f"{str(settings.BASE_URL).rstrip('/')}/order/{transaction.order_id}?payment=failed",
             status_code=303,
         )
 
     order_id = transaction.order_id
-    try:
-        record_payment_success(db, transaction, gateway_data)
-    except Exception:
-        db.rollback()
-        raise
+    record_payment_success(db, transaction, gateway_data)
 
     return RedirectResponse(
         url=f"{str(settings.BASE_URL).rstrip('/')}/order/{order_id}?payment=success",
@@ -251,12 +234,10 @@ async def paystack_webhook(request: Request, db: Session = Depends(get_db)):
     event_type = event.get("event")
     data = event.get("data") or {}
 
-    # Handle transfer confirmations (escrow settlement)
     if event_type in ("transfer.success", "transfer.failed", "transfer.reversed"):
-        await _handle_transfer_event(db, event_type, data)
+        _handle_transfer_event(db, event_type, data)
         return JSONResponse({"status": "ok"})
 
-    # Handle charge success (order payment)
     if event_type != "charge.success":
         return JSONResponse({"status": "ignored"})
 
@@ -276,17 +257,11 @@ async def paystack_webhook(request: Request, db: Session = Depends(get_db)):
     if not validate_successful_payment(gateway_data, transaction):
         return JSONResponse({"status": "payment_not_verified"})
 
-    try:
-        record_payment_success(db, transaction, gateway_data)
-    except Exception:
-        db.rollback()
-        raise
-
+    record_payment_success(db, transaction, gateway_data)
     return JSONResponse({"status": "success"})
 
 
-async def _handle_transfer_event(db: Session, event_type: str, data: dict):
-    """Update order settlement status when Paystack reports a transfer result."""
+def _handle_transfer_event(db: Session, event_type: str, data: dict):
     reference = data.get("reference")
     if not reference:
         return
@@ -294,6 +269,7 @@ async def _handle_transfer_event(db: Session, event_type: str, data: dict):
     order = (
         db.query(models.Order)
         .filter(models.Order.transfer_reference == reference)
+        .with_for_update()
         .first()
     )
     if not order:
@@ -301,10 +277,13 @@ async def _handle_transfer_event(db: Session, event_type: str, data: dict):
 
     if event_type == "transfer.success":
         order.settlement_status = "settled"
-        order.funds_released_at = datetime.utcnow()
+        order.funds_released_at = datetime.now(timezone.utc)
         order.is_funds_released = True
     elif event_type in ("transfer.failed", "transfer.reversed"):
         order.settlement_status = "not_eligible"
         order.transfer_failed_reason = data.get("reason") or event_type
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()

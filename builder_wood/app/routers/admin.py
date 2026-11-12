@@ -1,22 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+"""Admin dashboard + management endpoints."""
+import logging
+from collections import defaultdict
+from datetime import datetime, timezone
+from decimal import Decimal
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, case
-from typing import Dict, List, Optional
-from pathlib import Path
-from datetime import datetime, timezone
-from collections import defaultdict
 
 from builder_wood.app.database import get_db
 from builder_wood.app import models, schemas
 from builder_wood.app.auth import get_current_admin
 from builder_wood.app.config import settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 _templates = Jinja2Templates(directory=_TEMPLATES_DIR)
+
+
+# ============================================================
+# Schemas
+# ============================================================
+class ResolveDisputeBody(BaseModel):
+    action: str = Field(pattern="^(refund|release)$")
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 # ============================================================
@@ -36,7 +51,6 @@ def admin_dashboard_page(request: Request):
 # Shared helpers
 # ============================================================
 def _get_user_name_map(db: Session, user_ids: set) -> dict:
-    """Batch-fetch user names in one query."""
     if not user_ids:
         return {}
     rows = (
@@ -48,7 +62,7 @@ def _get_user_name_map(db: Session, user_ids: set) -> dict:
 
 
 def _money(v) -> float:
-    """None-safe float for money fields."""
+    """Display-only conversion. Never use this for arithmetic sums."""
     return float(v) if v is not None else 0.0
 
 
@@ -66,38 +80,57 @@ def _serialize_order_item(i: models.OrderItem) -> dict:
 
 
 # ============================================================
-# USER MANAGEMENT
+# USER MANAGEMENT (paginated)
 # ============================================================
 @router.get("/pending-sellers", response_model=List[schemas.UserOut])
 def get_pending_sellers(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
     return (
         db.query(models.User)
         .filter(models.User.role == "seller", models.User.is_active.is_(False))
+        .order_by(models.User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
 
 @router.get("/active-sellers", response_model=List[schemas.UserOut])
 def get_active_sellers(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
     return (
         db.query(models.User)
         .filter(models.User.role == "seller", models.User.is_active.is_(True))
+        .order_by(models.User.name)
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
 
 @router.get("/customers", response_model=List[schemas.UserOut])
 def get_customers(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    return db.query(models.User).filter(models.User.role == "customer").all()
+    return (
+        db.query(models.User)
+        .filter(models.User.role == "customer")
+        .order_by(models.User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.patch("/users/{user_id}/toggle-active", response_model=schemas.UserOut)
@@ -106,14 +139,23 @@ def toggle_user_active(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    user = (
+        db.query(models.User)
+        .filter(models.User.user_id == user_id)
+        .with_for_update()
+        .first()
+    )
     if not user:
         raise HTTPException(404, "User not found")
     if user.role == "admin":
-        raise HTTPException(400, "Cannot deactivate admin")
+        raise HTTPException(400, "Cannot deactivate an admin account")
+    if user.user_id == admin.user_id:
+        raise HTTPException(400, "You cannot deactivate your own account")
+
     user.is_active = not user.is_active
     db.commit()
     db.refresh(user)
+    logger.info(f"Admin #{admin.user_id} toggled user #{user_id} active={user.is_active}")
     return user
 
 
@@ -122,27 +164,24 @@ def toggle_user_active(
 # ============================================================
 @router.get("/orders/all")
 def get_all_orders(
-    limit: int = 100,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    status: Optional[str] = Query(None, max_length=32),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    2 queries:
-      1. Orders with items eagerly loaded.
-      2. User names for every customer/seller in the result set.
-    """
+    query = db.query(models.Order).options(joinedload(models.Order.items))
+    if status:
+        query = query.filter(models.Order.status == status)
+
     orders = (
-        db.query(models.Order)
-        .options(joinedload(models.Order.items))
-        .order_by(models.Order.order_date.desc())
+        query.order_by(models.Order.order_date.desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )
 
-    user_ids = set()
-    for o in orders:
-        user_ids.add(o.customer_id)
-        user_ids.add(o.seller_id)
+    user_ids = {o.customer_id for o in orders} | {o.seller_id for o in orders}
     name_map = _get_user_name_map(db, user_ids)
 
     return [
@@ -172,14 +211,10 @@ def get_all_orders(
 
 @router.get("/orders/awaiting-release")
 def get_orders_awaiting_release(
+    limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    2 queries:
-      1. Eligible orders (paid + delivered, not settled/transferring).
-      2. User names + recipient flags for every seller in the result.
-    """
     orders = (
         db.query(models.Order)
         .filter(
@@ -188,32 +223,22 @@ def get_orders_awaiting_release(
             models.Order.settlement_status.notin_(("settled", "transferring")),
         )
         .order_by(models.Order.auto_confirm_at.asc())
+        .limit(limit)
         .all()
     )
 
-    user_ids = set()
-    seller_ids = set()
-    for o in orders:
-        user_ids.add(o.customer_id)
-        user_ids.add(o.seller_id)
-        seller_ids.add(o.seller_id)
-
-    # One query for names + recipient flags together.
-    recipient_map: Dict[int, bool] = {}
-    if user_ids:
-        rows = (
-            db.query(
-                models.User.user_id,
-                models.User.name,
-                models.User.paystack_recipient_code,
-            )
-            .filter(models.User.user_id.in_(user_ids))
-            .all()
+    user_ids = {o.customer_id for o in orders} | {o.seller_id for o in orders}
+    rows = (
+        db.query(
+            models.User.user_id,
+            models.User.name,
+            models.User.paystack_recipient_code,
         )
-        name_map = {r.user_id: r.name for r in rows}
-        recipient_map = {r.user_id: bool(r.paystack_recipient_code) for r in rows}
-    else:
-        name_map = {}
+        .filter(models.User.user_id.in_(user_ids))
+        .all()
+    )
+    name_map = {r.user_id: r.name for r in rows}
+    recipient_map = {r.user_id: bool(r.paystack_recipient_code) for r in rows}
 
     return [
         {
@@ -268,16 +293,13 @@ def alert_seller(
 
 
 # ============================================================
-# FUNDS SUMMARY — one aggregate query
+# FUNDS SUMMARY
 # ============================================================
 @router.get("/funds/summary", response_model=schemas.FundsSummaryOut)
 def funds_summary(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    1 aggregate query. All CASE-based SUMs are pushed into SQL.
-    """
     row = (
         db.query(
             func.sum(models.Order.total_price).label("total_collected"),
@@ -326,10 +348,6 @@ def funds_incoming(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    2 queries: orders + items (joinedload), then user names.
-    Totals are computed in Python from the same rows.
-    """
     orders = (
         db.query(models.Order)
         .options(joinedload(models.Order.items))
@@ -341,10 +359,7 @@ def funds_incoming(
         .all()
     )
 
-    user_ids = set()
-    for o in orders:
-        user_ids.add(o.customer_id)
-        user_ids.add(o.seller_id)
+    user_ids = {o.customer_id for o in orders} | {o.seller_id for o in orders}
     name_map = _get_user_name_map(db, user_ids)
 
     result = []
@@ -390,11 +405,6 @@ def funds_by_seller(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    2 queries:
-      1. All sellers.
-      2. All paid orders for those sellers (grouped in Python).
-    """
     sellers = (
         db.query(models.User)
         .filter(models.User.role == "seller")
@@ -466,7 +476,6 @@ def funds_settled(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """2 queries: settled orders + names."""
     orders = (
         db.query(models.Order)
         .options(joinedload(models.Order.items))
@@ -479,10 +488,7 @@ def funds_settled(
         .all()
     )
 
-    user_ids = set()
-    for o in orders:
-        user_ids.add(o.customer_id)
-        user_ids.add(o.seller_id)
+    user_ids = {o.customer_id for o in orders} | {o.seller_id for o in orders}
     name_map = _get_user_name_map(db, user_ids)
 
     return {
@@ -511,7 +517,6 @@ def funds_failed(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """2 queries: failed orders + seller names."""
     orders = (
         db.query(models.Order)
         .filter(
@@ -574,10 +579,6 @@ def resolve_dispute(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """
-    Previously: 1 query per OrderItem to restore stock (N+1).
-    Now: 1 query to fetch all affected Woods with FOR UPDATE, then batch-update.
-    """
     order = (
         db.query(models.Order)
         .options(joinedload(models.Order.items))
@@ -591,7 +592,6 @@ def resolve_dispute(
         raise HTTPException(400, "Invalid action")
 
     if action == "refund":
-        # Fetch all affected woods in one query, locked for update.
         wood_ids = [item.wood_id for item in order.items]
         if wood_ids:
             woods = (
