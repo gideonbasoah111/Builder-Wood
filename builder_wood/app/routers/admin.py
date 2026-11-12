@@ -625,3 +625,32 @@ def resolve_dispute(
         raise
 
     return {"status": "success", "new_status": order.status}
+@router.post("/orders/{order_id}/release-funds-v2")
+def admin_release_funds_v2(
+    order_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    from builder_wood.app.routers.orders import _initiate_seller_transfer
+
+    order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found.")
+    if order.payment_status != "paid":
+        raise HTTPException(400, "Order has not been paid.")
+    if order.delivery_status != "delivered":
+        raise HTTPException(400, "Order must be marked delivered by the seller first.")
+
+    try:
+        reference = _initiate_seller_transfer(db, order)
+        db.commit()  # <--- THIS IS THE MISSING PIECE
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "status": "transfer_initiated",
+        "order_id": order.order_id,
+        "reference": reference,
+        "message": "Funds will be released once Paystack confirms the transfer.",
+    }

@@ -332,3 +332,4 @@ class WithdrawalRequest(Base):
     processed_at = Column(TIMESTAMP, nullable=True)
     notes = Column(Text, nullable=True)
     seller = relationship("User")
+
