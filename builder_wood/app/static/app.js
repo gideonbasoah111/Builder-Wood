@@ -1,310 +1,405 @@
-/* Builder Wood storefront logic */
-(function () {
-  "use strict";
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#242019">
+  <title>{{ shop_name | default("Builder Wood") }} — Timber, Ceiling Boards & Wooden Furniture in Kumasi</title>
 
-  var API_PATH = "/woods/";
-  var $  = function (s) { return document.querySelector(s); };
-  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
 
-  var state = {
-    products: [],
-    category: "",
-    search: "",
-    sort: "featured",
-    cart: []
-  };
+  <script defer src="/static/app.js"></script>
+  <script defer src="/static/messages.js"></script>
 
-  function esc(v) {
-    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
-      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
-    });
-  }
-
-  function money(v, c) {
-    var n = Number(v);
-    var currency = c || "GH\u20b5";
-    return Number.isFinite(n) ? currency + n.toFixed(2) : "Ask seller";
-  }
-
-  function getId(p) { return String(p.wood_id != null ? p.wood_id : p.id); }
-  function getToken() { return localStorage.getItem("bw_token"); }
-
-  /* ============================================================
-     FETCH & RENDER PRODUCTS
-     ============================================================ */
-  function fetchProducts() {
-    var params = new URLSearchParams();
-    if (state.category) params.set("category", state.category);
-    if (state.search)   params.set("search", state.search);
-    if (state.sort)     params.set("sort", state.sort);
-
-    return fetch(API_PATH + "?" + params.toString(), {
-      headers: { "Accept": "application/json" }
-    }).then(res => {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
-    }).then(data => {
-      var rows = Array.isArray(data) ? data : (data.items || data.results || []);
-      state.products = rows.map(p => {
-        var catObj    = p.category || {};
-        var sellerObj = p.seller   || {};
-        var images    = Array.isArray(p.images) ? p.images : [];
-
-        return Object.assign({}, p, {
-          display_name: p.display_name || p.local_name || "Timber",
-          local_name:   p.local_name || "",
-          category_slug: String(catObj.slug || p.category_slug || "").toLowerCase(),
-          category_name: catObj.category_name || p.category_name || "",
-          seller_id:     p.seller_id || null,
-          seller_name:   sellerObj.name || p.seller_name || "Builder Wood",
-          size_label:    p.size_label || "",
-          image_url:     p.image_url || (images[0] && images[0].image_url) || "",
-          is_treated:    Boolean(p.is_treated),
-          is_featured:   Boolean(p.is_featured)
-        });
-      });
-    }).catch(err => {
-      console.warn("Woods fetch failed:", err.message);
-      state.products = [];
-    }).then(() => {
-      renderProducts();
-    });
-  }
-
-  function renderProducts() {
-    var grid  = $("#product-grid");
-    var empty = $("#empty-state");
-    var skeleton = document.getElementById("product-skeleton");
-
-    if (skeleton) skeleton.style.display = "none"; // Hide skeleton when loaded
-
-    var title = state.category ? (state.category) : (state.search ? 'Results for "' + state.search + '"' : "Top Selling Timber");
-    if ($("#catalog-title")) $("#catalog-title").textContent = title;
-    if ($("#result-count")) $("#result-count").textContent = state.products.length + " items";
-
-    if (!state.products.length) {
-      grid.innerHTML = "";
-      if (empty) empty.hidden = false;
-      return;
+  <style>
+    :root {
+      --tap: 44px;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-l: env(safe-area-inset-left, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
     }
-    if (empty) empty.hidden = true;
 
-    var loggedInUserId = localStorage.getItem("bw_user_id");
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: hidden; background: #f5f5f5; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
+    button, input, a { font: inherit; }
 
-    grid.innerHTML = state.products.map(function (p) {
-      var stock = Number(p.stock_quantity || 0);
-      var isMyProduct = (p.seller_id && loggedInUserId && String(p.seller_id) === String(loggedInUserId));
+    .container { width: min(100%, 1100px); margin-inline: auto; padding-inline: 16px; }
 
-      // Jumia style image
-      var img = p.image_url
-        ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy">'
-        : '<div style="font-size: 40px; opacity: 0.2;">🪵</div>';
+    /* --- STICKY HEADER (Header + Search + Categories) --- */
+    .sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
 
-      var badges =
-        (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
-        (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
+    .header-main { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
 
-      // Action buttons (Jumia style split button)
-      var actionButton = "";
-      if (isMyProduct) {
-        actionButton = '<button class="btn-add-text" disabled>Your Item</button>';
-      } else if (stock <= 0) {
-        actionButton = '<button class="btn-add-text" disabled>Out of Stock</button>';
+    .menu-btn { background: none; border: none; padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+    .menu-btn span { display: block; width: 24px; height: 2px; background: #242019; border-radius: 2px; }
+
+    .brand { text-decoration: none; font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 22px; color: #242019; display: flex; align-items: center; gap: 6px; }
+    .brand em { color: var(--wood-med); font-style: normal; }
+
+    .search { flex: 1; display: flex; background: #f1f1f2; border-radius: 8px; overflow: hidden; }
+    .search input { flex: 1; border: none; background: transparent; padding: 12px 16px; outline: none; font-size: 14px; }
+    .search button { background: var(--wood-med); color: #fff; border: none; padding: 0 20px; cursor: pointer; }
+
+    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .cart-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #f1f1f2; color: #242019; text-decoration: none; border: none; cursor: pointer; }
+    .cart-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; font-size: 10px; font-weight: 800; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; border: 2px solid #fff; }
+
+    /* --- CATEGORY PILLS (Inside Sticky) --- */
+    .cat-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; border-top: 1px solid #f0f0f0; }
+    .cat-scroll::-webkit-scrollbar { display: none; }
+    .cat-pill { flex: 0 0 auto; padding: 8px 16px; background: #f5f5f5; border-radius: 30px; font-size: 13px; font-weight: 700; color: #242019; text-decoration: none; border: 1px solid #e0e0e0; cursor: pointer; transition: all 0.2s; }
+    .cat-pill.active, .cat-pill:hover { background: var(--wood-med); color: #fff; border-color: var(--wood-med); }
+
+    /* --- SIDE NAVIGATION DRAWER --- */
+    .side-drawer { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background: #fff; z-index: 100; transition: left 0.3s ease; box-shadow: 2px 0 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+    .side-drawer.open { left: 0; }
+    .side-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: var(--wood-dark); color: #fff; }
+    .side-header h3 { margin: 0; font-family: 'Manrope', sans-serif; }
+    .side-close { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
+    .side-body { flex: 1; overflow-y: auto; padding: 20px 0; }
+    .side-group { margin-bottom: 24px; }
+    .side-group h4 { margin: 0 0 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+    .side-link { display: block; padding: 12px 20px; color: #242019; text-decoration: none; font-size: 15px; font-weight: 500; transition: background 0.2s; cursor: pointer; }
+    .side-link:hover { background: #f5f5f5; color: var(--wood-med); }
+    .drawer-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    /* --- PROMO BANNERS --- */
+    .banner-section { padding: 20px 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 600px) { .banner-section { grid-template-columns: 1fr; } }
+    .promo-card { position: relative; border-radius: 12px; overflow: hidden; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .promo-card.dark { background: #1a1a1a; color: #fff; }
+    .promo-card.orange { background: #e87423; color: #fff; }
+    .promo-card h3 { font-family: 'Manrope', sans-serif; font-size: 22px; font-weight: 800; margin: 0 0 8px 0; line-height: 1.1; text-transform: uppercase; }
+    .promo-card p { margin: 0; font-size: 13px; opacity: 0.9; }
+    .promo-card .btn-shop { align-self: flex-start; margin-top: 16px; background: #fff; color: #1a1a1a; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 12px; text-transform: uppercase; }
+    .promo-card.orange .btn-shop { background: #1a1a1a; color: #fff; }
+
+    /* --- PRODUCT GRID --- */
+    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 24px 0 16px; }
+    .section-head h2 { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; margin: 0; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .product-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; position: relative; transition: transform 0.2s; }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+    .product-image { aspect-ratio: 1; background: #f9f9f9; display: grid; place-items: center; position: relative; overflow: hidden; }
+    .product-image img { width: 100%; height: 100%; object-fit: cover; }
+    .product-badge { position: absolute; top: 10px; left: 10px; background: #e87423; color: #fff; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; }
+    .product-badge.treated { background: var(--green); }
+    .product-body { padding: 12px; flex: 1; display: flex; flex-direction: column; }
+    .product-title { font-size: 13px; font-weight: 600; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #242019; text-decoration: none; }
+    .product-price { font-size: 16px; font-weight: 800; color: #242019; margin: 8px 0 2px; display: flex; align-items: baseline; gap: 4px; }
+    .product-price small { font-size: 10px; font-weight: 500; color: #888; }
+    .product-sub { font-size: 11px; color: #888; margin-bottom: 12px; }
+    .product-actions { display: flex; gap: 6px; margin-top: auto; }
+    .btn-add-icon { width: 32px; height: 32px; border-radius: 6px; background: #242019; color: #fff; border: none; display: grid; place-items: center; cursor: pointer; font-size: 18px; font-weight: 400; flex-shrink: 0; }
+    .btn-add-text { flex: 1; border-radius: 6px; background: #fff; border: 1px solid #242019; color: #242019; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+    .btn-add-text:hover { background: #242019; color: #fff; }
+    .btn-add-text:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+
+    /* --- TRUST BANNER --- */
+    .delivery-banner { background: #242019; color: #fff; border-radius: 12px; padding: 32px 24px; margin: 40px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+    .delivery-banner h2 { font-family: 'Manrope', sans-serif; font-size: 24px; margin: 0 0 8px 0; }
+    .delivery-banner p { margin: 0; opacity: 0.8; font-size: 14px; }
+
+    /* --- UTILITIES --- */
+    .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .skeleton-card { background: #fff; border-radius: 12px; height: 250px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <!-- SIDE NAVIGATION DRAWER -->
+  <div class="drawer-backdrop" id="side-backdrop"></div>
+  <aside class="side-drawer" id="side-menu" style="display: flex; flex-direction: column;">
+    <div class="side-header">
+      <h3>Menu</h3>
+      <button class="side-close" id="side-close">×</button>
+    </div>
+
+    <div class="side-body" style="flex: 1; overflow-y: auto;">
+      <div class="side-group">
+        <h4>Shop by Category</h4>
+        <a class="side-link" data-cat="hardwood">Hardwood</a>
+        <a class="side-link" data-cat="softwood">Softwood</a>
+        <a class="side-link" data-cat="roofing">Roofing Timber</a>
+        <a class="side-link" data-cat="ceiling">Ceiling & Battens</a>
+        <a class="side-link" data-cat="furniture">Furniture Wood</a>
+      </div>
+
+      <div class="side-group">
+        <h4>My Account</h4>
+        <a class="side-link" href="/messages">💬 Messages</a>
+        <a class="side-link" href="/my-orders">📦 My Orders</a>
+
+        <!-- Seller Dashboard (Hidden by default) -->
+        <a class="side-link" href="/seller/orders" id="side-seller-dashboard" style="display: none; color: var(--wood-med); font-weight: 800;">📊 Seller Dashboard</a>
+
+        <!-- Admin Dashboard (Hidden by default) -->
+        <a class="side-link" href="/admin" id="side-admin-dashboard" style="display: none; color: var(--red); font-weight: 800;">🛡️ Admin Dashboard</a>
+      </div>
+
+      <div class="side-group">
+        <h4>Help</h4>
+        <a class="side-link" href="#delivery">🚚 Delivery Info</a>
+        <a class="side-link" href="https://wa.me/233247881337" target="_blank">💬 Contact Support</a>
+      </div>
+    </div>
+
+    <!-- AUTH AREA (Settled at the bottom) -->
+    <div id="auth-side-area" style="margin-top: auto; padding: 20px; border-top: 1px solid #eee; background: #fafafa;">
+
+      <!-- Logged In View -->
+      <div id="side-logged-in" style="display: none; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: #e87423; color: #fff; display: grid; place-items: center; font-size: 20px;">
+            👤
+          </div>
+          <div>
+            <div style="font-size: 14px; font-weight: 800; color: #242019;" id="side-user-name">User Name</div>
+            <div style="font-size: 12px; color: #888; margin-top: 2px;" id="side-user-email">user@email.com</div>
+          </div>
+        </div>
+        <button id="side-logout-btn" style="width: 100%; background: #fff; border: 1px solid #dc3545; color: #dc3545; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 4px;">Logout</button>
+      </div>
+
+      <!-- Logged Out View -->
+      <div id="side-logged-out" style="display: none; flex-direction: column; gap: 10px;">
+        <a href="/login" class="side-link" style="background: #242019; color: #fff; text-align: center; border-radius: 8px; padding: 12px; text-decoration: none; font-weight: 700;">Login</a>
+        <a href="/login?mode=register" class="side-link" style="border: 1px solid #242019; color: #242019; text-align: center; border-radius: 8px; padding: 12px; text-decoration: none; background: #fff; font-weight: 700;">Create Account</a>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- STICKY HEADER & CATEGORIES -->
+  <div class="sticky-top">
+    <div class="container header-main">
+      <button class="menu-btn" id="menu-open" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">🪵</span> Builder<em>Wood</em>
+      </a>
+      <form class="search" id="search-form">
+        <input id="search-input" type="search" placeholder="Search timber, Wawa, Denya..." aria-label="Search products">
+        <button type="submit">Search</button>
+      </form>
+      <div class="header-actions">
+        <div id="header-logged-out" style="display: flex; gap: 8px;">
+          <a href="/login" class="btn btn-outline" style="padding: 8px 16px; border: 1px solid #ccc; border-radius: 8px; text-decoration: none; color: #242019; font-weight: 700; font-size: 13px;">Login</a>
+          <a href="/login?mode=register" class="btn btn-gold" style="padding: 8px 16px; background: #e87423; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 13px;">Sign Up</a>
+        </div>
+        <button id="header-logged-in" style="display: none; background: none; border: none; cursor: pointer; font-size: 24px; color: #242019;" aria-label="Open Profile Menu">👤</button>
+        <button class="cart-btn" id="cart-open">
+          🛒 <span class="cart-badge" id="cart-count">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CATEGORY PILLS INSIDE STICKY -->
+    <div class="cat-scroll" id="chip-row">
+      <button class="cat-pill active" data-cat="">All Products</button>
+      <button class="cat-pill" data-cat="hardwood">Hardwood</button>
+      <button class="cat-pill" data-cat="softwood">Softwood</button>
+      <button class="cat-pill" data-cat="roofing">Roofing</button>
+      <button class="cat-pill" data-cat="ceiling">Ceilings</button>
+      <button class="cat-pill" data-cat="furniture">Furniture</button>
+    </div>
+  </div>
+
+  <main class="container">
+
+    <!-- PROMO BANNERS -->
+    <section class="banner-section">
+      <div class="promo-card dark">
+        <div><h3>Timber<br>Deals</h3><p>Up to 20% off selected hardwood.</p></div>
+        <a href="#products" class="btn-shop">Shop Now</a>
+      </div>
+      <div class="promo-card orange">
+        <div><h3>Fast<br>Delivery</h3><p>Direct to your site in Kumasi.</p></div>
+        <a href="#delivery" class="btn-shop">Learn More</a>
+      </div>
+    </section>
+
+    <!-- PRODUCT GRID -->
+    <section id="products">
+      <div class="section-head">
+        <h2 id="catalog-title">All Products</h2>
+        <span id="result-count" style="font-size: 13px; color: #666;"></span>
+      </div>
+
+      <div class="skeleton-grid" id="product-skeleton">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+
+      <div class="product-grid" id="product-grid"></div>
+
+      <div class="empty-state" id="empty-state" hidden style="text-align: center; padding: 40px;">
+        <h3>No products found</h3>
+        <button class="btn-add-text" id="empty-clear" style="width: auto; padding: 10px 20px; margin: 20px auto;">Clear filters</button>
+      </div>
+    </section>
+
+    <!-- TRUST BANNER -->
+    <section id="delivery" class="delivery-banner">
+      <div>
+        <h2>We deliver straight to your site.</h2>
+        <p>Pickup, Aboboyaa, or Truck — transparent pricing.</p>
+      </div>
+      <div style="display: flex; gap: 20px;">
+        <div style="text-align: center;"><span style="font-size: 24px;">📍</span><br><small>Pickup</small></div>
+        <div style="text-align: center;"><span style="font-size: 24px;">🛺</span><br><small>Aboboyaa</small></div>
+        <div style="text-align: center;"><span style="font-size: 24px;">🚛</span><br><small>Truck</small></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CART DRAWER -->
+  <div class="backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="cart-drawer" style="position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100%; background: #fff; z-index: 100; transition: right 0.3s; padding: 20px; box-shadow: -5px 0 20px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">
+      <h3 style="margin: 0;">Your Cart</h3>
+      <button id="cart-close" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+    </div>
+    <div id="cart-items" style="flex: 1; overflow-y: auto; height: calc(100% - 150px);">
+      <!-- Cart items injected by app.js -->
+    </div>
+    <div style="border-top: 1px solid #eee; padding-top: 20px; position: absolute; bottom: 20px; width: calc(100% - 40px);">
+      <div style="display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 15px;">
+        <span>Total:</span>
+        <span id="cart-subtotal">GH₵0.00</span>
+      </div>
+      <button id="checkout-button" style="width: 100%; padding: 15px; background: #242019; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Checkout</button>
+      <span id="cart-message" style="display: block; text-align: center; font-size: 12px; color: #e87423; margin-top: 10px;"></span>
+    </div>
+  </aside>
+
+  <!-- FLOATING CART -->
+  <a href="#" id="floating-cart" style="position: fixed; bottom: 20px; right: 20px; background: #e87423; color: #fff; padding: 12px 20px; border-radius: 30px; text-decoration: none; font-weight: 800; box-shadow: 0 4px 12px rgba(232, 116, 35, 0.3); display: none; z-index: 50;">
+    🛒 <span id="floating-cart-count">0</span> | <span id="floating-cart-total">GH₵0.00</span>
+  </a>
+
+  <!-- TOAST -->
+  <div id="toast" style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #242019; color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000;"></div>
+
+  <!-- LOGIC -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // --- SIDEBAR LOGIC ---
+      const menuBtn = document.getElementById("menu-open");
+      const profileBtn = document.getElementById("header-logged-in");
+      const sideMenu = document.getElementById("side-menu");
+      const sideBackdrop = document.getElementById("side-backdrop");
+      const sideClose = document.getElementById("side-close");
+
+      function openSideMenu() {
+        sideMenu.classList.add("open");
+        sideBackdrop.classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeSideMenu() {
+        sideMenu.classList.remove("open");
+        sideBackdrop.classList.remove("open");
+        document.body.style.overflow = "";
+      }
+
+      menuBtn.addEventListener("click", openSideMenu);
+      if (profileBtn) profileBtn.addEventListener("click", openSideMenu);
+      sideClose.addEventListener("click", closeSideMenu);
+      sideBackdrop.addEventListener("click", closeSideMenu);
+
+      document.querySelectorAll(".side-link[data-cat]").forEach(link => {
+        link.addEventListener("click", () => closeSideMenu());
+      });
+
+      // --- AUTH LOGIC ---
+      const token = localStorage.getItem("bw_token");
+      const userName = localStorage.getItem("bw_name");
+      const userRole = localStorage.getItem("bw_role");
+      const userEmail = localStorage.getItem("bw_email");
+
+      const headerLoggedOut = document.getElementById("header-logged-out");
+      const headerLoggedIn = document.getElementById("header-logged-in");
+
+      const sideLoggedOut = document.getElementById("side-logged-out");
+      const sideLoggedIn = document.getElementById("side-logged-in");
+      const sideUserName = document.getElementById("side-user-name");
+      const sideUserEmail = document.getElementById("side-user-email");
+      const sideLogoutBtn = document.getElementById("side-logout-btn");
+
+      // Dashboard links
+      const sellerDash = document.getElementById("side-seller-dashboard");
+      const adminDash = document.getElementById("side-admin-dashboard");
+
+      if (token && userName) {
+        // USER IS LOGGED IN
+        headerLoggedOut.style.display = "none";
+        headerLoggedIn.style.display = "block";
+
+        sideLoggedIn.style.display = "flex";
+        sideLoggedOut.style.display = "none";
+
+        sideUserName.textContent = userName;
+        sideUserEmail.textContent = userEmail || "Loading...";
+
+        // Show the correct dashboard based on role
+        if (userRole === "admin") {
+          adminDash.style.display = "block";
+        } else if (userRole === "seller") {
+          sellerDash.style.display = "block";
+        }
+
+        // Fetch email if missing
+        if (!userEmail) {
+          fetch("/auth/me", { headers: { "Authorization": `Bearer ${token}` } })
+            .then(res => res.json())
+            .then(data => {
+              if (data.email) {
+                sideUserEmail.textContent = data.email;
+                localStorage.setItem("bw_email", data.email);
+              } else {
+                sideUserEmail.textContent = "No email on file";
+              }
+            })
+            .catch(() => sideUserEmail.textContent = "Could not load email");
+        }
+
       } else {
-        actionButton = `
-          <button class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
-          <button class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
-        `;
+        // USER IS LOGGED OUT
+        headerLoggedOut.style.display = "flex";
+        headerLoggedIn.style.display = "none";
+
+        sideLoggedIn.style.display = "none";
+        sideLoggedOut.style.display = "none";
       }
 
-      return (
-        '<article class="product-card">' +
-          '<a href="/product/' + esc(getId(p)) + '" class="product-image">' +
-            img + badges +
-          '</a>' +
-          '<div class="product-body">' +
-            '<a href="/product/' + esc(getId(p)) + '" class="product-title">' + esc(p.display_name) + '</a>' +
-            '<div class="product-price">' + money(p.price_per_piece, p.currency) + ' <small>/ pc</small></div>' +
-            '<div class="product-sub">Sold by: <b>' + esc(p.seller_name) + '</b></div>' +
-            '<div class="product-actions">' +
-              actionButton +
-            '</div>' +
-          '</div>' +
-        '</article>'
-      );
-    }).join("");
+      // LOGOUT
+      sideLogoutBtn.addEventListener("click", () => {
+        localStorage.removeItem("bw_token");
+        localStorage.removeItem("bw_role");
+        localStorage.removeItem("bw_name");
+        localStorage.removeItem("bw_user_id");
+        localStorage.removeItem("bw_email");
 
-    updateNavActive();
-  }
-
-  function updateNavActive() {
-    $$(".cat-pill").forEach(function (el) {
-      var isAll   = el.dataset.cat === "" && !state.category;
-      var isMatch = el.dataset.cat === state.category;
-      el.classList.toggle("active", isAll || isMatch);
-    });
-  }
-
-  function setCategory(cat) {
-    state.category = cat || "";
-    fetchProducts();
-    var target = document.getElementById("products");
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  /* ============================================================
-     CART LOGIC
-     ============================================================ */
-  async function loadCartFromDB() {
-    var token = getToken();
-    if (!token) { state.cart = []; renderCart(); return; }
-
-    try {
-      const res = await fetch("/cart/", {
-        headers: { "Authorization": `Bearer ${token}` }
+        window.location.href = "/";
       });
-      if (res.ok) {
-        const items = await res.json();
-        state.cart = items;
-        renderCart();
-      }
-    } catch (err) { console.warn("Cart fetch failed", err); }
-  }
-
-  async function addToCart(id) {
-    var token = getToken();
-    if (!token) { toast("Please log in to add items."); return; }
-
-    try {
-      const res = await fetch("/cart/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ wood_id: Number(id), quantity: 1 })
-      });
-      if (res.ok) { toast("Added to cart"); loadCartFromDB(); }
-      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not add item"); }
-    } catch (err) { toast("Network error"); }
-  }
-
-  function renderCart() {
-    var count = state.cart.reduce((n, i) => n + i.quantity, 0);
-    var subtotal = state.cart.reduce((n, i) => n + (i.price_per_piece * i.quantity), 0);
-
-    $("#cart-count").textContent = count;
-    $("#cart-subtotal").textContent = money(subtotal);
-
-    // Floating cart pill
-    var floatPill = document.getElementById("floating-cart");
-    if (floatPill) {
-      if (count > 0) {
-        document.getElementById("floating-cart-count").textContent = count;
-        document.getElementById("floating-cart-total").textContent = money(subtotal);
-        floatPill.style.display = "flex";
-      } else {
-        floatPill.style.display = "none";
-      }
-    }
-
-    var host = $("#cart-items");
-    if (!state.cart.length) {
-      host.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #888;"><span style="font-size: 40px; display:block; margin-bottom: 10px;">🪵</span>Your cart is empty</div>';
-      return;
-    }
-
-    host.innerHTML = state.cart.map(item => {
-      return (
-        '<div style="display: flex; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px;">' +
-          '<div style="width: 60px; height: 60px; border-radius: 8px; background: #f5f5f5; overflow: hidden; flex-shrink: 0;">' +
-             (item.image_url ? '<img src="' + esc(item.image_url) + '" style="width:100%; height:100%; object-fit:cover;">' : "🪵") +
-          '</div>' +
-          '<div style="flex: 1;">' +
-            '<div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">' + esc(item.local_name) + '</div>' +
-            '<div style="font-size: 12px; color: #888;">Qty: ' + item.quantity + '</div>' +
-            '<div style="font-weight: 800; font-size: 14px; margin-top: 4px;">' + money(item.price_per_piece * item.quantity, item.currency) + '</div>' +
-          '</div>' +
-          '<button data-cart-remove="' + item.cart_item_id + '" style="background: none; border: none; cursor: pointer; color: #dc3545;">✕</button>' +
-        '</div>'
-      );
-    }).join("");
-  }
-
-  async function removeItem(cart_item_id) {
-    var token = getToken();
-    if (!token) return;
-    try {
-      await fetch(`/cart/${cart_item_id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      loadCartFromDB();
-    } catch (err) { toast("Network error"); }
-  }
-
-  function openCart() {
-    $("#cart-drawer").style.right = "0";
-    $("#drawer-backdrop").hidden = false;
-    document.body.style.overflow = "hidden";
-    loadCartFromDB();
-  }
-
-  function closeCart() {
-    $("#cart-drawer").style.right = "-400px";
-    $("#drawer-backdrop").hidden = true;
-    document.body.style.overflow = "";
-  }
-
-  var toastTimer;
-  function toast(msg) {
-    var t = $("#toast");
-    if (!t) return;
-    t.textContent = msg;
-    t.style.opacity = "1";
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
-  }
-
-  /* ============================================================
-     EVENT LISTENERS
-     ============================================================ */
-  document.addEventListener("click", function (e) {
-    var cat = e.target.closest("[data-cat]");
-    if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
-
-    var add = e.target.closest("[data-add]");
-    if (add) { e.preventDefault(); addToCart(add.dataset.add); return; }
-
-    var rm = e.target.closest("[data-cart-remove]");
-    if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
-  });
-
-  if ($("#search-form")) {
-    $("#search-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      state.search = $("#search-input").value.trim();
-      fetchProducts();
     });
-  }
-
-  if ($("#sort-select")) {
-    $("#sort-select").addEventListener("change", function (e) {
-      state.sort = e.target.value;
-      fetchProducts();
-    });
-  }
-
-  if ($("#cart-open")) $("#cart-open").addEventListener("click", function (e) { e.preventDefault(); openCart(); });
-  if ($("#floating-cart")) $("#floating-cart").addEventListener("click", function (e) { e.preventDefault(); openCart(); });
-  if ($("#cart-close")) $("#cart-close").addEventListener("click", closeCart);
-  if ($("#drawer-backdrop")) $("#drawer-backdrop").addEventListener("click", closeCart);
-
-  if ($("#checkout-button")) {
-    $("#checkout-button").addEventListener("click", function () {
-      if (!state.cart.length) return;
-      window.location.href = "/checkout";
-    });
-  }
-
-  // Initialize
-  loadCartFromDB();
-  fetchProducts();
-})();
+  </script>
+</body>
+</html>
