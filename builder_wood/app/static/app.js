@@ -104,9 +104,10 @@
       } else if (stock <= 0) {
         actionButton = '<button class="btn-add-text" disabled>Out of Stock</button>';
       } else {
+        // We ensure the button has type="button" so it doesn't submit a form
         actionButton = `
-          <button class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
-          <button class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
+          <button type="button" class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
+          <button type="button" class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
         `;
       }
 
@@ -159,7 +160,11 @@
 
   async function addToCart(id) {
     var token = getToken();
-    if (!token) { toast("Please log in to add items."); return; }
+    if (!token) {
+      toast("Please log in to add items.");
+      setTimeout(() => window.location.href = "/login", 1000);
+      return;
+    }
 
     try {
       const res = await fetch("/cart/add", {
@@ -167,8 +172,14 @@
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ wood_id: Number(id), quantity: 1 })
       });
-      if (res.ok) { toast("Added to cart"); loadCartFromDB(); }
-      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not add item"); }
+      if (res.ok) {
+        toast("Added to cart");
+        loadCartFromDB();
+      }
+      else {
+        const err = await res.json().catch(() => ({}));
+        toast(err.detail || "Could not add item");
+      }
     } catch (err) { toast("Network error"); }
   }
 
@@ -207,7 +218,7 @@
             '<div style="font-size: 12px; color: #888;">Qty: ' + item.quantity + '</div>' +
             '<div style="font-weight: 800; font-size: 14px; margin-top: 4px;">' + money(item.price_per_piece * item.quantity, item.currency) + '</div>' +
           '</div>' +
-          '<button data-cart-remove="' + item.cart_item_id + '" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 16px;">✕</button>' +
+          '<button type="button" data-cart-remove="' + item.cart_item_id + '" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 16px;">✕</button>' +
         '</div>'
       );
     }).join("");
@@ -252,8 +263,14 @@
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
+    // FIXED: Add to cart event listener to catch clicks properly
     var add = e.target.closest("[data-add]");
-    if (add) { e.preventDefault(); addToCart(add.dataset.add); return; }
+    if (add) {
+      e.preventDefault();
+      e.stopPropagation(); // Stop the link from firing
+      addToCart(add.dataset.add);
+      return;
+    }
 
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
