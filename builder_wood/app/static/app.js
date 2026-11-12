@@ -29,9 +29,6 @@
   function getId(p) { return String(p.wood_id != null ? p.wood_id : p.id); }
   function getToken() { return localStorage.getItem("bw_token"); }
 
-  /* ============================================================
-     FETCH & RENDER PRODUCTS
-     ============================================================ */
   function fetchProducts() {
     var params = new URLSearchParams();
     if (state.category) params.set("category", state.category);
@@ -78,15 +75,6 @@
 
     if (skeleton) skeleton.style.display = "none";
 
-    // Title logic
-    var title = "Available Goods";
-    if (state.category) {
-      title = state.category.charAt(0).toUpperCase() + state.category.slice(1);
-    } else if (state.search) {
-      title = 'Results for "' + state.search + '"';
-    }
-
-    if ($("#catalog-title")) $("#catalog-title").textContent = title;
     if ($("#result-count")) $("#result-count").textContent = state.products.length + " items";
 
     if (!state.products.length) {
@@ -102,16 +90,14 @@
       var stock = Number(p.stock_quantity || 0);
       var isMyProduct = (p.seller_id && loggedInUserId && String(p.seller_id) === String(loggedInUserId));
 
-      // Image with fallback
       var img = p.image_url
-        ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy" onerror="this.style.display=\'none\'; this.parentElement.innerHTML=\'<div style=font-size:40px;opacity:0.2;>🪵</div>\'">'
+        ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.display_name) + '" loading="lazy">'
         : '<div style="font-size: 40px; opacity: 0.2;">🪵</div>';
 
       var badges =
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
-      // Action buttons
       var actionButton = "";
       if (isMyProduct) {
         actionButton = '<button class="btn-add-text" disabled>Your Item</button>';
@@ -126,16 +112,12 @@
 
       return (
         '<article class="product-card">' +
-          '<a href="/product/' + esc(getId(p)) + '" class="product-image">' +
-            img + badges +
-          '</a>' +
+          '<a href="/product/' + esc(getId(p)) + '" class="product-image">' + img + badges + '</a>' +
           '<div class="product-body">' +
             '<a href="/product/' + esc(getId(p)) + '" class="product-title">' + esc(p.display_name) + '</a>' +
             '<div class="product-price">' + money(p.price_per_piece, p.currency) + ' <small>/ pc</small></div>' +
             '<div class="product-sub">Sold by: <b>' + esc(p.seller_name) + '</b></div>' +
-            '<div class="product-actions">' +
-              actionButton +
-            '</div>' +
+            '<div class="product-actions">' + actionButton + '</div>' +
           '</div>' +
         '</article>'
       );
@@ -159,9 +141,6 @@
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  /* ============================================================
-     CART LOGIC
-     ============================================================ */
   async function loadCartFromDB() {
     var token = getToken();
     if (!token) { state.cart = []; renderCart(); return; }
@@ -200,7 +179,6 @@
     $("#cart-count").textContent = count;
     $("#cart-subtotal").textContent = money(subtotal);
 
-    // Floating cart pill
     var floatPill = document.getElementById("floating-cart");
     if (floatPill) {
       if (count > 0) {
@@ -270,9 +248,6 @@
     toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
   }
 
-  /* ============================================================
-     EVENT LISTENERS
-     ============================================================ */
   document.addEventListener("click", function (e) {
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
@@ -283,7 +258,6 @@
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
 
-    // Clear filters logic
     var clearBtn = e.target.closest("#empty-clear");
     if (clearBtn) {
       e.preventDefault();
@@ -322,7 +296,6 @@
     });
   }
 
-  // Initialize
   loadCartFromDB();
   fetchProducts();
 })();

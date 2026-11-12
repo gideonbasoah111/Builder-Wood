@@ -74,13 +74,13 @@
     .drawer-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
     .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
 
-    /* --- PROMO BANNERS (Updated with Quality Timber Image) --- */
+    /* --- PROMO BANNERS (Premium Timber & Delivery) --- */
     .banner-section { padding: 20px 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
     @media (max-width: 600px) { .banner-section { grid-template-columns: 1fr; } }
 
     .promo-card { position: relative; border-radius: 12px; overflow: hidden; padding: 24px; display: flex; flex-direction: column; justify-content: flex-end; min-height: 200px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
-    /* The new quality timber background */
+    /* The Premium Timber background */
     .promo-card.deals {
       background-image: url('https://images.unsplash.com/photo-1546470966-60476641a03f?q=80&w=800&auto=format&fit=crop');
       background-size: cover;
@@ -98,10 +98,8 @@
     .promo-card .btn-shop { align-self: flex-start; margin-top: 16px; background: #fff; color: #1a1a1a; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 12px; text-transform: uppercase; }
     .promo-card.orange .btn-shop { background: #1a1a1a; color: #fff; }
 
-    /* --- PRODUCT GRID --- */
-    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 24px 0 16px; }
-    .section-head h2 { font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; margin: 0; color: #242019; }
-    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    /* --- PRODUCT GRID (Starts immediately below banners) --- */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding-bottom: 40px; }
     .product-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; position: relative; transition: transform 0.2s; }
     .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
     .product-image { aspect-ratio: 1; background: #f9f9f9; display: grid; place-items: center; position: relative; overflow: hidden; }
@@ -118,11 +116,6 @@
     .btn-add-text { flex: 1; border-radius: 6px; background: #fff; border: 1px solid #242019; color: #242019; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
     .btn-add-text:hover { background: #242019; color: #fff; }
     .btn-add-text:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
-
-    /* --- TRUST BANNER --- */
-    .delivery-banner { background: #242019; color: #fff; border-radius: 12px; padding: 32px 24px; margin: 40px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
-    .delivery-banner h2 { font-family: 'Manrope', sans-serif; font-size: 24px; margin: 0 0 8px 0; }
-    .delivery-banner p { margin: 0; opacity: 0.8; font-size: 14px; }
 
     /* --- UTILITIES --- */
     .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
@@ -155,10 +148,7 @@
         <a class="side-link" href="/messages">💬 Messages</a>
         <a class="side-link" href="/my-orders">📦 My Orders</a>
 
-        <!-- Seller Dashboard (Hidden by default) -->
         <a class="side-link" href="/seller/orders" id="side-seller-dashboard" style="display: none; color: var(--wood-med); font-weight: 800;">📊 Seller Dashboard</a>
-
-        <!-- Admin Dashboard (Hidden by default) -->
         <a class="side-link" href="/admin" id="side-admin-dashboard" style="display: none; color: var(--red); font-weight: 800;">🛡️ Admin Dashboard</a>
       </div>
 
@@ -175,9 +165,7 @@
       <!-- Logged In View -->
       <div id="side-logged-in" style="display: none; flex-direction: column; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 40px; height: 40px; border-radius: 50%; background: #e87423; color: #fff; display: grid; place-items: center; font-size: 20px;">
-            👤
-          </div>
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: #e87423; color: #fff; display: grid; place-items: center; font-size: 20px;">👤</div>
           <div>
             <div style="font-size: 14px; font-weight: 800; color: #242019;" id="side-user-name">User Name</div>
             <div style="font-size: 12px; color: #888; margin-top: 2px;" id="side-user-email">user@email.com</div>
@@ -235,7 +223,7 @@
 
     <!-- PROMO BANNERS -->
     <section class="banner-section">
-      <!-- Updated Quality Timber Image Card -->
+      <!-- Premium Timber Card -->
       <div class="promo-card deals">
         <div>
           <h3>Premium<br>Timber</h3>
@@ -244,19 +232,15 @@
         <a href="#products" class="btn-shop">Shop Now</a>
       </div>
 
+      <!-- Delivery Card -->
       <div class="promo-card orange">
         <div><h3>Fast<br>Delivery</h3><p>Direct to your site in Kumasi.</p></div>
         <a href="#delivery" class="btn-shop">Learn More</a>
       </div>
     </section>
 
-    <!-- PRODUCT GRID -->
+    <!-- PRODUCT GRID (No Header text, straight into products) -->
     <section id="products">
-      <div class="section-head">
-        <!-- Removed "Top Selling" -->
-        <h2 id="catalog-title">Available Goods</h2>
-        <span id="result-count" style="font-size: 13px; color: #666;"></span>
-      </div>
 
       <div class="skeleton-grid" id="product-skeleton">
         <div class="skeleton-card"></div>
@@ -270,19 +254,6 @@
       <div class="empty-state" id="empty-state" hidden style="text-align: center; padding: 40px;">
         <h3>No products found</h3>
         <button class="btn-add-text" id="empty-clear" style="width: auto; padding: 10px 20px; margin: 20px auto;">Clear filters</button>
-      </div>
-    </section>
-
-    <!-- TRUST BANNER -->
-    <section id="delivery" class="delivery-banner">
-      <div>
-        <h2>We deliver straight to your site.</h2>
-        <p>Pickup, Aboboyaa, or Truck — transparent pricing.</p>
-      </div>
-      <div style="display: flex; gap: 20px;">
-        <div style="text-align: center;"><span style="font-size: 24px;">📍</span><br><small>Pickup</small></div>
-        <div style="text-align: center;"><span style="font-size: 24px;">🛺</span><br><small>Aboboyaa</small></div>
-        <div style="text-align: center;"><span style="font-size: 24px;">🚛</span><br><small>Truck</small></div>
       </div>
     </section>
 
@@ -362,7 +333,6 @@
       const sideUserEmail = document.getElementById("side-user-email");
       const sideLogoutBtn = document.getElementById("side-logout-btn");
 
-      // Dashboard links
       const sellerDash = document.getElementById("side-seller-dashboard");
       const adminDash = document.getElementById("side-admin-dashboard");
 
@@ -377,14 +347,12 @@
         sideUserName.textContent = userName;
         sideUserEmail.textContent = userEmail || "Loading...";
 
-        // Show the correct dashboard based on role
         if (userRole === "admin") {
           adminDash.style.display = "block";
         } else if (userRole === "seller") {
           sellerDash.style.display = "block";
         }
 
-        // Fetch email if missing
         if (!userEmail) {
           fetch("/auth/me", { headers: { "Authorization": `Bearer ${token}` } })
             .then(res => res.json())
@@ -415,7 +383,6 @@
         localStorage.removeItem("bw_name");
         localStorage.removeItem("bw_user_id");
         localStorage.removeItem("bw_email");
-
         window.location.href = "/";
       });
     });
