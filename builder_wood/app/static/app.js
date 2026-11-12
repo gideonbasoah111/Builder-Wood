@@ -29,6 +29,9 @@
   function getId(p) { return String(p.wood_id != null ? p.wood_id : p.id); }
   function getToken() { return localStorage.getItem("bw_token"); }
 
+  /* ============================================================
+     FETCH & RENDER PRODUCTS
+     ============================================================ */
   function fetchProducts() {
     var params = new URLSearchParams();
     if (state.category) params.set("category", state.category);
@@ -104,7 +107,6 @@
       } else if (stock <= 0) {
         actionButton = '<button class="btn-add-text" disabled>Out of Stock</button>';
       } else {
-        // We ensure the button has type="button" so it doesn't submit a form
         actionButton = `
           <button type="button" class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
           <button type="button" class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
@@ -142,6 +144,9 @@
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  /* ============================================================
+     CART LOGIC
+     ============================================================ */
   async function loadCartFromDB() {
     var token = getToken();
     if (!token) { state.cart = []; renderCart(); return; }
@@ -175,8 +180,7 @@
       if (res.ok) {
         toast("Added to cart");
         loadCartFromDB();
-      }
-      else {
+      } else {
         const err = await res.json().catch(() => ({}));
         toast(err.detail || "Could not add item");
       }
@@ -190,6 +194,7 @@
     $("#cart-count").textContent = count;
     $("#cart-subtotal").textContent = money(subtotal);
 
+    // Floating cart pill
     var floatPill = document.getElementById("floating-cart");
     if (floatPill) {
       if (count > 0) {
@@ -259,11 +264,13 @@
     toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
   }
 
+  /* ============================================================
+     EVENT LISTENERS
+     ============================================================ */
   document.addEventListener("click", function (e) {
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
-    // FIXED: Add to cart event listener to catch clicks properly
     var add = e.target.closest("[data-add]");
     if (add) {
       e.preventDefault();
@@ -313,6 +320,7 @@
     });
   }
 
+  // Initialize
   loadCartFromDB();
   fetchProducts();
 })();
