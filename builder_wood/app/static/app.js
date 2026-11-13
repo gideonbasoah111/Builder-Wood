@@ -313,31 +313,14 @@
     var t = $("#toast");
     if (!t) return;
     t.textContent = msg;
-    t.classList.add("show");
+    t.style.opacity = "1";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200);
+    toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
   }
 
   function runSearch() {
     state.search = $("#search-input").value.trim();
     fetchProducts();
-  }
-
-  function showHints() {
-    var term = $("#search-input").value.trim().toLowerCase();
-    var host = $("#search-hints");
-    if (!host) return;
-    if (term.length < 2) { host.classList.remove("show"); return; }
-
-    var seen = {}; var unique = [];
-    state.products.forEach(function (p) {
-      var n = p.local_name;
-      if (n && !seen[n]) { seen[n] = true; unique.push(n); }
-    });
-
-    var filtered = unique.filter(n => n.toLowerCase().indexOf(term) !== -1).slice(0, 5);
-    host.innerHTML = filtered.map(s => '<button class="hint-item" data-hint="' + esc(s) + '"><b>' + esc(s) + '</b><span>Search</span></button>').join("");
-    host.classList.toggle("show", filtered.length > 0);
   }
 
   async function startConversation(sellerId, woodId, btnEl) {
@@ -438,10 +421,6 @@
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
 
-    // Search Hint
-    var hint = e.target.closest("[data-hint]");
-    if (hint) { $("#search-input").value = hint.dataset.hint; runSearch(); $("#search-hints").classList.remove("show"); return; }
-
     // Clear Filters
     var clearBtn = e.target.closest("#empty-clear");
     if (clearBtn) {
@@ -488,11 +467,6 @@
       window.location.href = "/checkout";
       return;
     }
-
-    // Close search hints
-    if (!e.target.closest(".search")) {
-      if ($("#search-hints")) $("#search-hints").classList.remove("show");
-    }
   });
 
   document.addEventListener("change", function(e) {
@@ -511,9 +485,6 @@
 
   if ($("#search-form")) {
     $("#search-form").addEventListener("submit", function (e) { e.preventDefault(); runSearch(); });
-  }
-  if ($("#search-input")) {
-    $("#search-input").addEventListener("input", showHints);
   }
 
   // Initialize

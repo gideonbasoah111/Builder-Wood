@@ -9,10 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css">
 
-  <script defer src="/static/app.js?v=6"></script>
-  <script defer src="/static/messages.js?v=6"></script>
+  <!-- Force fresh CSS and JS -->
+  <link rel="stylesheet" href="/static/styles.css?v=11">
+
+  <script defer src="/static/app.js?v=11"></script>
+  <script defer src="/static/messages.js?v=11"></script>
 
   <style>
     :root {
@@ -25,7 +27,7 @@
 
     *, *::before, *::after { box-sizing: border-box; }
 
-    /* CRITICAL FIX: Remove overflow-x: hidden from body so sticky works */
+    /* Critical for sticky header to work */
     html, body { margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; background: #f5f5f5; }
     body { overflow-x: clip; }
 
@@ -36,7 +38,7 @@
     .sticky-top {
       position: sticky;
       top: 0;
-      z-index: 9999; /* High z-index to stay above products */
+      z-index: 9999; /* Stays above everything */
       background: #fff;
       box-shadow: 0 2px 10px rgba(0,0,0,0.08);
       width: 100%;
@@ -148,7 +150,6 @@
         <h4>My Account</h4>
         <a class="side-link" href="/messages">💬 Messages</a>
         <a class="side-link" href="/my-orders">📦 My Orders</a>
-
         <a class="side-link" href="/seller/orders" id="side-seller-dashboard" style="display: none; color: var(--wood-med); font-weight: 800;">📊 Seller Dashboard</a>
         <a class="side-link" href="/admin" id="side-admin-dashboard" style="display: none; color: var(--red); font-weight: 800;">🛡️ Admin Dashboard</a>
       </div>
@@ -257,24 +258,22 @@
 
   </main>
 
-  <!-- CART DRAWER -->
+  <!-- CART DRAWER (Clean HTML, CSS handles the sliding) -->
   <div class="backdrop" id="drawer-backdrop" hidden></div>
-  <aside class="drawer" id="cart-drawer" style="position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100%; background: #fff; z-index: 10000; transition: right 0.3s; padding: 20px; box-shadow: -5px 0 20px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">
-      <h3 style="margin: 0;">Your Cart</h3>
-      <button id="cart-close" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+  <aside class="drawer" id="cart-drawer" aria-hidden="true" aria-label="Shopping cart">
+    <header class="drawer-head">
+      <h3>Your cart <span id="drawer-count">(0)</span></h3>
+      <button class="close-button" id="cart-close" type="button" aria-label="Close cart">×</button>
+    </header>
+    <div class="drawer-body" id="cart-items">
+      <div class="cart-empty"><span aria-hidden="true">🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>
     </div>
-    <div id="cart-items" style="flex: 1; overflow-y: auto; height: calc(100% - 150px);">
-      <!-- Cart items injected by app.js -->
-    </div>
-    <div style="border-top: 1px solid #eee; padding-top: 20px; position: absolute; bottom: 20px; width: calc(100% - 40px);">
-      <div style="display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 15px;">
-        <span>Total:</span>
-        <span id="cart-subtotal">GH₵0.00</span>
-      </div>
-      <button id="checkout-button" style="width: 100%; padding: 15px; background: #242019; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Checkout</button>
-      <span id="cart-message" style="display: block; text-align: center; font-size: 12px; color: #e87423; margin-top: 10px;"></span>
-    </div>
+    <footer class="drawer-foot">
+      <div class="subtotal-row"><span>Estimated subtotal</span><strong id="cart-subtotal">GH₵0.00</strong></div>
+      <p class="drawer-note">Delivery and final prices are confirmed with the seller.</p>
+      <button class="btn btn-primary full" id="checkout-button" type="button">Review order <span aria-hidden="true">→</span></button>
+      <span class="drawer-msg" id="cart-message" role="status"></span>
+    </footer>
   </aside>
 
   <!-- FLOATING CART -->
@@ -335,7 +334,6 @@
       const adminDash = document.getElementById("side-admin-dashboard");
 
       if (token && userName) {
-        // USER IS LOGGED IN
         headerLoggedOut.style.display = "none";
         headerLoggedIn.style.display = "block";
 
@@ -366,7 +364,6 @@
         }
 
       } else {
-        // USER IS LOGGED OUT
         headerLoggedOut.style.display = "flex";
         headerLoggedIn.style.display = "none";
 
@@ -374,7 +371,6 @@
         sideLoggedOut.style.display = "none";
       }
 
-      // LOGOUT
       sideLogoutBtn.addEventListener("click", () => {
         localStorage.removeItem("bw_token");
         localStorage.removeItem("bw_role");
