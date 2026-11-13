@@ -91,66 +91,19 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 /* ============================================================
    AUTH AREA (header right side)
    ============================================================ */
-.auth-area{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.auth-logged-out{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.auth-logged-in{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.auth-logged-in .user-greeting{
-  font-weight:700;
-  color:var(--gold-2);
-  font-size:13px;
-  white-space:nowrap;
-  padding-right:4px;
-}
-
-.auth-logged-in .btn{
-  padding:8px 14px;
-  font-size:12.5px;
-  white-space:nowrap;
-}
-
-.auth-logged-in .logout-btn{
-  border-color:rgba(255,255,255,.3);
-}
-
-.auth-logged-in .logout-btn:hover{
-  background:rgba(177,58,46,.2);
-  border-color:var(--red);
-  color:var(--red);
-}
+.auth-area{display:flex;align-items:center;gap:12px;}
+.auth-logged-out{display:flex;align-items:center;gap:8px;}
+.auth-logged-in{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.auth-logged-in .user-greeting{font-weight:700;color:var(--gold-2);font-size:13px;white-space:nowrap;padding-right:4px;}
+.auth-logged-in .btn{padding:8px 14px;font-size:12.5px;white-space:nowrap;}
+.auth-logged-in .logout-btn{border-color:rgba(255,255,255,.3);}
+.auth-logged-in .logout-btn:hover{background:rgba(177,58,46,.2);border-color:var(--red);color:var(--red);}
 
 @media (max-width:820px){
-  .auth-logged-in{
-    gap:6px;
-    justify-content:flex-end;
-  }
-  .auth-logged-in .user-greeting{
-    font-size:12px;
-    flex-basis:100%;
-    text-align:right;
-    margin-bottom:2px;
-  }
-  .auth-logged-in .btn{
-    padding:6px 10px;
-    font-size:11.5px;
-  }
+  .auth-logged-in{gap:6px;justify-content:flex-end;}
+  .auth-logged-in .user-greeting{font-size:12px;flex-basis:100%;text-align:right;margin-bottom:2px;}
+  .auth-logged-in .btn{padding:6px 10px;font-size:11.5px;}
 }
-
 @media (max-width:520px){
   .auth-logged-in{gap:4px}
   .auth-logged-in .btn{padding:5px 8px;font-size:10.5px}
@@ -347,10 +300,21 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 .footer-bottom-inner{display:flex;justify-content:space-between;align-items:center;height:48px;font-size:11.5px;color:#6d5443;gap:16px;flex-wrap:wrap}
 
 /* ============================================================
-   CART DRAWER
+   CART DRAWER (UPDATED FOR SLIDING ANIMATION)
    ============================================================ */
 .backdrop{position:fixed;inset:0;background:rgba(20,12,4,.55);z-index:60}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;z-index:61;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .25s ease;box-shadow:-20px 0 60px rgba(20,12,4,.2)}
+.drawer{
+  position:fixed;
+  top:0; right:0; bottom:0;
+  width:min(420px,100%);
+  background:#fff;
+  z-index:61;
+  display:flex;
+  flex-direction:column;
+  transform:translateX(105%);
+  transition:transform .25s ease;
+  box-shadow:-20px 0 60px rgba(20,12,4,.2);
+}
 .drawer.open{transform:translateX(0)}
 .drawer-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}
 .drawer-head h3{font-family:"Fraunces",serif;font-size:18px;font-weight:600;margin:0}
