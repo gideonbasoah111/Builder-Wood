@@ -54,7 +54,7 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 .announce-links a:hover{opacity:1;color:#fff}
 
 /* ============================================================
-   HEADER
+   HEADER — z-index lowered so the cart drawer can cover it
    ============================================================ */
 .header{background:var(--wood);color:#fff;position:sticky;top:0;z-index:30;box-shadow:0 2px 12px rgba(0,0,0,.14)}
 .header-main{display:grid;grid-template-columns:220px minmax(0,1fr) auto;gap:24px;align-items:center;padding:14px 0}
@@ -300,15 +300,23 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 .footer-bottom-inner{display:flex;justify-content:space-between;align-items:center;height:48px;font-size:11.5px;color:#6d5443;gap:16px;flex-wrap:wrap}
 
 /* ============================================================
-   CART DRAWER (UPDATED FOR SLIDING ANIMATION)
+   CART DRAWER
+   FIX: z-index raised above .sticky-top (500) and .side-drawer (9500)
+   so the × close button is never covered by the header.
    ============================================================ */
-.backdrop{position:fixed;inset:0;background:rgba(20,12,4,.55);z-index:60}
+.backdrop{
+  position:fixed;inset:0;
+  background:rgba(20,12,4,.55);
+  z-index:10000;
+}
+.backdrop[hidden]{display:none !important;}
+
 .drawer{
   position:fixed;
   top:0; right:0; bottom:0;
   width:min(420px,100%);
   background:#fff;
-  z-index:61;
+  z-index:10001;
   display:flex;
   flex-direction:column;
   transform:translateX(105%);
@@ -319,7 +327,7 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 .drawer-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}
 .drawer-head h3{font-family:"Fraunces",serif;font-size:18px;font-weight:600;margin:0}
 .drawer-head h3 span{font-family:"Inter",sans-serif;font-size:13px;color:var(--muted);font-weight:600}
-.close-button{width:34px;height:34px;border-radius:50%;background:var(--parchment-2);color:var(--ink);font-size:22px;line-height:1}
+.close-button{width:34px;height:34px;border-radius:50%;background:var(--parchment-2);color:var(--ink);font-size:22px;line-height:1;display:grid;place-items:center;}
 .close-button:hover{background:var(--line)}
 .drawer-body{flex:1;overflow:auto;padding:12px 20px}
 .cart-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;color:var(--muted);padding:40px 0}
@@ -356,7 +364,7 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
   position:fixed;
   bottom:20px;
   right:20px;
-  z-index:45;
+  z-index:9000;
   display:none;
   align-items:center;
   gap:10px;
@@ -390,7 +398,7 @@ h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;letter-spacing:-.4px;font-weigh
 /* ============================================================
    TOAST
    ============================================================ */
-.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);padding:11px 18px;background:var(--wood-dark);color:#fff;border-radius:8px;font-size:12.5px;font-weight:600;opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;box-shadow:var(--shadow-lg);z-index:70}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);padding:11px 18px;background:var(--wood-dark);color:#fff;border-radius:8px;font-size:12.5px;font-weight:600;opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;box-shadow:var(--shadow-lg);z-index:10010}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* ============================================================

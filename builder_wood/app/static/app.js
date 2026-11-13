@@ -29,6 +29,15 @@
   function getId(p) { return String(p.wood_id != null ? p.wood_id : p.id); }
   function getToken() { return localStorage.getItem("bw_token"); }
 
+  function handle401() {
+    localStorage.removeItem("bw_token");
+    localStorage.removeItem("bw_role");
+    localStorage.removeItem("bw_name");
+    localStorage.removeItem("bw_user_id");
+    localStorage.removeItem("bw_email");
+    window.location.href = "/login";
+  }
+
   /* ============================================================
      FETCH & RENDER PRODUCTS
      ============================================================ */
@@ -51,8 +60,8 @@
         var images    = Array.isArray(p.images) ? p.images : [];
 
         return Object.assign({}, p, {
-          display_name: p.display_name || p.local_name || "Timber",
-          local_name:   p.local_name || "",
+          display_name:  p.display_name || p.local_name || "Timber",
+          local_name:    p.local_name || "",
           category_slug: String(catObj.slug || p.category_slug || "").toLowerCase(),
           category_name: catObj.category_name || p.category_name || "",
           seller_id:     p.seller_id || null,
@@ -103,9 +112,8 @@
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
-      // In-app message button (Fix: Added type="button" and data-message-seller)
       var msgSellerBtn = !isMyProduct
-        ? '<button type="button" class="btn-add-icon" style="background:var(--green); width:auto; padding:0 10px;" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller">💬</button>'
+        ? '<button type="button" class="btn-add-icon" style="background:var(--green, #3d6b4a); width:auto; padding:0 10px;" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller" aria-label="Message seller">💬</button>'
         : '';
 
       var addButton;
@@ -115,7 +123,7 @@
         addButton = '<button type="button" class="btn-add-text" disabled>Out of Stock</button>';
       } else {
         addButton = `
-          <button type="button" class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
+          <button type="button" class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart" aria-label="Add to cart">+</button>
           <button type="button" class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
         `;
       }
@@ -162,9 +170,10 @@
       const res = await fetch("/cart/", {
         headers: { "Authorization": `Bearer ${token}` }
       });
+      if (res.status === 401) { handle401(); return; }
       if (res.ok) {
         const items = await res.json();
-        state.cart = items;
+        state.cart = Array.isArray(items) ? items : [];
         renderCart();
       }
     } catch (err) { console.warn("Cart fetch failed", err); }
@@ -184,6 +193,7 @@
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ wood_id: Number(id), quantity: 1 })
       });
+      if (res.status === 401) { handle401(); return; }
       if (res.ok) {
         toast("Added to cart");
         loadCartFromDB();
@@ -205,8 +215,13 @@
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ quantity: newQty })
       });
+      if (res.status === 401) { handle401(); return; }
       if (res.ok) { loadCartFromDB(); }
-      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not update quantity"); loadCartFromDB(); }
+      else {
+        const err = await res.json().catch(() => ({}));
+        toast(err.detail || "Could not update quantity");
+        loadCartFromDB();
+      }
     } catch (err) { toast("Network error"); }
   }
 
@@ -214,31 +229,34 @@
     var token = getToken();
     if (!token) return;
     try {
-      await fetch(`/cart/${cart_item_id}`, {
+      const res = await fetch(`/cart/${cart_item_id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
+      if (res.status === 401) { handle401(); return; }
       loadCartFromDB();
     } catch (err) { toast("Network error"); }
   }
 
   function renderCart() {
-    var count = state.cart.reduce((n, i) => n + i.quantity, 0);
-    var subtotal = state.cart.reduce((n, i) => n + (i.price_per_piece * i.quantity), 0);
+    var count = state.cart.reduce((n, i) => n + (Number(i.quantity) || 0), 0);
+    var subtotal = state.cart.reduce((n, i) => n + (Number(i.price_per_piece) * Number(i.quantity) || 0), 0);
 
-    if ($("#cart-count")) $("#cart-count").textContent = count;
-    if ($("#drawer-count")) $("#drawer-count").textContent = `(${count})`;
-    if ($("#cart-subtotal")) $("#cart-subtotal").textContent = money(subtotal);
+    if ($("#cart-count"))      $("#cart-count").textContent = count;
+    if ($("#drawer-count"))    $("#drawer-count").textContent = `(${count})`;
+    if ($("#cart-subtotal"))   $("#cart-subtotal").textContent = money(subtotal);
 
     // Floating cart pill
     var floatPill = document.getElementById("floating-cart");
     if (floatPill) {
       if (count > 0) {
-        document.getElementById("floating-cart-count").textContent = count;
-        document.getElementById("floating-cart-total").textContent = money(subtotal);
-        floatPill.style.display = "flex";
+        var fc = document.getElementById("floating-cart-count");
+        var ft = document.getElementById("floating-cart-total");
+        if (fc) fc.textContent = count;
+        if (ft) ft.textContent = money(subtotal);
+        floatPill.classList.add("visible");
       } else {
-        floatPill.style.display = "none";
+        floatPill.classList.remove("visible");
       }
     }
 
@@ -246,7 +264,7 @@
     if (!host) return;
 
     if (!state.cart.length) {
-      host.innerHTML = '<div class="cart-empty"><span>🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>';
+      host.innerHTML = '<div class="cart-empty"><span aria-hidden="true">🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>';
       return;
     }
 
@@ -256,13 +274,13 @@
           '<div class="cart-thumb">' + (item.image_url ? '<img src="' + esc(item.image_url) + '" alt="">' : "🪵") + '</div>' +
           '<div class="cart-details">' +
             '<div class="cart-line-title">' + esc(item.local_name) + '</div>' +
-            '<div class="cart-line-price">' + money(item.price_per_piece * item.quantity, item.currency) + '</div>' +
+            '<div class="cart-line-price">' + money(Number(item.price_per_piece) * Number(item.quantity), item.currency) + '</div>' +
           '</div>' +
           '<div class="cart-actions">' +
             '<div class="qty">' +
-              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="-1">−</button>' +
-              '<input type="number" class="qty-input" data-cart-input="' + item.cart_item_id + '" value="' + item.quantity + '" min="1">' +
-              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="1">+</button>' +
+              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="-1" aria-label="Decrease quantity">−</button>' +
+              '<input type="number" class="qty-input" data-cart-input="' + item.cart_item_id + '" value="' + item.quantity + '" min="1" aria-label="Quantity">' +
+              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="1" aria-label="Increase quantity">+</button>' +
             '</div>' +
             '<button type="button" class="btn-remove" data-cart-remove="' + item.cart_item_id + '">Remove</button>' +
           '</div>' +
@@ -270,15 +288,16 @@
       );
     }).join("");
 
-    // In-app message seller button (cart drawer)
+    // Optional "Message Seller" — backend CartItemOut does not currently
+    // include seller_id, so this only renders if seller_id is present.
     var firstItem = state.cart[0];
     if (firstItem && firstItem.seller_id) {
       cartHtml += `
-        <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">
+        <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line, #e2d3b9);">
           <button type="button"
                   data-cart-message-seller="${esc(firstItem.seller_id)}"
                   data-cart-message-wood="${esc(firstItem.wood_id ?? "")}"
-                  style="display:inline-flex; align-items:center; gap:8px; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px; background:#fff; cursor:pointer;">
+                  style="display:inline-flex; align-items:center; gap:8px; color:var(--green, #3d6b4a); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green, #3d6b4a); border-radius: 8px; background:#fff; cursor:pointer;">
             💬 Message Seller Before Buying
           </button>
         </div>
@@ -288,25 +307,46 @@
     host.innerHTML = cartHtml;
   }
 
+  var _lastFocusedBeforeCart = null;
+
   function openCart() {
     var cartDrawer = document.getElementById("cart-drawer");
-    var backdrop = document.getElementById("drawer-backdrop");
+    var backdrop   = document.getElementById("drawer-backdrop");
 
-    if (cartDrawer) cartDrawer.classList.add("open");
-    if (backdrop) backdrop.hidden = false;
-
+    _lastFocusedBeforeCart = document.activeElement;
+    if (cartDrawer) {
+      cartDrawer.classList.add("open");
+      cartDrawer.setAttribute("aria-hidden", "false");
+    }
+    if (backdrop) {
+      backdrop.hidden = false;
+      backdrop.classList.add("open");
+    }
     document.body.style.overflow = "hidden";
+
+    // Focus the close button so Esc/Enter behave predictably
+    var closeBtn = document.getElementById("cart-close");
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+
     loadCartFromDB();
   }
 
   function closeCart() {
     var cartDrawer = document.getElementById("cart-drawer");
-    var backdrop = document.getElementById("drawer-backdrop");
+    var backdrop   = document.getElementById("drawer-backdrop");
 
-    if (cartDrawer) cartDrawer.classList.remove("open");
-    if (backdrop) backdrop.hidden = true;
-
+    if (cartDrawer) {
+      cartDrawer.classList.remove("open");
+      cartDrawer.setAttribute("aria-hidden", "true");
+    }
+    if (backdrop) {
+      backdrop.classList.remove("open");
+      backdrop.hidden = true;
+    }
     document.body.style.overflow = "";
+
+    if (_lastFocusedBeforeCart && _lastFocusedBeforeCart.focus) _lastFocusedBeforeCart.focus();
+    _lastFocusedBeforeCart = null;
   }
 
   var toastTimer;
@@ -314,13 +354,18 @@
     var t = $("#toast");
     if (!t) return;
     t.textContent = msg;
+    t.classList.add("show");
     t.style.opacity = "1";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
+    toastTimer = setTimeout(function () {
+      t.classList.remove("show");
+      t.style.opacity = "0";
+    }, 2500);
   }
 
   function runSearch() {
-    state.search = $("#search-input").value.trim();
+    var input = $("#search-input");
+    state.search = input ? input.value.trim() : "";
     fetchProducts();
   }
 
@@ -329,10 +374,7 @@
      ============================================================ */
   async function startConversation(sellerId, woodId, btnEl) {
     var token = getToken();
-    if (!token) {
-      window.location.href = "/login";
-      return;
-    }
+    if (!token) { window.location.href = "/login"; return; }
     if (!sellerId) { toast("Seller unavailable."); return; }
 
     var original = btnEl ? btnEl.innerHTML : null;
@@ -369,20 +411,18 @@
      EVENT LISTENERS
      ============================================================ */
   document.addEventListener("click", function (e) {
-    // 1. In-app messaging button (product cards) - MUST BE FIRST
+    // 1. In-app messaging (product cards)
     var msgBtn = e.target.closest("[data-message-seller]");
     if (msgBtn) {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId, msgBtn);
       return;
     }
 
-    // 2. In-app messaging button (cart drawer)
+    // 2. In-app messaging (cart drawer)
     var cartMsgBtn = e.target.closest("[data-cart-message-seller]");
     if (cartMsgBtn) {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       startConversation(
         cartMsgBtn.dataset.cartMessageSeller,
         cartMsgBtn.dataset.cartMessageWood || null,
@@ -391,77 +431,57 @@
       return;
     }
 
-    // 3. Category Filter
+    // 3. Category filter
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
-    // 4. Search Suggestion Click
+    // 4. Search suggestion
     var sp = e.target.closest("[data-search]");
-    if (sp) { e.preventDefault(); $("#search-input").value = sp.dataset.search; runSearch(); return; }
+    if (sp) { e.preventDefault(); if ($("#search-input")) $("#search-input").value = sp.dataset.search; runSearch(); return; }
 
-    // 5. Add to Cart
+    // 5. Add to cart
     var add = e.target.closest("[data-add]");
     if (add) {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       addToCart(add.dataset.add);
       return;
     }
 
-    // 6. Cart Quantity +/-
+    // 6. Cart quantity +/- buttons
     var qtyBtn = e.target.closest("[data-cart-qty]");
     if (qtyBtn) {
       e.preventDefault();
       var id = Number(qtyBtn.dataset.cartQty);
       var delta = Number(qtyBtn.dataset.delta);
-      var item = state.cart.find(x => x.cart_item_id === id);
+      var item = state.cart.find(x => Number(x.cart_item_id) === id);
       if (item) {
-        var newQty = item.quantity + delta;
+        var newQty = Number(item.quantity) + delta;
         if (newQty >= 1) updateQuantity(id, newQty);
         else removeItem(id);
       }
       return;
     }
 
-    // 7. Cart Remove
+    // 7. Cart remove
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
 
-    // 8. Clear Filters (Empty State)
+    // 8. Clear filters
     var clearBtn = e.target.closest("#empty-clear");
     if (clearBtn) {
       e.preventDefault();
-      state.category = "";
-      state.search = "";
-      state.sort = "featured";
+      state.category = ""; state.search = ""; state.sort = "featured";
       if ($("#search-input")) $("#search-input").value = "";
       fetchProducts();
       return;
     }
 
-    // 9. Cart Open/Close
-    if (e.target.closest("#cart-open")) {
-      e.preventDefault();
-      openCart();
-      return;
+    // 9. Cart open / close
+    if (e.target.closest("#cart-open") || e.target.closest("#floating-cart")) {
+      e.preventDefault(); openCart(); return;
     }
-
-    if (e.target.closest("#floating-cart")) {
-      e.preventDefault();
-      openCart();
-      return;
-    }
-
-    if (e.target.closest("#cart-close")) {
-      e.preventDefault();
-      closeCart();
-      return;
-    }
-
-    if (e.target.closest("#drawer-backdrop")) {
-      e.preventDefault();
-      closeCart();
-      return;
+    if (e.target.closest("#cart-close") || e.target.closest("#drawer-backdrop")) {
+      e.preventDefault(); closeCart(); return;
     }
 
     // 10. Checkout
@@ -475,18 +495,21 @@
     }
   });
 
-  document.addEventListener("change", function(e) {
+  document.addEventListener("change", function (e) {
     if (e.target.matches("[data-cart-input]")) {
       var id = Number(e.target.dataset.cartInput);
-      var newQty = parseInt(e.target.value);
+      var newQty = parseInt(e.target.value, 10);
       if (isNaN(newQty) || newQty < 1) { e.target.value = 1; newQty = 1; }
       updateQuantity(id, newQty);
     }
   });
 
-  document.addEventListener("keydown", function(e) {
+  document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && e.target.matches("[data-cart-input]")) { e.target.blur(); }
-    if (e.key === "Escape") closeCart();
+    if (e.key === "Escape") {
+      var cartDrawer = document.getElementById("cart-drawer");
+      if (cartDrawer && cartDrawer.classList.contains("open")) closeCart();
+    }
   });
 
   if ($("#search-form")) {
@@ -497,6 +520,9 @@
   loadCartFromDB();
   fetchProducts();
 
+  // Public API for inline scripts (bottom "Continue Shopping" button, floating pill, etc.)
   window.BW = window.BW || {};
   window.BW.startConversation = startConversation;
+  window.BW.openCart  = openCart;
+  window.BW.closeCart = closeCart;
 })();
