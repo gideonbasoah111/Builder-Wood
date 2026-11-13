@@ -103,6 +103,7 @@
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
+      // In-app message button (Fix: Added type="button" and data-message-seller)
       var msgSellerBtn = !isMyProduct
         ? '<button type="button" class="btn-add-icon" style="background:var(--green); width:auto; padding:0 10px;" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller">💬</button>'
         : '';
@@ -323,6 +324,9 @@
     fetchProducts();
   }
 
+  /* ============================================================
+     IN-APP MESSAGING
+     ============================================================ */
   async function startConversation(sellerId, woodId, btnEl) {
     var token = getToken();
     if (!token) {
@@ -365,18 +369,20 @@
      EVENT LISTENERS
      ============================================================ */
   document.addEventListener("click", function (e) {
-    // In-app messaging button (product cards)
+    // 1. In-app messaging button (product cards) - MUST BE FIRST
     var msgBtn = e.target.closest("[data-message-seller]");
     if (msgBtn) {
       e.preventDefault();
+      e.stopPropagation();
       startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId, msgBtn);
       return;
     }
 
-    // In-app messaging button (cart drawer)
+    // 2. In-app messaging button (cart drawer)
     var cartMsgBtn = e.target.closest("[data-cart-message-seller]");
     if (cartMsgBtn) {
       e.preventDefault();
+      e.stopPropagation();
       startConversation(
         cartMsgBtn.dataset.cartMessageSeller,
         cartMsgBtn.dataset.cartMessageWood || null,
@@ -385,15 +391,15 @@
       return;
     }
 
-    // Category Filter
+    // 3. Category Filter
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
-    // Search Suggestion Click
+    // 4. Search Suggestion Click
     var sp = e.target.closest("[data-search]");
     if (sp) { e.preventDefault(); $("#search-input").value = sp.dataset.search; runSearch(); return; }
 
-    // Add to Cart
+    // 5. Add to Cart
     var add = e.target.closest("[data-add]");
     if (add) {
       e.preventDefault();
@@ -402,7 +408,7 @@
       return;
     }
 
-    // Cart Quantity +/-
+    // 6. Cart Quantity +/-
     var qtyBtn = e.target.closest("[data-cart-qty]");
     if (qtyBtn) {
       e.preventDefault();
@@ -417,11 +423,11 @@
       return;
     }
 
-    // Cart Remove
+    // 7. Cart Remove
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
 
-    // Clear Filters
+    // 8. Clear Filters (Empty State)
     var clearBtn = e.target.closest("#empty-clear");
     if (clearBtn) {
       e.preventDefault();
@@ -433,7 +439,7 @@
       return;
     }
 
-    // Cart Open/Close
+    // 9. Cart Open/Close
     if (e.target.closest("#cart-open")) {
       e.preventDefault();
       openCart();
@@ -458,7 +464,7 @@
       return;
     }
 
-    // Checkout
+    // 10. Checkout
     if (e.target.closest("#checkout-button")) {
       if (!state.cart.length) {
         if ($("#cart-message")) $("#cart-message").textContent = "Your cart is empty.";
