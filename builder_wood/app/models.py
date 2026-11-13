@@ -238,9 +238,19 @@ class CartItem(Base):
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     wood_id = Column(Integer, ForeignKey("woods.wood_id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
+
+    # --- FIX: Added missing columns ---
+    unit_price = Column(DECIMAL(12, 2), nullable=False)
+    currency = Column(CHAR(3), nullable=False, default="GHS")
+    # -----------------------------------
+
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.current_timestamp())
     user = relationship("User", backref="cart_items")
     wood = relationship("Wood")
+
+    # --- FIX: Prevent duplicate rows for same user + wood ---
+    __table_args__ = (UniqueConstraint("user_id", "wood_id", name="uq_cart_user_wood"),)
+    # --------------------------------------------------------
 
 
 class PaymentTransaction(Base):
@@ -332,4 +342,3 @@ class WithdrawalRequest(Base):
     processed_at = Column(TIMESTAMP, nullable=True)
     notes = Column(Text, nullable=True)
     seller = relationship("User")
-
