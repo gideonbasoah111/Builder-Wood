@@ -25,6 +25,7 @@
     .conv-role { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
     .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
     .empty-state .mark { font-size: 48px; opacity: 0.6; margin-bottom: 12px; }
+    .empty-state a { color: var(--wood-med); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -52,6 +53,10 @@
   <script src="/static/messages.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+      if (!window.Messages || typeof Messages.loadInbox !== "function") {
+        document.getElementById("conv-list").innerHTML = '<div class="empty-state"><div class="mark">💬</div><p>Could not load messages. <a href="javascript:location.reload()">Refresh</a></p></div>';
+        return;
+      }
       Messages.loadInbox("conv-list");
     });
   </script>

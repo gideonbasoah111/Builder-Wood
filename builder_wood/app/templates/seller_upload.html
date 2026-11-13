@@ -18,7 +18,6 @@
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; font-family: inherit; outline: none; }
     .form-group input:focus, .form-group select:focus { border-color: var(--wood-med); box-shadow: 0 0 0 3px rgba(93,64,55,0.1); }
-
     .row { display: flex; gap: 16px; }
     .row .form-group { flex: 1; }
 
@@ -45,55 +44,14 @@
 
     .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
-    /* Upload progress bar */
-    .upload-progress {
-      margin-top: 14px;
-      padding: 16px;
-      background: var(--parchment);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-    }
-    .progress-bar-track {
-      height: 12px;
-      background: #e2d3b9;
-      border-radius: 999px;
-      overflow: hidden;
-      position: relative;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--wood-med), var(--gold));
-      width: 0%;
-      transition: width 0.2s ease;
-      border-radius: 999px;
-    }
-    .progress-bar-fill.complete {
-      background: linear-gradient(90deg, var(--green), #2d5239);
-    }
-    .progress-bar-fill.error {
-      background: linear-gradient(90deg, var(--red), #7a1f1a);
-    }
-    .progress-label {
-      margin-top: 8px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--ink-2);
-      text-align: center;
-    }
-    .progress-label .pct {
-      font-family: Fraunces, serif;
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--wood-med);
-      margin-right: 8px;
-    }
-    .progress-label .stage {
-      display: block;
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-      font-weight: 500;
-    }
+    .upload-progress { margin-top: 14px; padding: 16px; background: var(--parchment); border: 1px solid var(--line); border-radius: 10px; display: none; }
+    .progress-bar-track { height: 12px; background: #e2d3b9; border-radius: 999px; overflow: hidden; position: relative; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--wood-med), var(--gold)); width: 0%; transition: width 0.2s ease; border-radius: 999px; }
+    .progress-bar-fill.complete { background: linear-gradient(90deg, var(--green), #2d5239); }
+    .progress-bar-fill.error { background: linear-gradient(90deg, var(--red), #7a1f1a); }
+    .progress-label { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); text-align: center; }
+    .progress-label .pct { font-family: Fraunces, serif; font-size: 16px; font-weight: 700; color: var(--wood-med); margin-right: 8px; }
+    .progress-label .stage { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 500; }
 
     @media (max-width: 700px) { .image-upload-section { grid-template-columns: 1fr; } }
   </style>
@@ -110,9 +68,7 @@
   </header>
 
   <main class="dashboard-page">
-    <div class="dash-header">
-      <h2>Seller Dashboard</h2>
-    </div>
+    <div class="dash-header"><h2>Seller Dashboard</h2></div>
 
     <div class="nav-tabs">
       <a href="/seller/upload" class="active">Upload Wood</a>
@@ -129,7 +85,6 @@
     </div>
 
     <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
-
       <h3 style="font-family: Fraunces, serif; margin-bottom: 16px;">Product Photos</h3>
 
       <div class="image-upload-section">
@@ -137,8 +92,7 @@
           <div class="slot-icon">🖼️</div>
           <h4>Main View</h4>
           <p>Cover photo for the shop</p>
-          <input type="file" id="main-input" name="main_image" accept="image/*" required
-                 onchange="previewImage(this, 'main-preview')">
+          <input type="file" id="main-input" name="main_image" accept="image/*" required onchange="previewImage(this, 'main-preview')">
           <div class="preview-container" id="main-preview">
             <img src="" alt="Main Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'main-input', 'main-preview')">×</button>
@@ -149,8 +103,7 @@
           <div class="slot-icon">📏</div>
           <h4>Dimension</h4>
           <p>Photo showing tape measure</p>
-          <input type="file" id="dim-input" name="dimension_image" accept="image/*"
-                 onchange="previewImage(this, 'dim-preview')">
+          <input type="file" id="dim-input" name="dimension_image" accept="image/*" onchange="previewImage(this, 'dim-preview')">
           <div class="preview-container" id="dim-preview">
             <img src="" alt="Dimension Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'dim-input', 'dim-preview')">×</button>
@@ -161,8 +114,7 @@
           <div class="slot-icon">🔍</div>
           <h4>Details</h4>
           <p>Grain, treated stamp, etc.</p>
-          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple
-                 onchange="previewMultipleImages(this)">
+          <input type="file" id="detail-input" name="detail_images" accept="image/*" multiple onchange="previewMultipleImages(this)">
           <div class="preview-container" id="detail-preview">
             <img src="" alt="Detail Preview">
             <button type="button" class="remove-btn" onclick="clearImage(event, 'detail-input', 'detail-preview')">×</button>
@@ -184,20 +136,17 @@
       <div class="row">
         <div class="form-group">
           <label for="thickness">Thickness (inches)</label>
-          <input type="number" id="thickness" step="any" min="0.01" name="thickness" required
-                 placeholder="e.g. 2 or 1.5">
+          <input type="number" id="thickness" step="any" min="0.01" name="thickness" required placeholder="e.g. 2 or 1.5">
           <div class="hint">Whole numbers like 2, 4 work fine. Decimals like 1.5 accepted.</div>
         </div>
         <div class="form-group">
           <label for="width">Width (inches)</label>
-          <input type="number" id="width" step="any" min="0.01" name="width" required
-                 placeholder="e.g. 4 or 12">
+          <input type="number" id="width" step="any" min="0.01" name="width" required placeholder="e.g. 4 or 12">
           <div class="hint">Whole numbers like 4, 6, 12 work fine.</div>
         </div>
         <div class="form-group">
           <label for="length">Length (ft)</label>
-          <input type="number" id="length" step="any" min="0.01" name="length" required
-                 placeholder="e.g. 14 or 12.5">
+          <input type="number" id="length" step="any" min="0.01" name="length" required placeholder="e.g. 14 or 12.5">
           <div class="hint">Whole numbers like 12, 14 work fine.</div>
         </div>
       </div>
@@ -223,6 +172,7 @@
             <option value="furniture">Furniture</option>
             <option value="roofing">Roofing</option>
             <option value="ceiling">Ceiling</option>
+            <option value="doors">Doors</option>
             <option value="flooring">Flooring</option>
           </select>
         </div>
@@ -233,6 +183,7 @@
             <option value="Ceiling Batten">Ceiling Batten</option>
             <option value="T&amp;G Board">T&amp;G Board</option>
             <option value="Moulding">Moulding</option>
+            <option value="Doors">Doors</option>
           </select>
         </div>
       </div>
@@ -244,10 +195,8 @@
 
       <button type="submit" class="submit-btn" id="submit-btn">Publish to Store</button>
 
-      <div class="upload-progress" id="upload-progress" style="display:none;">
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="progress-fill" style="width:0%;"></div>
-        </div>
+      <div class="upload-progress" id="upload-progress">
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill" style="width:0%;"></div></div>
         <div class="progress-label" id="progress-label"></div>
       </div>
 
@@ -272,10 +221,7 @@
         const img = preview.querySelector("img");
         if (!input.files || !input.files[0]) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
-          img.src = e.target.result;
-          preview.classList.add("visible");
-        };
+        reader.onload = (e) => { img.src = e.target.result; preview.classList.add("visible"); };
         reader.readAsDataURL(input.files[0]);
       }
 
@@ -284,10 +230,7 @@
         const img = preview.querySelector("img");
         if (!input.files || !input.files.length) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
-          img.src = e.target.result;
-          preview.classList.add("visible");
-        };
+        reader.onload = (e) => { img.src = e.target.result; preview.classList.add("visible"); };
         reader.readAsDataURL(input.files[0]);
       }
 
@@ -307,12 +250,10 @@
       function renderError(data, fallback) {
         if (!data) return fallback;
         if (Array.isArray(data.detail)) {
-          return data.detail
-            .map((e) => {
-              const field = (e.loc || []).filter((x) => x !== "body").join(".");
-              return field ? field + ": " + e.msg : e.msg;
-            })
-            .join("\n");
+          return data.detail.map((e) => {
+            const field = (e.loc || []).filter((x) => x !== "body").join(".");
+            return field ? field + ": " + e.msg : e.msg;
+          }).join("\n");
         }
         if (typeof data.detail === "string") return data.detail;
         return fallback;
@@ -336,22 +277,19 @@
         if (!form.checkValidity()) {
           msg.textContent = "Please fill all required fields correctly.";
           msg.classList.add("error");
+          const firstInvalid = form.querySelector(":invalid");
+          if (firstInvalid) firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
           form.reportValidity();
           return;
         }
 
         const formData = new FormData(form);
-
         for (const [key, value] of [...formData.entries()]) {
-          if (value instanceof File && value.size === 0) {
-            formData.delete(key);
-          }
+          if (value instanceof File && value.size === 0) formData.delete(key);
         }
-
         formData.set("is_treated", form.is_treated.checked ? "true" : "false");
 
         submitBtn.disabled = true;
-        msg.textContent = "";
         progressBox.style.display = "block";
         progressFill.className = "progress-bar-fill";
         progressFill.style.width = "0%";
@@ -365,16 +303,13 @@
           if (!event.lengthComputable) return;
           const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
           progressFill.style.width = pct + "%";
-
           const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
           const totalMB = (event.total / (1024 * 1024)).toFixed(1);
-
           let stage;
           if (pct < 25) stage = `Uploading photos… ${uploadedMB}/${totalMB} MB`;
           else if (pct < 60) stage = `Sending images to Cloudinary… ${uploadedMB}/${totalMB} MB`;
           else if (pct < 90) stage = `Processing on server… ${uploadedMB}/${totalMB} MB`;
           else stage = `Almost done… ${uploadedMB}/${totalMB} MB`;
-
           progressLabel.innerHTML = `<span class="pct">${pct}%</span><span class="stage">${stage}</span>`;
         };
 
@@ -399,30 +334,24 @@
             progressFill.className = "progress-bar-fill complete";
             progressFill.style.width = "100%";
             progressLabel.innerHTML = `<span class="pct">100%</span><span class="stage">✓ Wood #${data && data.wood_id ? data.wood_id : ""} published successfully</span>`;
-
             msg.textContent = "Success! Wood #" + (data && data.wood_id ? data.wood_id : "") + " added.";
             msg.className = "msg success";
-
             form.reset();
             document.querySelectorAll(".preview-container").forEach((p) => {
               p.classList.remove("visible");
               const img = p.querySelector("img");
               if (img) img.src = "";
             });
-
             setTimeout(() => { progressBox.style.display = "none"; }, 4000);
           } else {
             const errorText = renderError(data, "HTTP " + xhr.status);
             progressFill.className = "progress-bar-fill error";
             progressFill.style.width = "100%";
             progressLabel.innerHTML = `<span class="pct">Failed</span><span class="stage">${errorText}</span>`;
-
             msg.textContent = "Error: " + errorText;
             msg.className = "msg error";
-
             setTimeout(() => { progressBox.style.display = "none"; }, 6000);
           }
-
           submitBtn.disabled = false;
         };
 

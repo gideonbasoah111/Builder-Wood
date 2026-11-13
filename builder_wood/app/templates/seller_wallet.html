@@ -14,15 +14,12 @@
     .nav-tabs a { padding: 10px 6px; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 2px solid transparent; }
     .nav-tabs a.active { color: var(--wood-med); border-bottom-color: var(--wood-med); }
 
-    .wallet-hero {
-      background: linear-gradient(135deg, var(--wood-med), var(--wood-dark));
-      color: #fff; border-radius: 16px; padding: 32px; margin-bottom: 24px;
-      position: relative; overflow: hidden;
-    }
+    .wallet-hero { background: linear-gradient(135deg, var(--wood-med), var(--wood-dark)); color: #fff; border-radius: 16px; padding: 32px; margin-bottom: 24px; position: relative; overflow: hidden; }
     .wallet-hero::after { content: "💰"; position: absolute; right: -20px; top: -20px; font-size: 160px; opacity: 0.08; }
     .wallet-hero .label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-2); margin-bottom: 8px; }
     .wallet-hero .balance { font-family: Fraunces, serif; font-size: 52px; font-weight: 700; letter-spacing: -1px; margin: 0 0 6px; line-height: 1; }
-    .wallet-hero .sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+    .wallet-hero .sub { font-size: 13px; color: rgba(255,255,255,0.75); }
+    .wallet-hero .sub a { color: var(--gold-2); font-weight: 700; text-decoration: underline; }
     .wallet-hero .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
     .wallet-hero .btn-wd { background: var(--gold); color: var(--wood-dark); padding: 12px 24px; border: none; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: background 0.15s; }
     .wallet-hero .btn-wd:hover { background: var(--gold-2); }
@@ -87,9 +84,7 @@
   </header>
 
   <main class="dashboard-page">
-    <div class="dash-header">
-      <h2>My Wallet</h2>
-    </div>
+    <div class="dash-header"><h2>My Wallet</h2></div>
 
     <div class="nav-tabs">
       <a href="/seller/upload">Upload Wood</a>
@@ -104,13 +99,11 @@
       <div class="balance" id="balance">GH₵ 0.00</div>
       <div class="sub" id="sub">Loading...</div>
       <div class="actions">
-        <button class="btn-wd" id="btn-withdraw" onclick="openWithdrawModal()" disabled>
-          Request Withdrawal
-        </button>
+        <button class="btn-wd" id="btn-withdraw" onclick="openWithdrawModal()" disabled>Request Withdrawal</button>
       </div>
     </div>
 
-    <div class="stats-row" id="stats-row">
+    <div class="stats-row">
       <div class="stat-mini"><div class="lbl">Total Earned</div><div class="val" id="stat-earned">—</div></div>
       <div class="stat-mini"><div class="lbl">Total Withdrawn</div><div class="val" id="stat-withdrawn">—</div></div>
       <div class="stat-mini"><div class="lbl">Pending Withdrawals</div><div class="val" id="stat-pending">—</div></div>
@@ -119,9 +112,7 @@
     <div class="msg" id="msg"></div>
 
     <h3 class="section-title">Wallet History</h3>
-    <div id="txn-list">
-      <p class="empty-text">Loading...</p>
-    </div>
+    <div id="txn-list"><p class="empty-text">Loading...</p></div>
   </main>
 
   <div class="modal-backdrop" id="wd-modal">
@@ -149,32 +140,36 @@
 
     let walletData = null;
 
-    function fmtGHS(v) {
-      const n = Number(v);
-      return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
-    }
+    function toNum(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+    function fmtGHS(v) { return "GH₵ " + toNum(v).toFixed(2); }
 
     async function loadWallet() {
       try {
-        const res = await fetch("/seller/wallet/", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const res = await fetch("/seller/wallet/", { headers: { "Authorization": `Bearer ${token}` } });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (!res.ok) throw new Error("Failed");
         walletData = await res.json();
 
-        document.getElementById("balance").textContent = fmtGHS(walletData.balance);
+        const balance = toNum(walletData.balance);
+        const minWd = toNum(walletData.min_withdrawal) || 50;
+        const hasPayout = Boolean(walletData.has_payout_account);
+
+        document.getElementById("balance").textContent = fmtGHS(balance);
         document.getElementById("stat-earned").textContent = fmtGHS(walletData.total_earned);
         document.getElementById("stat-withdrawn").textContent = fmtGHS(walletData.total_withdrawn);
         document.getElementById("stat-pending").textContent = fmtGHS(walletData.pending_withdrawals_total);
 
         const btn = document.getElementById("btn-withdraw");
-        const canWithdraw = walletData.balance >= walletData.min_withdrawal && walletData.has_payout_account;
-        btn.disabled = !canWithdraw;
+        btn.disabled = !(balance >= minWd && hasPayout);
 
-        let sub = "Ready to withdraw";
-        if (!walletData.has_payout_account) sub = "⚠️ Register a payout account first";
-        else if (walletData.balance < walletData.min_withdrawal) sub = `Minimum withdrawal: ${fmtGHS(walletData.min_withdrawal)}`;
-        document.getElementById("sub").textContent = sub;
+        const sub = document.getElementById("sub");
+        if (!hasPayout) {
+          sub.innerHTML = '⚠️ Register a <a href="/seller/payout">payout account</a> first';
+        } else if (balance < minWd) {
+          sub.textContent = `Minimum withdrawal: ${fmtGHS(minWd)}`;
+        } else {
+          sub.textContent = "Ready to withdraw";
+        }
       } catch (e) {
         document.getElementById("sub").textContent = "Error loading wallet";
       }
@@ -182,33 +177,19 @@
 
     async function loadTransactions() {
       try {
-        const res = await fetch("/seller/wallet/transactions?limit=30", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const res = await fetch("/seller/wallet/transactions?limit=30", { headers: { "Authorization": `Bearer ${token}` } });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         const items = await res.json();
         const host = document.getElementById("txn-list");
-        if (!items.length) {
-          host.innerHTML = '<p class="empty-text">No transactions yet.</p>';
-          return;
-        }
-        host.innerHTML = `
-          <table class="txn-table">
-            <thead>
-              <tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th></tr>
-            </thead>
-            <tbody>
-              ${items.map(t => `
-                <tr>
-                  <td>${new Date(t.created_at).toLocaleDateString()}</td>
-                  <td><span class="badge badge-${t.type === "credit" ? "completed" : "processing"}">${t.type}</span></td>
-                  <td>${t.description || "—"}</td>
-                  <td class="${t.type === "credit" ? "credit" : "debit"}">${t.type === "credit" ? "+" : "-"}${fmtGHS(t.amount)}</td>
-                  <td class="amount">${fmtGHS(t.balance_after)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        `;
+        if (!items.length) { host.innerHTML = '<p class="empty-text">No transactions yet.</p>'; return; }
+        host.innerHTML = `<table class="txn-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th></tr></thead><tbody>${items.map(t => `
+          <tr>
+            <td>${new Date(t.created_at).toLocaleDateString()}</td>
+            <td><span class="badge badge-${t.type === "credit" ? "completed" : "processing"}">${t.type}</span></td>
+            <td>${t.description || "—"}</td>
+            <td class="${t.type === "credit" ? "credit" : "debit"}">${t.type === "credit" ? "+" : "-"}${fmtGHS(t.amount)}</td>
+            <td class="amount">${fmtGHS(t.balance_after)}</td>
+          </tr>`).join("")}</tbody></table>`;
       } catch (e) {
         document.getElementById("txn-list").innerHTML = '<p class="empty-text">Error loading transactions.</p>';
       }
@@ -216,29 +197,23 @@
 
     function openWithdrawModal() {
       if (!walletData) return;
-      document.getElementById("wd-info").textContent = `Available: ${fmtGHS(walletData.balance)} · Min: ${fmtGHS(walletData.min_withdrawal)}`;
-      document.getElementById("wd-amount").value = walletData.balance.toFixed(2);
-      document.getElementById("wd-amount").max = walletData.balance;
+      const balance = toNum(walletData.balance);
+      const minWd = toNum(walletData.min_withdrawal) || 50;
+      document.getElementById("wd-info").textContent = `Available: ${fmtGHS(balance)} · Min: ${fmtGHS(minWd)}`;
+      document.getElementById("wd-amount").value = balance.toFixed(2);
+      document.getElementById("wd-amount").max = balance;
       document.getElementById("wd-notes").value = "";
       document.getElementById("wd-modal").classList.add("show");
     }
 
-    function closeWithdrawModal() {
-      document.getElementById("wd-modal").classList.remove("show");
-    }
+    function closeWithdrawModal() { document.getElementById("wd-modal").classList.remove("show"); }
 
     async function submitWithdrawal() {
-      const amount = parseFloat(document.getElementById("wd-amount").value);
+      const raw = parseFloat(document.getElementById("wd-amount").value);
+      const amount = Math.round(raw * 100) / 100;
       const notes = document.getElementById("wd-notes").value.trim() || null;
-
-      if (!amount || amount <= 0) {
-        showMsg("Enter a valid amount.", true);
-        return;
-      }
-      if (amount > walletData.balance) {
-        showMsg(`Cannot withdraw more than available balance (${fmtGHS(walletData.balance)}).`, true);
-        return;
-      }
+      if (!amount || amount <= 0) { showMsg("Enter a valid amount.", true); return; }
+      if (amount > toNum(walletData.balance)) { showMsg(`Cannot withdraw more than available balance (${fmtGHS(walletData.balance)}).`, true); return; }
 
       const btn = document.getElementById("wd-confirm");
       btn.disabled = true;
@@ -247,17 +222,14 @@
       try {
         const res = await fetch("/seller/wallet/withdrawals", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ amount, notes })
         });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         const data = await res.json();
-
         if (res.ok) {
           closeWithdrawModal();
-          showMsg(`✅ Withdrawal request submitted. Admin will process it shortly.`, false);
+          showMsg("✅ Withdrawal request submitted. Admin will process it shortly.", false);
           loadWallet();
           loadTransactions();
         } else {

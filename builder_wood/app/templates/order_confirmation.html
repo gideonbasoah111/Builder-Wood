@@ -6,249 +6,70 @@
   <meta name="theme-color" content="#3e2723">
   <meta name="color-scheme" content="light">
   <title>Order received — {{ shop_name | default("Builder Wood") }}</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
-
   <style>
-    :root {
-      --tap: 44px;
-      --safe-t: env(safe-area-inset-top, 0px);
-      --safe-b: env(safe-area-inset-bottom, 0px);
-      --safe-l: env(safe-area-inset-left, 0px);
-      --safe-r: env(safe-area-inset-right, 0px);
-    }
-
+    :root { --tap: 44px; }
     *, *::before, *::after { box-sizing: border-box; }
     html, body { overflow-x: hidden; }
+    body { padding: env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0); }
 
-    body {
-      padding-top: max(0px, var(--safe-t));
-      padding-bottom: max(0px, var(--safe-b));
-      padding-left: max(0px, var(--safe-l));
-      padding-right: max(0px, var(--safe-r));
-    }
-
-    /* ---------- page ---------- */
     .confirm-page { padding: 56px 0 80px; }
-
-    .confirm-card {
-      max-width: 720px;
-      margin-inline: auto;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      padding: 40px 36px;
-      text-align: center;
-      overflow-wrap: anywhere;
-    }
-
+    .confirm-card { max-width: 720px; margin-inline: auto; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 40px 36px; text-align: center; overflow-wrap: anywhere; }
     .confirm-mark { font-size: 52px; margin-bottom: 12px; }
+    .confirm-card h1 { font-family: "Fraunces", serif; font-size: 30px; letter-spacing: -.5px; margin: 0 0 8px; }
+    .confirm-card > p { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+    .confirm-id { display: inline-block; font-size: 13px; font-weight: 700; color: var(--wood-med); background: var(--parchment-2); padding: 6px 14px; border-radius: 999px; margin-bottom: 28px; max-width: 100%; overflow-wrap: anywhere; }
+    .confirm-status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; background: var(--parchment-2); color: var(--wood-med); margin-bottom: 6px; }
+    .confirm-status .paid { background:#d4edda; color:#155724; }
+    .confirm-status .failed { background:#f8d7da; color:#721c24; }
 
-    .confirm-card h1 {
-      font-family: "Fraunces", serif;
-      font-size: 30px;
-      letter-spacing: -.5px;
-      margin: 0 0 8px;
-    }
-    .confirm-card > p {
-      color: var(--muted);
-      margin: 0 0 24px;
-      font-size: 14px;
-    }
-
-    .confirm-id {
-      display: inline-block;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--wood-med);
-      background: var(--parchment-2);
-      padding: 6px 14px;
-      border-radius: 999px;
-      margin-bottom: 28px;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-    }
-
-    .confirm-status {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .5px;
-      text-transform: uppercase;
-      background: var(--parchment-2);
-      color: var(--wood-med);
-      margin-bottom: 6px;
-    }
-
-    /* ---------- header back link ---------- */
     .header-main { flex-wrap: wrap; gap: 12px; }
     .header-main .catnav-quote { margin-left: auto; }
-    @media (max-width: 480px) {
-      .header-main .catnav-quote { margin-left: 0; padding: 8px 0; }
-    }
+    @media (max-width: 480px) { .header-main .catnav-quote { margin-left: 0; padding: 8px 0; } }
 
-    /* ---------- items table ---------- */
-    .confirm-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-      text-align: left;
-    }
-    .confirm-table th,
-    .confirm-table td {
-      padding: 12px 8px;
-      border-bottom: 1px solid var(--line);
-      font-size: 13px;
-      vertical-align: middle;
-      overflow-wrap: anywhere;
-    }
-    .confirm-table th {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+    .confirm-table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; }
+    .confirm-table th, .confirm-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; overflow-wrap: anywhere; }
+    .confirm-table th { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
     .confirm-table td { color: var(--ink); }
-
     .item-name-cell { font-weight: 600; }
     .item-size-cell { color: var(--muted); }
-    .item-qty-cell  { text-align: center; }
+    .item-qty-cell { text-align: center; }
     .item-price-cell{ text-align: right; font-weight: 600; }
 
-    /* ---------- totals ---------- */
-    .confirm-totals {
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px dashed var(--line);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .confirm-totals .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      color: var(--ink-2);
-    }
-    .confirm-totals .row.total {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--ink);
-      padding-top: 10px;
-      border-top: 1px solid var(--line);
-    }
-    .confirm-totals .row.total b {
-      font-family: "Fraunces", serif;
-      font-size: 20px;
-      color: var(--wood-med);
-    }
+    .confirm-totals { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
+    .confirm-totals .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+    .confirm-totals .row.total { font-size: 16px; font-weight: 800; color: var(--ink); padding-top: 10px; border-top: 1px solid var(--line); }
+    .confirm-totals .row.total b { font-family: "Fraunces", serif; font-size: 20px; color: var(--wood-med); }
 
-    /* ---------- actions ---------- */
-    .confirm-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 32px;
-      flex-wrap: wrap;
-    }
-    .confirm-actions .btn {
-      min-height: var(--tap);
-      -webkit-tap-highlight-color: transparent;
-    }
-    @media (hover: hover) {
-      .confirm-actions .btn:hover { filter: brightness(0.95); }
-    }
-    .confirm-note {
-      margin-top: 18px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
+    .confirm-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+    .confirm-actions .btn { min-height: var(--tap); }
+    .confirm-note { margin-top: 18px; font-size: 12px; color: var(--muted); line-height: 1.6; }
 
-    /* ---------- tablet ---------- */
-    @media (max-width: 720px) {
-      .confirm-page { padding-top: 32px; padding-bottom: 64px; }
-      .confirm-card { padding: 28px 22px; border-radius: 12px; }
-      .confirm-card h1 { font-size: 26px; }
-    }
-
-    /* ---------- phone: card rows ---------- */
+    @media (max-width: 720px) { .confirm-page { padding-top: 32px; padding-bottom: 64px; } .confirm-card { padding: 28px 22px; border-radius: 12px; } .confirm-card h1 { font-size: 26px; } }
     @media (max-width: 560px) {
-      .confirm-page { padding-top: 20px; padding-bottom: 48px; }
       .confirm-card { padding: 22px 16px; }
       .confirm-card h1 { font-size: 22px; }
-      .confirm-card > p { font-size: 13px; }
-      .confirm-mark { font-size: 42px; margin-bottom: 8px; }
-
       .confirm-actions { flex-direction: column; }
       .confirm-actions .btn { width: 100%; }
-
       .confirm-table thead { display: none; }
-      .confirm-table,
-      .confirm-table tbody,
-      .confirm-table tr,
-      .confirm-table td { display: block; width: 100%; }
-
-      .confirm-table tr {
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 12px 14px;
-        margin-bottom: 10px;
-      }
-      .confirm-table td {
-        border: none;
-        padding: 4px 0;
-        text-align: left !important;
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        font-size: 13px;
-      }
-      .confirm-table td::before {
-        content: attr(data-label);
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: .5px;
-        text-transform: uppercase;
-      }
-    }
-
-    /* ---------- tiny phones ---------- */
-    @media (max-width: 380px) {
-      .confirm-card { padding: 18px 12px; }
-      .confirm-card h1 { font-size: 20px; }
-      .confirm-totals .row.total b { font-size: 18px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        transition-duration: .01ms !important;
-        animation-duration: .01ms !important;
-      }
+      .confirm-table, .confirm-table tbody, .confirm-table tr, .confirm-table td { display: block; width: 100%; }
+      .confirm-table tr { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+      .confirm-table td { border: none; padding: 4px 0; text-align: left !important; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+      .confirm-table td::before { content: attr(data-label); color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
     }
   </style>
 </head>
 <body>
-
   <header class="header">
     <div class="container header-main">
       <a class="brand" href="/">
         <span class="brand-mark">🪵</span>
         <span class="brand-text">Builder<em>Wood</em><small>Order confirmation</small></span>
       </a>
-      <a class="catnav-quote" href="/"
-         style="padding:8px 0;color:var(--gold-2);font-weight:700;">
-        ← Continue shopping
-      </a>
+      <a class="catnav-quote" href="/" style="padding:8px 0;color:var(--gold-2);font-weight:700;">← Continue shopping</a>
     </div>
   </header>
 
@@ -262,14 +83,7 @@
         <div class="confirm-id" id="order-id">Loading order…</div>
 
         <table class="confirm-table" id="items-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Size</th>
-              <th style="text-align:center">Qty</th>
-              <th style="text-align:right">Price</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Item</th><th>Size</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th></tr></thead>
           <tbody id="items-body"></tbody>
         </table>
 
@@ -281,88 +95,52 @@
 
         <div class="confirm-actions">
           <a class="btn btn-primary" href="/">Back to shop</a>
-          <button class="btn btn-gold" id="msg-seller-btn" type="button" disabled>
-            💬 Message the seller
-          </button>
+          <button class="btn btn-gold" id="msg-seller-btn" type="button" disabled>💬 Message the seller</button>
         </div>
 
-        <p class="confirm-note">
-          All communication with the seller happens securely inside Builder Wood.
-        </p>
+        <p class="confirm-note">All communication with the seller happens securely inside Builder Wood.</p>
       </div>
     </div>
   </main>
 
   <script>
     'use strict';
-
     (function () {
       const $ = (s) => document.querySelector(s);
-
-      const escapeHtml = (s) =>
-        String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
-          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-        }[c]));
-
-      const money = (v) => {
-        const n = Number(v);
-        return Number.isFinite(n) ? "GH₵" + n.toFixed(2) : "GH₵0.00";
-      };
+      const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const money = (v) => { const n = Number(v); return Number.isFinite(n) ? "GH₵" + n.toFixed(2) : "GH₵0.00"; };
 
       const orderId = window.location.pathname.split("/").pop();
       const token = localStorage.getItem("bw_token");
-
-      if (!token) {
-        window.location.href = "/login";
-        return;
-      }
+      if (!token) { window.location.href = "/login"; return; }
 
       let currentOrder = null;
 
-      fetch("/orders/" + encodeURIComponent(orderId), {
-        headers: { Authorization: "Bearer " + token },
-      })
+      fetch("/orders/" + encodeURIComponent(orderId), { headers: { Authorization: "Bearer " + token } })
         .then((r) => {
           if (r.ok) return r.json();
-          if (r.status === 401) {
-            window.location.href = "/login";
-            throw new Error("Not logged in");
-          }
+          if (r.status === 401) { window.location.href = "/login"; throw new Error("Not logged in"); }
           throw new Error("HTTP " + r.status);
         })
         .then((order) => {
           currentOrder = order;
-
           $("#order-id").textContent = "Order #" + (order.order_id ?? "");
           const s = String(order.status || "");
           $("#status").textContent = s ? s.charAt(0).toUpperCase() + s.slice(1) : "—";
-
           $("#subtotal").textContent = money(order.subtotal);
           $("#delivery").textContent = money(order.delivery_fee);
           $("#total").textContent    = money(order.total_price);
-
           $("#items-body").innerHTML = (order.items || []).map((i) => {
-            const sizeText =
-              i.size_snap && i.size_snap !== "None" ? i.size_snap : "—";
+            const sizeText = i.size_snap && i.size_snap !== "None" ? i.size_snap : "—";
             const qty = Number(i.quantity) || 0;
             const lineTotal = (Number(i.price_at_purchase) || 0) * qty;
-
-            return (
-              "<tr>" +
-                '<td class="item-name-cell" data-label="Item">' +
-                  escapeHtml(i.wood_name_snap || "Timber") +
-                "</td>" +
-                '<td class="item-size-cell" data-label="Size">' +
-                  escapeHtml(sizeText) +
-                "</td>" +
-                '<td class="item-qty-cell" data-label="Qty">' + qty + "</td>" +
-                '<td class="item-price-cell" data-label="Price">' +
-                  money(lineTotal) +
-                "</td>" +
-              "</tr>"
-            );
+            return "<tr>" +
+              '<td class="item-name-cell" data-label="Item">' + escapeHtml(i.wood_name_snap || "Timber") + "</td>" +
+              '<td class="item-size-cell" data-label="Size">' + escapeHtml(sizeText) + "</td>" +
+              '<td class="item-qty-cell" data-label="Qty">' + qty + "</td>" +
+              '<td class="item-price-cell" data-label="Price">' + money(lineTotal) + "</td>" +
+              "</tr>";
           }).join("");
-
           const btn = $("#msg-seller-btn");
           if (btn) btn.disabled = !(order.seller_id && order.order_id);
         })
@@ -375,37 +153,22 @@
           console.error(err);
         });
 
-      // ---------- in-app messaging ----------
       $("#msg-seller-btn")?.addEventListener("click", async (e) => {
         const btn = e.currentTarget;
         if (!currentOrder || !currentOrder.seller_id || !currentOrder.order_id) return;
-
         if (!token) { window.location.href = "/login"; return; }
-
         btn.disabled = true;
         const original = btn.innerHTML;
         btn.innerHTML = "Opening chat…";
-
         try {
           const res = await fetch("/conversations/start", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              seller_id: currentOrder.seller_id,
-              order_id: currentOrder.order_id,
-            }),
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ seller_id: currentOrder.seller_id, order_id: currentOrder.order_id }),
           });
-
           if (res.status === 401) { window.location.href = "/login"; return; }
-
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(
-            typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`
-          );
-
+          if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`);
           window.location.href = `/messages/${data.conversation_id}`;
         } catch (err) {
           btn.disabled = false;

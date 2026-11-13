@@ -39,6 +39,7 @@
     .btn-primary { background: var(--wood-med); color: #fff; }
     .btn-success { background: var(--green); color: #fff; }
     .btn-sm { padding: 6px 12px; font-size: 11px; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
     .empty-state { text-align: center; padding: 60px 20px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
     .empty-state .empty-icon { font-size: 48px; opacity: .6; margin-bottom: 10px; }
     .empty-state h3 { font-family: Fraunces, serif; margin: 0 0 6px; }
@@ -97,17 +98,15 @@
 
     let allOrders = [];
     let activeFilter = "all";
+    let pendingOrderId = null;
 
     function fmtGHS(v) {
       const n = Number(v);
       return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
     }
-
     function esc(v) {
-      return String(v == null ? "" : v).replace(/[&<>"']/g, c =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
-
     function showMsg(text, isError) {
       const msg = document.getElementById("msg");
       msg.textContent = text;
@@ -119,9 +118,8 @@
     async function loadOrders() {
       document.getElementById("orders-list").innerHTML = '<p class="empty-state">Loading...</p>';
       try {
-        const res = await fetch("/orders/seller/orders", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const res = await fetch("/orders/seller/orders", { headers: { "Authorization": `Bearer ${token}` } });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (!res.ok) throw new Error("Failed");
         allOrders = await res.json();
         renderStats();
@@ -137,81 +135,77 @@
       const delivered = allOrders.filter(o => o.status === "delivered").length;
       const revenue = allOrders.filter(o => ["paid", "confirmed", "shipped", "delivered"].includes(o.status))
         .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
-
       document.getElementById("stats-strip").innerHTML = `
         <div class="stat-card"><div class="stat-num">${allOrders.length}</div><div class="stat-label">Total Orders</div></div>
         <div class="stat-card"><div class="stat-num">${pending}</div><div class="stat-label">Pending</div></div>
         <div class="stat-card"><div class="stat-num">${shipped}</div><div class="stat-label">Shipped</div></div>
         <div class="stat-card"><div class="stat-num">${delivered}</div><div class="stat-label">Delivered</div></div>
-        <div class="stat-card"><div class="stat-num">${fmtGHS(revenue)}</div><div class="stat-label">Revenue</div></div>
-      `;
+        <div class="stat-card"><div class="stat-num">${fmtGHS(revenue)}</div><div class="stat-label">Revenue</div></div>`;
     }
 
     function renderOrders() {
       let filtered = allOrders;
       if (activeFilter !== "all") filtered = filtered.filter(o => o.status === activeFilter);
-
       const host = document.getElementById("orders-list");
       if (!filtered.length) {
-        host.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">📦</div>
-            <h3>${activeFilter === "all" ? "No orders yet" : "No " + activeFilter + " orders"}</h3>
-            <p>When customers buy your wood, orders will appear here.</p>
-          </div>
-        `;
+        host.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><h3>${activeFilter === "all" ? "No orders yet" : "No " + activeFilter + " orders"}</h3><p>When customers buy your wood, orders will appear here.</p></div>`;
         return;
       }
-
       host.innerHTML = filtered.map(o => {
         const items = (o.items || []).map(i => `
           <div class="order-item">
             <span>${esc(i.wood_name_snap)} — ${esc(i.size_snap)}</span>
             <span>${i.quantity} × ${fmtGHS(i.price_at_purchase)}</span>
-          </div>
-        `).join("");
-
+          </div>`).join("");
         let actions = "";
         if (o.status === "confirmed" || o.status === "paid") {
-          actions = `<div class="order-actions"><button class="btn btn-primary btn-sm" onclick="updateStatus(${o.order_id}, 'shipped')">Mark Shipped</button></div>`;
+          actions = `<div class="order-actions"><button class="btn btn-primary btn-sm" onclick="updateStatus(${o.order_id}, 'shipped')" ${pendingOrderId === o.order_id ? "disabled" : ""}>Mark Shipped</button></div>`;
         } else if (o.status === "shipped") {
-          actions = `<div class="order-actions"><button class="btn btn-success btn-sm" onclick="updateStatus(${o.order_id}, 'delivered')">Mark Delivered</button></div>`;
+          actions = `<div class="order-actions"><button class="btn btn-success btn-sm" onclick="updateStatus(${o.order_id}, 'delivered')" ${pendingOrderId === o.order_id ? "disabled" : ""}>Mark Delivered</button></div>`;
         }
-
         return `
           <div class="order-card">
             <div class="order-head">
               <h4>Order #${o.order_id} <span class="meta">${new Date(o.order_date || Date.now()).toLocaleDateString()}</span></h4>
-              <span class="status status-${o.status}">${o.status}</span>
+              <span class="status status-${esc(o.status)}">${esc(o.status)}</span>
             </div>
             <div class="order-body">
               <div class="order-items">${items}</div>
               <div class="order-total"><span>Total</span><span>${fmtGHS(o.total_price)}</span></div>
               ${actions}
             </div>
-          </div>
-        `;
+          </div>`;
       }).join("");
     }
 
     async function updateStatus(orderId, newStatus) {
+      if (pendingOrderId) return;
       const verb = newStatus === "shipped" ? "mark as shipped" : "mark as delivered";
       if (!confirm(`Are you sure you want to ${verb} order #${orderId}?`)) return;
-
+      pendingOrderId = orderId;
+      renderOrders();
       try {
         const res = await fetch(`/orders/${orderId}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ status: newStatus }),
         });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (res.ok) {
           showMsg(`Order #${orderId} marked as ${newStatus}`, false);
-          loadOrders();
+          pendingOrderId = null;
+          await loadOrders();
         } else {
-          const e = await res.json();
+          const e = await res.json().catch(() => ({}));
           showMsg(e.detail || "Failed to update", true);
+          pendingOrderId = null;
+          renderOrders();
         }
-      } catch { showMsg("Network error", true); }
+      } catch {
+        showMsg("Network error", true);
+        pendingOrderId = null;
+        renderOrders();
+      }
     }
 
     document.querySelectorAll(".chip[data-filter]").forEach(btn => {
@@ -224,7 +218,7 @@
     });
 
     document.getElementById("refresh-btn").addEventListener("click", loadOrders);
-
+    window.updateStatus = updateStatus;
     loadOrders();
   </script>
 </body>

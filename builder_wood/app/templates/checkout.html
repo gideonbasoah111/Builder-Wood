@@ -41,7 +41,7 @@
     .delivery-opt b { display: block; font-size: 13px; font-weight: 700; }
     .delivery-opt small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 
-    .submit-btn { width: 100%; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--wood-med); color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .2px; transition: background .15s; }
+    .submit-btn { width: 100%; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--wood-med); color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .2px; transition: background .15s; border: none; cursor: pointer; }
     .submit-btn:hover { background: var(--wood-dark); }
     .submit-btn:disabled { background: #c7bfb1; cursor: not-allowed; }
     .message { margin-top: 12px; font-size: 12.5px; color: var(--wood-med); min-height: 18px; line-height: 1.5; }
@@ -68,12 +68,12 @@
     .empty-cart .mark { font-size: 42px; margin-bottom: 8px; }
     .empty-cart p { margin: 0 0 8px; }
 
-    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--wood-med); margin-bottom: 20px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--wood-med); margin-bottom: 20px; text-decoration: none; }
 
     .checkout-header { position: sticky; top: 0; z-index: 30; background: var(--wood); color: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.14); }
     .checkout-header-inner { display: flex; align-items: center; gap: 20px; padding: 14px 0; }
-    .checkout-header .brand { color: #fff; }
-    .checkout-header .back-shop { margin-left: auto; color: var(--gold-2); font-weight: 700; font-size: 13px; }
+    .checkout-header .brand { color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+    .checkout-header .back-shop { margin-left: auto; color: var(--gold-2); font-weight: 700; font-size: 13px; text-decoration: none; }
     .checkout-header .back-shop:hover { color: #fff; }
 
     @media (max-width: 900px) {
@@ -143,22 +143,10 @@
 
           <h3 style="margin-top:24px;">Delivery method</h3>
           <div class="delivery-opt">
-            <label>
-              <input type="radio" name="delivery" value="pickup">
-              <span><b>Pickup</b><small>Collect at Sokoban Wood Village · Free</small></span>
-            </label>
-            <label>
-              <input type="radio" name="delivery" value="aboboyaa" checked>
-              <span><b>Aboboyaa</b><small>Up to 100 pieces · within 25 km</small></span>
-            </label>
-            <label>
-              <input type="radio" name="delivery" value="pickup-truck">
-              <span><b>Small pickup</b><small>Up to 300 pieces · within 60 km</small></span>
-            </label>
-            <label>
-              <input type="radio" name="delivery" value="truck">
-              <span><b>Truck</b><small>Up to 1,000 pieces · within 200 km</small></span>
-            </label>
+            <label><input type="radio" name="delivery" value="pickup"><span><b>Pickup</b><small>Collect at Sokoban Wood Village · Free</small></span></label>
+            <label><input type="radio" name="delivery" value="aboboyaa" checked><span><b>Aboboyaa</b><small>Up to 100 pieces · within 25 km</small></span></label>
+            <label><input type="radio" name="delivery" value="pickup-truck"><span><b>Small pickup</b><small>Up to 300 pieces · within 60 km</small></span></label>
+            <label><input type="radio" name="delivery" value="truck"><span><b>Truck</b><small>Up to 1,000 pieces · within 200 km</small></span></label>
           </div>
 
           <button type="submit" class="submit-btn" id="submit-btn" disabled>Place Order & Pay</button>
@@ -191,10 +179,6 @@
       const $ = (s) => document.querySelector(s);
       const getToken = () => localStorage.getItem("bw_token");
 
-      // Server-side vehicle rates (mirrors what the backend will charge).
-      // These are placeholders until the vehicle admin UI is built —
-      // they let the preview show a number without a separate quote API call.
-      // The REAL charge comes from the backend at order creation.
       const VEHICLES = {
         "pickup":       { base: 0,  rate: 0 },
         "aboboyaa":     { base: 20, rate: 3 },
@@ -203,12 +187,18 @@
       };
 
       let cart = [];
-      let estimatedDistanceKm = null;   // populated by /orders/estimate-distance
+      let estimatedDistanceKm = null;
       let distanceFetchInFlight = null;
+      let createdOrderId = null; // remembered so retry only retries payment
 
       function money(v, c = "GH₵") {
         const n = Number(v);
         return Number.isFinite(n) ? `${c}${n.toFixed(2)}` : "—";
+      }
+
+      function handle401() {
+        ["bw_token","bw_role","bw_name","bw_user_id","bw_email"].forEach(k => localStorage.removeItem(k));
+        window.location.href = "/login";
       }
 
       async function loadCart() {
@@ -216,6 +206,7 @@
         if (!token) { window.location.href = "/login"; return; }
         try {
           const res = await fetch("/cart/", { headers: { "Authorization": `Bearer ${token}` } });
+          if (res.status === 401) { handle401(); return; }
           if (res.ok) { cart = await res.json(); renderCart(); }
         } catch (err) { console.error("Failed to load cart", err); }
       }
@@ -225,13 +216,13 @@
         if (!token) return;
         try {
           const res = await fetch("/auth/me", { headers: { "Authorization": `Bearer ${token}` } });
+          if (res.status === 401) { handle401(); return; }
           if (res.ok) {
             const user = await res.json();
             if (user.name) $("#name").value = user.name;
             if (user.phone_number) $("#phone").value = user.phone_number;
             if (user.address) $("#address").value = user.address;
             if (user.email) $("#email").value = user.email;
-            // Auto-fetch distance if user already has a saved address
             if (user.address) fetchDistance();
           }
         } catch (err) { console.warn("Could not load user profile", err); }
@@ -241,25 +232,19 @@
         const host = $("#cart-host");
         const totals = $("#totals");
         const submitBtn = $("#submit-btn");
-
         if (!cart.length) {
           host.innerHTML = `<div class="empty-cart"><div class="mark">🪵</div><p>Your cart is empty.</p><p><a href="/" style="color:var(--wood-med);font-weight:700;">Go back to the shop →</a></p></div>`;
           totals.hidden = true;
           submitBtn.disabled = true;
           return;
         }
-
         host.innerHTML = `<div class="cart-list">${cart.map((i) => `
           <div class="cart-item">
             <div class="thumb">${i.image_url ? `<img src="${i.image_url}" alt="">` : "🪵"}</div>
-            <div>
-              <p class="name">${i.local_name}</p>
-              <div class="meta">Qty ${i.quantity}</div>
-            </div>
+            <div><p class="name">${i.local_name}</p><div class="meta">Qty ${i.quantity}</div></div>
             <div class="price">${money(i.price_per_piece * i.quantity, i.currency)}</div>
           </div>
         `).join("")}</div>`;
-
         totals.hidden = false;
         recalcTotals();
         updateSubmitState();
@@ -269,16 +254,13 @@
         if (!cart.length) return;
         const subtotal = cart.reduce((s, i) => s + (i.price_per_piece * i.quantity), 0);
         const method = document.querySelector('input[name="delivery"]:checked')?.value || "pickup";
-
         let fee = 0;
         if (method !== "pickup" && estimatedDistanceKm !== null) {
           const v = VEHICLES[method] || VEHICLES.aboboyaa;
           fee = v.base + v.rate * estimatedDistanceKm;
         }
         $("#subtotal").textContent = money(subtotal);
-        $("#delivery-fee").textContent =
-          method === "pickup" ? money(0)
-          : (estimatedDistanceKm === null ? "—" : money(fee));
+        $("#delivery-fee").textContent = method === "pickup" ? money(0) : (estimatedDistanceKm === null ? "—" : money(fee));
         $("#total").textContent = money(subtotal + fee);
       }
 
@@ -296,26 +278,15 @@
         const hint = $("#distance-hint");
         const token = getToken();
         if (!token) return;
-
         if (addr.length < 3) {
-          hint.textContent = "";
-          hint.className = "hint";
-          estimatedDistanceKm = null;
-          recalcTotals();
-          updateSubmitState();
-          return;
+          hint.textContent = ""; hint.className = "hint";
+          estimatedDistanceKm = null; recalcTotals(); updateSubmitState(); return;
         }
-
         if (distanceFetchInFlight) distanceFetchInFlight.abort?.();
-        hint.textContent = "Calculating distance…";
-        hint.className = "hint loading";
-        estimatedDistanceKm = null;
-        recalcTotals();
-        updateSubmitState();
-
+        hint.textContent = "Calculating distance…"; hint.className = "hint loading";
+        estimatedDistanceKm = null; recalcTotals(); updateSubmitState();
         const ctrl = new AbortController();
         distanceFetchInFlight = ctrl;
-
         try {
           const res = await fetch("/orders/estimate-distance", {
             method: "POST",
@@ -323,8 +294,8 @@
             body: JSON.stringify({ address: addr }),
             signal: ctrl.signal,
           });
+          if (res.status === 401) { handle401(); return; }
           const data = await res.json().catch(() => ({}));
-
           if (!res.ok) {
             hint.textContent = data.detail || `Could not calculate distance (HTTP ${res.status}).`;
             hint.className = "hint err";
@@ -333,8 +304,7 @@
           estimatedDistanceKm = Number(data.distance_km);
           hint.textContent = `✓ ${data.distance_km} km from Sokoban — ${data.geocoded_address}`;
           hint.className = "hint ok";
-          recalcTotals();
-          updateSubmitState();
+          recalcTotals(); updateSubmitState();
         } catch (err) {
           if (err.name === "AbortError") return;
           hint.textContent = "Distance check failed. Check your connection.";
@@ -349,11 +319,22 @@
         r.addEventListener("change", () => { recalcTotals(); updateSubmitState(); })
       );
 
+      async function initializePayment(orderId, token) {
+        const payRes = await fetch("/payments/initialize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ order_id: orderId }),
+        });
+        if (payRes.status === 401) { handle401(); return null; }
+        const payData = await payRes.json().catch(() => ({}));
+        if (!payRes.ok) throw new Error(payData.detail || "Could not initialize payment");
+        return payData;
+      }
+
       $("#order-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         const msg = $("#message");
-        msg.textContent = "";
-        msg.classList.remove("err");
+        msg.textContent = ""; msg.classList.remove("err");
 
         const name = $("#name").value.trim();
         const phone = $("#phone").value.trim();
@@ -363,56 +344,49 @@
 
         if (!name || !phone || !email || !address) {
           msg.textContent = "Please fill in all required fields.";
-          msg.classList.add("err");
-          return;
+          msg.classList.add("err"); return;
         }
         if (method !== "pickup" && estimatedDistanceKm === null) {
           msg.textContent = "Please wait for the distance check to finish, or choose Pickup.";
-          msg.classList.add("err");
-          return;
+          msg.classList.add("err"); return;
         }
-        if (!cart.length) {
-          msg.textContent = "Your cart is empty.";
-          msg.classList.add("err");
-          return;
-        }
-
-        // NOTE: distance_km is NOT sent — backend recomputes from delivery_address
-        const payload = {
-          customer_name: name,
-          customer_phone: phone,
-          customer_email: email,
-          delivery_address: address,
-          delivery_method: method,
-          notes: $("#notes").value.trim() || null,
-          items: cart.map((i) => ({ wood_id: i.wood_id, quantity: i.quantity })),
-        };
+        if (!cart.length) { msg.textContent = "Your cart is empty."; msg.classList.add("err"); return; }
 
         $("#submit-btn").disabled = true;
-        msg.textContent = "Creating order…";
+        msg.textContent = createdOrderId ? "Retrying payment…" : "Creating order…";
 
         try {
           const token = getToken();
-          const res = await fetch("/orders/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.detail || `HTTP ${res.status}`);
-          }
-          const orders = await res.json();
-          const orderId = orders[0].order_id;
-          msg.textContent = "Redirecting to Paystack...";
+          let orderId = createdOrderId;
 
-          const payRes = await fetch("/payments/initialize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify({ order_id: orderId }),
-          });
-          const payData = await payRes.json();
-          if (!payRes.ok) throw new Error(payData.detail || "Could not initialize payment");
+          if (!orderId) {
+            const payload = {
+              customer_name: name,
+              customer_phone: phone,
+              customer_email: email,
+              delivery_address: address,
+              delivery_method: method,
+              notes: $("#notes").value.trim() || null,
+              items: cart.map((i) => ({ wood_id: i.wood_id, quantity: i.quantity })),
+            };
+            const res = await fetch("/orders/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+              body: JSON.stringify(payload),
+            });
+            if (res.status === 401) { handle401(); return; }
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+            const orders = await res.json();
+            orderId = orders[0].order_id;
+            createdOrderId = orderId;
+          }
+
+          msg.textContent = "Redirecting to Paystack...";
+          const payData = await initializePayment(orderId, token);
+          if (!payData) return;
           window.location.href = payData.authorization_url;
         } catch (err) {
           msg.textContent = err.message || "Could not submit order. Try again.";

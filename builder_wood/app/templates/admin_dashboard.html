@@ -18,24 +18,13 @@
     .user-info h4 { margin: 0 0 4px; font-size: 16px; }
     .user-info p { margin: 0; color: var(--muted); font-size: 13px; }
     .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; }
-    .status-pending { background: #fff3cd; color: #856404; }
-    .status-paid { background: #d4edda; color: #155724; }
-    .status-confirmed { background: #cce5ff; color: #004085; }
-    .status-shipped { background: #d1ecf1; color: #0c5460; }
-    .status-delivered { background: #d4edda; color: #155724; }
-    .status-cancelled { background: #f8d7da; color: #721c24; }
-    .status-disputed { background: #f8d7da; color: #721c24; }
-    .status-settled { background: #d1ecf1; color: #0c5460; }
-    .status-transferring { background: #fff3cd; color: #856404; }
-    .status-eligible { background: #d4edda; color: #155724; }
-    .status-not_eligible { background: #e2e3e5; color: #383d41; }
-    .status-unpaid { background: #e2e3e5; color: #383d41; }
-    .status-active { background: #d4edda; color: #155724; }
-    .status-inactive { background: #f8d7da; color: #721c24; }
-    .status-processing { background: #cce5ff; color: #004085; }
-    .status-completed { background: #d4edda; color: #155724; }
-    .status-rejected { background: #f8d7da; color: #721c24; }
-    .status-failed { background: #f8d7da; color: #721c24; }
+    .status-pending, .status-transferring { background: #fff3cd; color: #856404; }
+    .status-paid, .status-delivered, .status-active, .status-eligible, .status-completed { background: #d4edda; color: #155724; }
+    .status-confirmed, .status-processing { background: #cce5ff; color: #004085; }
+    .status-shipped, .status-settled { background: #d1ecf1; color: #0c5460; }
+    .status-cancelled, .status-disputed, .status-inactive, .status-rejected, .status-failed { background: #f8d7da; color: #721c24; }
+    .status-not_eligible, .status-unpaid { background: #e2e3e5; color: #383d41; }
+
     .msg { margin-top: 15px; font-weight: 600; color: var(--green); text-align: center; min-height: 20px; }
     .msg.err { color: var(--red); }
     .nav-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -118,7 +107,6 @@
     </div>
 
     <div id="users-view"><div id="list-container"><p class="empty-text">Loading...</p></div></div>
-
     <div id="orders-view" style="display:none;">
       <div class="sub-tabs">
         <button class="active" onclick="switchOrders('all')" id="orders-tab-all">All Orders</button>
@@ -127,7 +115,6 @@
       </div>
       <div id="orders-list-container"><p class="empty-text">Loading...</p></div>
     </div>
-
     <div id="withdrawals-view" style="display:none;">
       <div class="sub-tabs">
         <button class="active" onclick="switchWithdrawals('pending')" id="wd-tab-pending">Pending</button>
@@ -136,11 +123,8 @@
       </div>
       <div id="withdrawals-list-container"><p class="empty-text">Loading...</p></div>
     </div>
-
     <div id="funds-view" style="display:none;">
-      <div class="funds-summary" id="funds-summary">
-        <div class="stat-card"><div class="label">Loading...</div><div class="value">—</div></div>
-      </div>
+      <div class="funds-summary" id="funds-summary"><div class="stat-card"><div class="label">Loading...</div><div class="value">—</div></div></div>
       <div class="sub-tabs">
         <button onclick="switchFunds('incoming')" id="funds-tab-incoming">💰 Incoming (Held)</button>
         <button class="active" onclick="switchFunds('by-seller')" id="funds-tab-by-seller">Owed to Sellers</button>
@@ -149,7 +133,6 @@
       </div>
       <div id="funds-list-container"><p class="empty-text">Loading...</p></div>
     </div>
-
     <div id="messages-view" style="display:none;">
       <div class="sub-tabs">
         <button class="active" onclick="switchModeration('flagged')" id="mod-tab-flagged">Flagged Messages</button>
@@ -183,6 +166,9 @@
     let currentWdTab = "pending";
     let currentModTab = "flagged";
 
+    function esc(v) {
+      return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
     function fmtGHS(v) {
       const n = Number(v);
       return "GH₵" + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
@@ -190,7 +176,16 @@
     function fmtDate(s) {
       if (!s) return "—";
       const d = new Date(s);
-      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    function handle401() {
+      ["bw_token","bw_role","bw_name","bw_user_id","bw_email"].forEach(k => localStorage.removeItem(k));
+      window.location.href = "/login";
+    }
+    async function safeFetch(url, opts) {
+      const res = await fetch(url, opts);
+      if (res.status === 401) { handle401(); throw new Error("401"); }
+      return res;
     }
     function showMsg(text, isError) {
       msg.textContent = text;
@@ -214,7 +209,6 @@
       else if (tab === "messages") loadModerationData(currentModTab);
       else loadData();
     }
-
     function switchOrders(sub) {
       currentOrdersTab = sub;
       document.querySelectorAll("#orders-view .sub-tabs button").forEach(b => b.classList.remove("active"));
@@ -247,7 +241,7 @@
       if (currentTab === "active") endpoint = "/admin/active-sellers";
       if (currentTab === "customers") endpoint = "/admin/customers";
       try {
-        const res = await fetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
         if (!res.ok) throw new Error("Failed");
         const users = await res.json();
         if (users.length === 0) { listContainer.innerHTML = '<p class="empty-text">No users found.</p>'; return; }
@@ -256,7 +250,7 @@
           if (currentTab === "pending") { badge = `<span class="status-badge status-pending">Pending</span>`; actionBtn = `<button class="btn btn-success btn-sm" onclick="toggleUser(${u.user_id})">Approve</button>`; }
           else if (currentTab === "active") { badge = `<span class="status-badge status-active">Active</span>`; actionBtn = `<button class="btn btn-danger btn-sm" onclick="toggleUser(${u.user_id})">Deactivate</button>`; }
           else { badge = `<span class="status-badge status-active">Customer</span>`; }
-          return `<div class="user-card"><div class="user-info"><h4>${u.name} ${badge}</h4><p>${u.email} · ${u.phone_number || 'No phone'}</p></div><div>${actionBtn}</div></div>`;
+          return `<div class="user-card"><div class="user-info"><h4>${esc(u.name)} ${badge}</h4><p>${esc(u.email)} · ${esc(u.phone_number || 'No phone')}</p></div><div>${actionBtn}</div></div>`;
         }).join("");
       } catch { listContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading data.</p>`; }
     }
@@ -264,9 +258,9 @@
     async function toggleUser(id) {
       if (!confirm("Change this user's status?")) return;
       try {
-        const res = await fetch(`/admin/users/${id}/toggle-active`, { method: "PATCH", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/users/${id}/toggle-active`, { method: "PATCH", headers: { "Authorization": `Bearer ${token}` } });
         if (res.ok) { showMsg("User updated!", false); loadData(); }
-        else { const e = await res.json(); showMsg(e.detail || "Failed", true); }
+        else { const e = await res.json().catch(() => ({})); showMsg(e.detail || "Failed", true); }
       } catch { showMsg("Network error.", true); }
     }
 
@@ -276,79 +270,73 @@
         if (currentOrdersTab === "all") await renderAllOrders();
         else if (currentOrdersTab === "awaiting") await renderAwaitingRelease();
         else if (currentOrdersTab === "disputed") await renderDisputed();
-      } catch (err) { ordersContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error: ${err.message}</p>`; }
+      } catch (err) { if (err.message !== "401") ordersContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error: ${esc(err.message)}</p>`; }
     }
 
     async function renderAllOrders() {
-      const res = await fetch("/admin/orders/all", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/orders/all", { headers: { "Authorization": `Bearer ${token}` } });
       const orders = await res.json();
       if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No orders yet.</p>'; return; }
       const rows = orders.map(o => `
         <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} ${i.size} × ${i.quantity}`).join("<br>")}</td>
-          <td><span class="status-badge status-${o.status}">${o.status}</span></td>
-          <td><span class="status-badge status-${o.payment_status}">${o.payment_status}</span></td>
-          <td><span class="status-badge status-${o.delivery_status}">${o.delivery_status}</span></td>
-          <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
+          <td>#${esc(o.order_id)}</td>
+          <td>${esc(o.customer_name)}</td>
+          <td>${esc(o.seller_name)}</td>
+          <td class="items-cell">${(o.items || []).map(i => `${esc(i.wood_name)} ${esc(i.size)} × ${esc(i.quantity)}`).join("<br>")}</td>
+          <td><span class="status-badge status-${esc(o.status)}">${esc(o.status)}</span></td>
+          <td><span class="status-badge status-${esc(o.payment_status)}">${esc(o.payment_status)}</span></td>
+          <td><span class="status-badge status-${esc(o.delivery_status)}">${esc(o.delivery_status)}</span></td>
+          <td><span class="status-badge status-${esc(o.settlement_status)}">${esc(o.settlement_status)}</span></td>
           <td class="amount">${fmtGHS(o.total_price)}</td>
           <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
           <td>${fmtDate(o.order_date)}</td>
           <td>
-            <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'delivery_delayed')" title="Alert delay">⏰</button>
-            <button class="btn-alert" onclick="alertSeller(${o.order_id}, 'not_confirming')" title="Ask confirm">❓</button>
+            <button class="btn-alert" onclick="alertSeller(${Number(o.order_id)}, 'delivery_delayed')" title="Alert delay">⏰</button>
+            <button class="btn-alert" onclick="alertSeller(${Number(o.order_id)}, 'not_confirming')" title="Ask confirm">❓</button>
           </td>
-        </tr>
-      `).join("");
+        </tr>`).join("");
       ordersContainer.innerHTML = `<table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Seller</th><th>Items</th><th>Status</th><th>Payment</th><th>Delivery</th><th>Settlement</th><th>Total</th><th>Owed</th><th>Date</th><th>Alert</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function renderAwaitingRelease() {
-      const res = await fetch("/admin/orders/awaiting-release", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/orders/awaiting-release", { headers: { "Authorization": `Bearer ${token}` } });
       const orders = await res.json();
       if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No orders awaiting release. ✅</p>'; return; }
       const rows = orders.map(o => `
         <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
+          <td>#${esc(o.order_id)}</td>
+          <td>${esc(o.customer_name)}</td>
+          <td>${esc(o.seller_name)}</td>
           <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
           <td>${fmtDate(o.auto_confirm_at)}</td>
-          <td>
-            ${!o.seller_has_recipient ? '<span class="warning-text">⚠ No payout account</span>' : ''}
-            <button class="btn-release" onclick="releaseFunds(${o.order_id})" ${!o.seller_has_recipient ? 'disabled' : ''}>Release</button>
-          </td>
-        </tr>
-      `).join("");
+          <td>${!o.seller_has_recipient ? '<span class="warning-text">⚠ No payout account</span>' : ''}<button class="btn-release" onclick="releaseFunds(${Number(o.order_id)})" ${!o.seller_has_recipient ? 'disabled' : ''}>Release</button></td>
+        </tr>`).join("");
       ordersContainer.innerHTML = `<table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Seller</th><th>Amount</th><th>Eligible Since</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function renderDisputed() {
-      const res = await fetch("/admin/orders/disputes", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/orders/disputes", { headers: { "Authorization": `Bearer ${token}` } });
       const orders = await res.json();
       if (!orders.length) { ordersContainer.innerHTML = '<p class="empty-text">No active disputes. ✅</p>'; return; }
       const rows = orders.map(o => `
         <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.buyer_id}</td>
-          <td>${o.seller_id}</td>
-          <td>${o.reason || "—"}</td>
+          <td>#${esc(o.order_id)}</td>
+          <td>${esc(o.buyer_id)}</td>
+          <td>${esc(o.seller_id)}</td>
+          <td>${esc(o.reason || "—")}</td>
           <td class="amount">${fmtGHS(o.total)}</td>
           <td>
-            <button class="btn btn-success btn-sm" onclick="resolveDispute(${o.order_id}, 'release')">Release</button>
-            <button class="btn btn-danger btn-sm" onclick="resolveDispute(${o.order_id}, 'refund')">Refund</button>
+            <button class="btn btn-success btn-sm" onclick="resolveDispute(${Number(o.order_id)}, 'release')">Release</button>
+            <button class="btn btn-danger btn-sm" onclick="resolveDispute(${Number(o.order_id)}, 'refund')">Refund</button>
           </td>
-        </tr>
-      `).join("");
+        </tr>`).join("");
       ordersContainer.innerHTML = `<table class="data-table"><thead><tr><th>Order</th><th>Buyer</th><th>Seller</th><th>Reason</th><th>Total</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function resolveDispute(orderId, action) {
       if (!confirm(`Resolve dispute #${orderId}? Action: ${action}`)) return;
       try {
-        const res = await fetch(`/admin/orders/${orderId}/resolve-dispute?action=${action}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/orders/${orderId}/resolve-dispute?action=${action}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
         const data = await res.json();
         if (res.ok) { showMsg(`Resolved: ${data.new_status}`, false); loadOrders(); }
         else showMsg(`Error: ${data.detail}`, true);
@@ -360,26 +348,20 @@
       let endpoint = "/admin/withdrawals";
       if (currentWdTab !== "all") endpoint += `?status=${currentWdTab}`;
       try {
-        const res = await fetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(endpoint, { headers: { "Authorization": `Bearer ${token}` } });
         const wds = await res.json();
         if (!wds.length) { wdContainer.innerHTML = '<p class="empty-text">No withdrawals.</p>'; return; }
         const rows = wds.map(w => `
           <tr>
-            <td>#${w.withdrawal_id}</td>
-            <td>${w.seller_name}<br><span style="font-size:11px;color:var(--muted);">${w.seller_phone || ""}</span></td>
+            <td>#${esc(w.withdrawal_id)}</td>
+            <td>${esc(w.seller_name)}<br><span style="font-size:11px;color:var(--muted);">${esc(w.seller_phone || "")}</span></td>
             <td class="amount">${fmtGHS(w.amount)}</td>
-            <td>${w.payout_method || "—"}</td>
-            <td>${w.payout_account || "—"}</td>
-            <td><span class="status-badge status-${w.status}">${w.status}</span></td>
+            <td>${esc(w.payout_method || "—")}</td>
+            <td>${esc(w.payout_account || "—")}</td>
+            <td><span class="status-badge status-${esc(w.status)}">${esc(w.status)}</span></td>
             <td>${fmtDate(w.requested_at)}</td>
-            <td>
-              ${w.status === "pending" ? `
-                <button class="btn-approve" onclick="approveWd(${w.withdrawal_id})">Approve</button>
-                <button class="btn-reject" onclick="rejectWd(${w.withdrawal_id})">Reject</button>
-              ` : "—"}
-            </td>
-          </tr>
-        `).join("");
+            <td>${w.status === "pending" ? `<button class="btn-approve" onclick="approveWd(${Number(w.withdrawal_id)})">Approve</button><button class="btn-reject" onclick="rejectWd(${Number(w.withdrawal_id)})">Reject</button>` : "—"}</td>
+          </tr>`).join("");
         wdContainer.innerHTML = `<table class="data-table"><thead><tr><th>ID</th><th>Seller</th><th>Amount</th><th>Method</th><th>Account</th><th>Status</th><th>Requested</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
       } catch { wdContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading withdrawals.</p>`; }
     }
@@ -387,7 +369,7 @@
     async function approveWd(id) {
       if (!confirm(`Approve withdrawal #${id}? This will trigger a Paystack transfer.`)) return;
       try {
-        const res = await fetch(`/admin/withdrawals/${id}/approve`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/withdrawals/${id}/approve`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
         const data = await res.json();
         if (res.ok) { showMsg(`✅ Approved (ref: ${data.reference || "—"})`, false); loadWithdrawals(); }
         else showMsg(`❌ ${data.detail || "Failed"}`, true);
@@ -398,23 +380,22 @@
       const reason = prompt("Reason for rejection:", "Rejected by admin");
       if (reason === null) return;
       try {
-        const res = await fetch(`/admin/withdrawals/${id}/reject?reason=${encodeURIComponent(reason)}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/withdrawals/${id}/reject?reason=${encodeURIComponent(reason)}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
         if (res.ok) { showMsg("✅ Rejected — funds refunded", false); loadWithdrawals(); }
-        else { const data = await res.json(); showMsg(`❌ ${data.detail || "Failed"}`, true); }
+        else { const data = await res.json().catch(() => ({})); showMsg(`❌ ${data.detail || "Failed"}`, true); }
       } catch { showMsg("❌ Network error", true); }
     }
 
     async function loadFundsSummary() {
       const host = document.getElementById("funds-summary");
       try {
-        const res = await fetch("/admin/funds/summary", { headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch("/admin/funds/summary", { headers: { "Authorization": `Bearer ${token}` } });
         const d = await res.json();
         host.innerHTML = `
           <div class="stat-card held"><div class="label">Held in Escrow</div><div class="value">${fmtGHS(d.total_held)}</div></div>
           <div class="stat-card"><div class="label">Commission Pending</div><div class="value">${fmtGHS(d.total_commission_pending)}</div></div>
           <div class="stat-card earned"><div class="label">Commission Earned</div><div class="value">${fmtGHS(d.total_commission_earned)}</div></div>
-          <div class="stat-card failed"><div class="label">Failed Transfers</div><div class="value">${d.failed_transfers_count}</div></div>
-        `;
+          <div class="stat-card failed"><div class="label">Failed Transfers</div><div class="value">${esc(d.failed_transfers_count)}</div></div>`;
       } catch { host.innerHTML = `<p class="empty-text" style="color:var(--red);">Error.</p>`; }
     }
 
@@ -429,142 +410,116 @@
     }
 
     async function renderIncoming() {
-      const res = await fetch("/admin/funds/incoming", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/funds/incoming", { headers: { "Authorization": `Bearer ${token}` } });
       const data = await res.json();
       if (!data.orders.length) { fundsContainer.innerHTML = '<p class="empty-text">No funds held. ✅</p>'; return; }
       const rows = data.orders.map(o => `
         <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.customer_name}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} × ${i.quantity}`).join("<br>")}</td>
+          <td>#${esc(o.order_id)}</td>
+          <td>${esc(o.customer_name)}</td>
+          <td>${esc(o.seller_name)}</td>
+          <td class="items-cell">${(o.items || []).map(i => `${esc(i.wood_name)} × ${esc(i.quantity)}`).join("<br>")}</td>
           <td class="amount">${fmtGHS(o.total_price)}</td>
           <td class="amount">${fmtGHS(o.platform_commission)}</td>
           <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
           <td>${fmtDate(o.paid_at)}</td>
-          <td><span class="status-badge status-${o.settlement_status}">${o.settlement_status}</span></td>
-        </tr>
-      `).join("");
+          <td><span class="status-badge status-${esc(o.settlement_status)}">${esc(o.settlement_status)}</span></td>
+        </tr>`).join("");
       fundsContainer.innerHTML = `
         <p style="color:var(--muted);font-size:12.5px;margin-bottom:12px;">ℹ️ Paid orders not yet delivered. Release happens in <strong>Owed to Sellers</strong> once delivery is confirmed.</p>
         <table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Seller</th><th>Items</th><th>Paid</th><th>Commission</th><th>Owed</th><th>Paid On</th><th>Status</th></tr></thead><tbody>${rows}</tbody>
-        <tfoot><tr class="totals-row"><td colspan="4">Total Held</td><td class="amount">${fmtGHS(data.totals.total_held)}</td><td class="amount">${fmtGHS(data.totals.total_commission_pending)}</td><td class="amount">${fmtGHS(data.totals.total_owed_to_sellers)}</td><td colspan="2"></td></tr></tfoot></table>
-      `;
+        <tfoot><tr class="totals-row"><td colspan="4">Total Held</td><td class="amount">${fmtGHS(data.totals.total_held)}</td><td class="amount">${fmtGHS(data.totals.total_commission_pending)}</td><td class="amount">${fmtGHS(data.totals.total_owed_to_sellers)}</td><td colspan="2"></td></tr></tfoot></table>`;
     }
 
     async function renderBySeller() {
-      const res = await fetch("/admin/funds/by-seller", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/funds/by-seller", { headers: { "Authorization": `Bearer ${token}` } });
       const data = await res.json();
       if (!data.sellers.length) { fundsContainer.innerHTML = '<p class="empty-text">No sellers.</p>'; return; }
       const hasAnyReady = data.sellers.some(s => s.ready_orders && s.ready_orders.length > 0);
-      if (!hasAnyReady) {
-        fundsContainer.innerHTML = `<p class="empty-text">No delivered orders awaiting release. ✅</p><p style="color:var(--muted);font-size:12px;text-align:center;margin-top:8px;">When a seller marks an order as <strong>delivered</strong>, it will appear here for you to release funds.</p>`;
-        return;
-      }
+      if (!hasAnyReady) { fundsContainer.innerHTML = `<p class="empty-text">No delivered orders awaiting release. ✅</p>`; return; }
       fundsContainer.innerHTML = data.sellers.filter(s => s.ready_orders && s.ready_orders.length > 0).map(s => `
         <div class="seller-group">
           <div class="seller-group-head">
             <div>
-              <h4>${s.seller_name}</h4>
-              <p>${s.orders_pending} ready · ${s.orders_in_progress} in progress · ${s.orders_settled} settled</p>
+              <h4>${esc(s.seller_name)}</h4>
+              <p>${esc(s.orders_pending)} ready · ${esc(s.orders_in_progress)} in progress · ${esc(s.orders_settled)} settled</p>
               ${!s.seller_has_recipient ? '<p style="color:var(--red);margin-top:4px;">⚠ No payout account registered</p>' : ''}
             </div>
             <div class="totals"><div class="owed">${fmtGHS(s.total_owed)}</div><small>ready to release</small></div>
           </div>
           ${s.ready_orders.map(o => `
             <div class="ready-order-row">
-              <div class="ready-order-info">
-                <h5>Order #${o.order_id}</h5>
-                <p>${o.delivery_address} · Ordered ${fmtDate(o.order_date)}</p>
-              </div>
+              <div class="ready-order-info"><h5>Order #${esc(o.order_id)}</h5><p>${esc(o.delivery_address)} · Ordered ${fmtDate(o.order_date)}</p></div>
               <div class="ready-order-amount">${fmtGHS(o.seller_payout_amount)}</div>
-              <button class="btn-release" onclick="releaseFunds(${o.order_id})" ${!s.seller_has_recipient ? 'disabled' : ''}>Release</button>
-            </div>
-          `).join("")}
-        </div>
-      `).join("");
+              <button class="btn-release" onclick="releaseFunds(${Number(o.order_id)})" ${!s.seller_has_recipient ? 'disabled' : ''}>Release</button>
+            </div>`).join("")}
+        </div>`).join("");
     }
 
     async function renderSettled() {
-      const res = await fetch("/admin/funds/settled", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/funds/settled", { headers: { "Authorization": `Bearer ${token}` } });
       const data = await res.json();
       if (!data.orders.length) { fundsContainer.innerHTML = '<p class="empty-text">No settled transfers yet.</p>'; return; }
       const rows = data.orders.map(o => `
         <tr>
-          <td>#${o.order_id}</td>
-          <td>${o.seller_name}</td>
-          <td class="items-cell">${o.items.map(i => `${i.wood_name} × ${i.quantity}`).join("<br>")}</td>
+          <td>#${esc(o.order_id)}</td>
+          <td>${esc(o.seller_name)}</td>
+          <td class="items-cell">${(o.items || []).map(i => `${esc(i.wood_name)} × ${esc(i.quantity)}`).join("<br>")}</td>
           <td class="amount">${fmtGHS(o.seller_payout_amount)}</td>
           <td>${fmtDate(o.settlement_eligible_at)}</td>
-        </tr>
-      `).join("");
+        </tr>`).join("");
       fundsContainer.innerHTML = `<table class="data-table"><thead><tr><th>Order</th><th>Seller</th><th>Items</th><th>Amount</th><th>Settled On</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function renderFailed() {
-      const res = await fetch("/admin/funds/failed", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await safeFetch("/admin/funds/failed", { headers: { "Authorization": `Bearer ${token}` } });
       const data = await res.json();
       if (!data.failed_transfers.length) { fundsContainer.innerHTML = '<p class="empty-text">No failed transfers. ✅</p>'; return; }
       fundsContainer.innerHTML = data.failed_transfers.map(f => `
         <div class="failed-card">
-          <h4>Order #${f.order_id} — ${fmtGHS(f.seller_payout_amount)}</h4>
-          <p><strong>Seller:</strong> ${f.seller_name}</p>
-          <p><strong>Reference:</strong> ${f.transfer_reference || "—"}</p>
-          <p><strong>Reason:</strong> ${f.transfer_failed_reason || "Unknown"}</p>
-        </div>
-      `).join("");
+          <h4>Order #${esc(f.order_id)} — ${fmtGHS(f.seller_payout_amount)}</h4>
+          <p><strong>Seller:</strong> ${esc(f.seller_name)}</p>
+          <p><strong>Reference:</strong> ${esc(f.transfer_reference || "—")}</p>
+          <p><strong>Reason:</strong> ${esc(f.transfer_failed_reason || "Unknown")}</p>
+        </div>`).join("");
     }
 
     async function loadModerationData(sub) {
       modContainer.innerHTML = '<p class="empty-text">Loading...</p>';
       try {
         if (sub === "flagged") {
-          const res = await fetch("/admin/messages/flagged", { headers: { "Authorization": `Bearer ${token}` } });
+          const res = await safeFetch("/admin/messages/flagged", { headers: { "Authorization": `Bearer ${token}` } });
           const data = await res.json();
-          if (!data.messages || !data.messages.length) {
-            modContainer.innerHTML = '<p class="empty-text">No flagged messages. ✅</p>';
-            return;
-          }
-          modContainer.innerHTML = `<table class="data-table">
-            <thead><tr><th>ID</th><th>Sender</th><th>Reason</th><th>Message</th><th>Date</th></tr></thead>
-            <tbody>${data.messages.map(m => `
-              <tr>
-                <td>#${m.message_id}</td>
-                <td>${m.sender_name}<br><span style="font-size:11px;color:var(--muted);">#${m.sender_id}</span></td>
-                <td><span class="status-badge status-failed">${m.flag_reason}</span></td>
-                <td style="max-width:300px;">${(m.message_text || "").slice(0, 100)}${(m.message_text || "").length > 100 ? "…" : ""}</td>
-                <td>${fmtDate(m.created_at)}</td>
-              </tr>
-            `).join("")}</tbody>
-          </table>`;
+          if (!data.messages || !data.messages.length) { modContainer.innerHTML = '<p class="empty-text">No flagged messages. ✅</p>'; return; }
+          modContainer.innerHTML = `<table class="data-table"><thead><tr><th>ID</th><th>Sender</th><th>Reason</th><th>Message</th><th>Date</th></tr></thead><tbody>${data.messages.map(m => `
+            <tr>
+              <td>#${esc(m.message_id)}</td>
+              <td>${esc(m.sender_name)}<br><span style="font-size:11px;color:var(--muted);">#${esc(m.sender_id)}</span></td>
+              <td><span class="status-badge status-failed">${esc(m.flag_reason)}</span></td>
+              <td style="max-width:300px;">${esc((m.message_text || "").slice(0, 100))}${(m.message_text || "").length > 100 ? "…" : ""}</td>
+              <td>${fmtDate(m.created_at)}</td>
+            </tr>`).join("")}</tbody></table>`;
         } else {
-          const res = await fetch("/admin/users/violations", { headers: { "Authorization": `Bearer ${token}` } });
+          const res = await safeFetch("/admin/users/violations", { headers: { "Authorization": `Bearer ${token}` } });
           const data = await res.json();
-          if (!data.users || !data.users.length) {
-            modContainer.innerHTML = '<p class="empty-text">No users with violations. ✅</p>';
-            return;
-          }
-          modContainer.innerHTML = `<table class="data-table">
-            <thead><tr><th>User</th><th>Email</th><th>Violations</th><th>Banned Until</th><th>Status</th></tr></thead>
-            <tbody>${data.users.map(u => `
-              <tr>
-                <td>${u.name}</td>
-                <td>${u.email}</td>
-                <td><span class="status-badge status-pending">${u.violations}</span></td>
-                <td>${u.messaging_banned_until ? fmtDate(u.messaging_banned_until) : "—"}</td>
-                <td>${u.is_active ? '<span class="status-badge status-active">Active</span>' : '<span class="status-badge status-inactive">Inactive</span>'}</td>
-              </tr>
-            `).join("")}</tbody>
-          </table>`;
+          if (!data.users || !data.users.length) { modContainer.innerHTML = '<p class="empty-text">No users with violations. ✅</p>'; return; }
+          modContainer.innerHTML = `<table class="data-table"><thead><tr><th>User</th><th>Email</th><th>Violations</th><th>Banned Until</th><th>Status</th></tr></thead><tbody>${data.users.map(u => `
+            <tr>
+              <td>${esc(u.name)}</td>
+              <td>${esc(u.email)}</td>
+              <td><span class="status-badge status-pending">${esc(u.violations)}</span></td>
+              <td>${u.messaging_banned_until ? fmtDate(u.messaging_banned_until) : "—"}</td>
+              <td>${u.is_active ? '<span class="status-badge status-active">Active</span>' : '<span class="status-badge status-inactive">Inactive</span>'}</td>
+            </tr>`).join("")}</tbody></table>`;
         }
       } catch { modContainer.innerHTML = `<p class="empty-text" style="color:var(--red);">Error loading moderation data.</p>`; }
     }
 
     async function releaseFunds(orderId) {
-      if (!confirm(`Release funds for order #${orderId}?\n\nThis will credit the seller's wallet. They can then request a withdrawal.`)) return;
+      if (!confirm(`Release funds for order #${orderId}?\n\nThis will credit the seller's wallet.`)) return;
       showMsg("Releasing to wallet...", false);
       try {
-        const res = await fetch(`/admin/orders/${orderId}/release-funds-v2`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/orders/${orderId}/release-funds-v2`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
         const data = await res.json();
         if (res.ok) { showMsg(`✅ Released (ref: ${data.reference})`, false); loadFundsSummary(); loadFundsData(); }
         else showMsg(`❌ ${data.detail || "Failed"}`, true);
@@ -575,7 +530,7 @@
       const label = reason === "delivery_delayed" ? "delay" : "confirm";
       if (!confirm(`Send ${label} alert to seller for order #${orderId}?`)) return;
       try {
-        const res = await fetch(`/admin/orders/${orderId}/alert-seller?reason=${reason}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
+        const res = await safeFetch(`/admin/orders/${orderId}/alert-seller?reason=${reason}`, { method: "POST", headers: { "Authorization": `Bearer ${token}` } });
         if (res.ok) showMsg("✅ Alert sent", false);
         else showMsg("❌ Failed", true);
       } catch { showMsg("❌ Network error", true); }

@@ -28,9 +28,6 @@
     .status-missing { background: #fff3cd; color: #856404; border-left: 4px solid #f0ad4e; }
     .form-section { display: none; }
     .form-section.active { display: block; }
-    .payout-type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
-    .payout-type-btn { flex: 1; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
-    .payout-type-btn.active { border-color: var(--wood-med); background: var(--wood-med); color: #fff; }
   </style>
 </head>
 <body>
@@ -45,9 +42,7 @@
   </header>
 
   <main class="dashboard-page">
-    <div class="dash-header">
-      <h2>Payout Account</h2>
-    </div>
+    <div class="dash-header"><h2>Payout Account</h2></div>
 
     <div class="nav-tabs">
       <a href="/seller/upload">Upload Wood</a>
@@ -76,9 +71,7 @@
       <div id="form-momo" class="form-section active">
         <div class="field">
           <label>Network</label>
-          <select id="momo-telco">
-            <option value="">Loading networks...</option>
-          </select>
+          <select id="momo-telco"><option value="">Loading networks...</option></select>
         </div>
         <div class="field">
           <label>Mobile Number</label>
@@ -94,9 +87,7 @@
       <div id="form-bank" class="form-section">
         <div class="field">
           <label>Bank</label>
-          <select id="bank-code">
-            <option value="">Loading banks...</option>
-          </select>
+          <select id="bank-code"><option value="">Loading banks...</option></select>
         </div>
         <div class="field">
           <label>Account Number</label>
@@ -128,10 +119,12 @@
 
     async function loadCurrent() {
       try {
-        const res = await fetch("/seller/payout/account", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) return;
+        const res = await fetch("/seller/payout/account", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (!res.ok) {
+          banner.innerHTML = `<div class="status-banner status-missing">⚠️ Could not load your payout account status. Please try again.</div>`;
+          return;
+        }
         const d = await res.json();
         if (d.is_ready) {
           banner.innerHTML = `<div class="status-banner status-ready">✅ Payout account registered — ${d.payout_account_name} (${d.payout_account_number}). You're ready to receive payments.</div>`;
@@ -139,7 +132,9 @@
         } else {
           banner.innerHTML = `<div class="status-banner status-missing">⚠️ No payout account yet. You won't receive funds until you register one.</div>`;
         }
-      } catch (e) { console.warn(e); }
+      } catch (e) {
+        banner.innerHTML = `<div class="status-banner status-missing">⚠️ Could not connect. Check your network.</div>`;
+      }
     }
 
     async function loadOptions() {
@@ -148,15 +143,10 @@
         const res = await fetch("/seller/payout/options-public");
         if (!res.ok) return;
         const data = await res.json();
-
         const telcoSel = document.getElementById("momo-telco");
-        telcoSel.innerHTML = '<option value="">Select network</option>' +
-          data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
-
+        telcoSel.innerHTML = '<option value="">Select network</option>' + data.mobile_money.map(t => `<option value="${t.code}">${t.name}</option>`).join("");
         const bankSel = document.getElementById("bank-code");
-        bankSel.innerHTML = '<option value="">Select bank</option>' +
-          data.banks.map(b => `<option value="${b.code}">${b.name}</option>`).join("");
-
+        bankSel.innerHTML = '<option value="">Select bank</option>' + data.banks.map(b => `<option value="${b.code}">${b.name}</option>`).join("");
         optionsLoaded = true;
       } catch (e) { console.warn(e); }
     }
@@ -175,21 +165,13 @@
         const telco = document.getElementById("momo-telco").value;
         const number = document.getElementById("momo-number").value.trim();
         const name = document.getElementById("momo-name").value.trim();
-        if (!telco || !number || !name) {
-          msg.textContent = "Please fill all mobile money fields.";
-          msg.className = "msg err";
-          return;
-        }
+        if (!telco || !number || !name) { msg.textContent = "Please fill all mobile money fields."; msg.className = "msg err"; return; }
         payload = { type, account_number: number, account_name: name, telco_code: telco };
       } else {
         const code = document.getElementById("bank-code").value;
         const number = document.getElementById("bank-number").value.trim();
         const name = document.getElementById("bank-name").value.trim();
-        if (!code || !number || !name) {
-          msg.textContent = "Please fill all bank fields.";
-          msg.className = "msg err";
-          return;
-        }
+        if (!code || !number || !name) { msg.textContent = "Please fill all bank fields."; msg.className = "msg err"; return; }
         payload = { type, account_number: number, account_name: name, bank_code: code };
       }
 
@@ -203,6 +185,7 @@
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         const data = await res.json();
         if (res.ok && data.is_ready) {
           msg.textContent = "✅ Payout account saved successfully!";

@@ -57,29 +57,31 @@
 
     <div class="chat-input">
       <textarea id="msg-input" placeholder="Type a message..." rows="1"></textarea>
-      <button id="msg-send" onclick="sendCurrentMessage()">Send</button>
+      <button id="msg-send" type="button">Send</button>
     </div>
   </main>
 
   <script src="/static/messages.js"></script>
   <script>
     const CONV_ID = parseInt(window.location.pathname.split("/").pop(), 10);
-
-    document.addEventListener("DOMContentLoaded", () => {
-      Messages.loadChat(CONV_ID);
-    });
-
-    function sendCurrentMessage() {
-      Messages.sendMessage(CONV_ID);
+    if (!Number.isInteger(CONV_ID) || CONV_ID < 1) {
+      document.getElementById("chat-messages").innerHTML = '<p class="loading-text">Invalid conversation.</p>';
+      document.getElementById("msg-input").disabled = true;
+      document.getElementById("msg-send").disabled = true;
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        if (window.Messages && typeof Messages.loadChat === "function") Messages.loadChat(CONV_ID);
+      });
+      document.getElementById("msg-send").addEventListener("click", () => {
+        if (window.Messages && typeof Messages.sendMessage === "function") Messages.sendMessage(CONV_ID);
+      });
+      document.getElementById("msg-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          if (window.Messages && typeof Messages.sendMessage === "function") Messages.sendMessage(CONV_ID);
+        }
+      });
     }
-
-    // Enter to send, Shift+Enter for newline
-    document.getElementById("msg-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        Messages.sendMessage(CONV_ID);
-      }
-    });
   </script>
 </body>
 </html>

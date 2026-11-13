@@ -9,10 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=13">
+  <link rel="stylesheet" href="/static/styles.css?v=14">
 
-  <script defer src="/static/app.js?v=13"></script>
-  <script defer src="/static/messages.js?v=13"></script>
+  <script defer src="/static/app.js?v=14"></script>
+  <script defer src="/static/messages.js?v=14"></script>
 
   <style>
     :root {
@@ -31,9 +31,7 @@
     button, input, a { font: inherit; }
     .container { width: min(100%, 1100px); margin-inline: auto; padding-inline: 16px; }
 
-    /* --- STICKY HEADER ---
-       Lowered z-index below the cart drawer so the drawer's close button
-       is never covered by the header. */
+    /* --- STICKY HEADER --- */
     .sticky-top {
       position: sticky;
       top: 0;
@@ -59,43 +57,141 @@
     .cart-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #f1f1f2; color: #242019; border: none; cursor: pointer; }
     .cart-badge { position: absolute; top: -4px; right: -4px; background: var(--red, #b13a2e); color: #fff; font-size: 10px; font-weight: 800; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; border: 2px solid #fff; }
 
-    /* Header mobile fixes: stop the row from overflowing */
     @media (max-width: 700px) {
       .search { display: none; }
       .header-main { gap: 10px; }
       .brand { font-size: 18px; }
     }
 
-    /* --- SIDE NAVIGATION DRAWER ---
-       z-index lowered below the cart drawer's potential stacking but still
-       above the sticky header so it doesn't get clipped. */
+    /* --- SIDE NAVIGATION DRAWER --- */
     .side-drawer {
-      position: fixed; top: 0; left: -300px; width: 280px; height: 100%;
+      position: fixed; top: 0; left: -320px; width: 300px; height: 100%;
       background: #fff; z-index: 9500;
-      transition: left 0.3s ease;
-      box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+      transition: left 0.28s ease;
+      box-shadow: 2px 0 20px rgba(0,0,0,0.12);
       display: flex; flex-direction: column;
       max-width: 88vw;
     }
     .side-drawer.open { left: 0; }
-    .side-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: var(--wood-dark, #2e1a0f); color: #fff; }
-    .side-header h3 { margin: 0; font-family: 'Manrope', sans-serif; }
-    .side-close { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 0 4px; }
-    .side-body { flex: 1; overflow-y: auto; padding: 20px 0; }
-    .side-group { margin-bottom: 24px; }
-    .side-group h4 { margin: 0 0 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
-    .side-link { display: block; padding: 12px 20px; color: #242019; text-decoration: none; font-size: 15px; font-weight: 500; transition: background 0.2s; cursor: pointer; }
-    .side-link:hover { background: #f5f5f5; color: var(--wood-med, #5d4037); }
-    .side-link.home-link { font-weight: 800; }
+
+    .side-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px; background: var(--wood-dark, #2e1a0f); color: #fff;
+      flex-shrink: 0;
+    }
+    .side-header-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fff; }
+    .side-header-brand .mark { font-size: 22px; }
+    .side-header-brand .name { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: -.2px; }
+    .side-header-brand .name em { font-style: normal; color: var(--gold-2, #e6be79); }
+    .side-header-sub { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: #c9b498; margin-top: 2px; }
+
+    .side-close {
+      background: rgba(255,255,255,.08); border: none; color: #fff;
+      width: 36px; height: 36px; border-radius: 50%; font-size: 22px; line-height: 1;
+      cursor: pointer; display: grid; place-items: center; padding: 0;
+    }
+    .side-close:hover { background: rgba(255,255,255,.18); }
+
+    .side-body { flex: 1; overflow-y: auto; padding: 12px 0; -webkit-overflow-scrolling: touch; }
+
+    .side-home {
+      display: flex; align-items: center; gap: 12px;
+      margin: 6px 12px 14px; padding: 12px 14px;
+      background: var(--parchment, #f5ede0);
+      border-radius: 10px; text-decoration: none; color: var(--ink, #221610);
+      font-weight: 800; font-size: 14px;
+      transition: background 0.15s;
+    }
+    .side-home:hover { background: var(--parchment-2, #efe3ce); }
+    .side-home .arrow { margin-left: auto; color: var(--wood-med, #5d4037); font-weight: 800; }
+
+    .side-group { margin-bottom: 18px; }
+    .side-group h4 {
+      margin: 0 0 6px 20px;
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: #9a8a7a; font-weight: 800;
+    }
+    .side-group .divider { height: 1px; background: #eee; margin: 6px 20px 10px; }
+
+    .side-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px;
+      color: #242019; text-decoration: none; font-size: 14.5px; font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+      min-height: 46px;
+    }
+    .side-link:hover, .side-link:focus-visible {
+      background: var(--parchment, #f5ede0);
+      color: var(--wood-med, #5d4037);
+      outline: none;
+    }
+    .side-link .icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+    .side-link .label { flex: 1; }
+    .side-link .chev { color: #b8afa7; font-size: 16px; font-weight: 600; }
+    .side-link .ext { color: #b8afa7; font-size: 13px; }
+    .side-link .badge-count {
+      background: var(--red, #b13a2e); color: #fff;
+      font-size: 10px; font-weight: 800;
+      min-width: 20px; height: 20px; padding: 0 6px;
+      border-radius: 999px; display: inline-flex;
+      align-items: center; justify-content: center;
+    }
+    .side-link.active {
+      background: var(--parchment, #f5ede0);
+      color: var(--wood-med, #5d4037);
+      font-weight: 700;
+      border-left: 3px solid var(--gold, #c99348);
+      padding-left: 17px;
+    }
 
     .drawer-backdrop {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5);
       z-index: 9000;
-      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+      opacity: 0; pointer-events: none; transition: opacity 0.28s;
     }
     .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
     .drawer-backdrop[hidden] { display: none; }
+
+    #auth-side-area {
+      flex-shrink: 0;
+      padding: 16px 18px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+    }
+
+    .side-user { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .side-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, #e87423, #b85a15);
+      color: #fff; display: grid; place-items: center;
+      font-size: 17px; font-weight: 800;
+      flex-shrink: 0;
+      font-family: 'Manrope', sans-serif;
+    }
+    .side-user-info { min-width: 0; flex: 1; }
+    .side-user-name { font-size: 14px; font-weight: 800; color: #242019; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .side-user-email { font-size: 11.5px; color: #888; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .side-logout-btn {
+      width: 100%; background: #fff; border: 1px solid #dc3545;
+      color: #dc3545; padding: 11px; border-radius: 8px;
+      font-weight: 700; cursor: pointer; font-size: 13.5px;
+      transition: background 0.15s;
+    }
+    .side-logout-btn:hover { background: #fdf2f2; }
+
+    .side-auth-btn {
+      display: block; text-align: center;
+      padding: 12px; border-radius: 8px;
+      text-decoration: none; font-weight: 700; font-size: 13.5px;
+      margin-bottom: 8px;
+    }
+    .side-auth-btn.primary { background: #242019; color: #fff; }
+    .side-auth-btn.primary:hover { background: #0e0d0b; }
+    .side-auth-btn.secondary { background: #fff; color: #242019; border: 1px solid #242019; }
+    .side-auth-btn.secondary:hover { background: #f5f5f5; }
 
     /* --- PROMO BANNERS --- */
     .banner-section { padding: 20px 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -137,14 +233,10 @@
     .btn-add-text:hover { background: #242019; color: #fff; }
     .btn-add-text:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
 
-    /* --- UTILITIES --- */
     .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
     .skeleton-card { background: #fff; border-radius: 12px; height: 250px; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
 
-    /* --- CART DRAWER Z-INDEX FIX (overrides styles.css) ---
-       Must be above .sticky-top (500) and .side-drawer (9500) so the
-       header and side menu never cover the drawer's × button. */
     .backdrop { z-index: 10000 !important; }
     #cart-drawer.drawer { z-index: 10001 !important; }
     .backdrop[hidden] { display: none !important; }
@@ -156,68 +248,132 @@
   <div class="drawer-backdrop" id="side-backdrop" hidden></div>
   <aside class="side-drawer" id="side-menu" role="dialog" aria-modal="true" aria-label="Main menu" aria-hidden="true">
     <div class="side-header">
-      <h3>Menu</h3>
+      <a class="side-header-brand" href="/" aria-label="Builder Wood home">
+        <span class="mark" aria-hidden="true">🪵</span>
+        <div>
+          <div class="name">Builder<em>Wood</em></div>
+          <div class="side-header-sub">Menu</div>
+        </div>
+      </a>
       <button class="side-close" id="side-close" aria-label="Close menu">×</button>
     </div>
 
     <div class="side-body">
-      <div class="side-group">
-        <!-- FIX: Home entry so users can always return to the storefront -->
-        <a class="side-link home-link" href="/">🏠 Home</a>
-      </div>
+      <a class="side-home" href="/" id="side-home-link">
+        <span class="icon" aria-hidden="true">🏠</span>
+        <span>Home</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
 
       <div class="side-group">
         <h4>Shop by Category</h4>
-        <a class="side-link" data-cat="hardwood">Hardwood</a>
-        <a class="side-link" data-cat="softwood">Softwood</a>
-        <a class="side-link" data-cat="roofing">Roofing Timber</a>
-        <a class="side-link" data-cat="ceiling">Ceiling & Battens</a>
-        <a class="side-link" data-cat="furniture">Furniture Wood</a>
+        <div class="divider"></div>
+        <a class="side-link" data-cat="">
+          <span class="icon" aria-hidden="true">🪵</span>
+          <span class="label">All</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="hardwood">
+          <span class="icon" aria-hidden="true">🪵</span>
+          <span class="label">Hardwood</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="softwood">
+          <span class="icon" aria-hidden="true">🌲</span>
+          <span class="label">Softwood</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="roofing">
+          <span class="icon" aria-hidden="true">🏠</span>
+          <span class="label">Roofing Timber</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="ceiling">
+          <span class="icon" aria-hidden="true">📐</span>
+          <span class="label">Ceiling & Battens</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="furniture">
+          <span class="icon" aria-hidden="true">🪑</span>
+          <span class="label">Furniture</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="interior">
+          <span class="icon" aria-hidden="true">🛋️</span>
+          <span class="label">Interior</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" data-cat="doors">
+          <span class="icon" aria-hidden="true">🚪</span>
+          <span class="label">Doors</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
       </div>
 
       <div class="side-group">
         <h4>My Account</h4>
-        <a class="side-link" href="/messages">💬 Messages</a>
-        <a class="side-link" href="/my-orders">📦 My Orders</a>
-        <a class="side-link" href="/seller/orders" id="side-seller-dashboard" style="display: none; color: var(--wood-med, #5d4037); font-weight: 800;">📊 Seller Dashboard</a>
-        <a class="side-link" href="/admin" id="side-admin-dashboard" style="display: none; color: var(--red, #b13a2e); font-weight: 800;">🛡️ Admin Dashboard</a>
+        <div class="divider"></div>
+        <a class="side-link" href="/messages">
+          <span class="icon" aria-hidden="true">💬</span>
+          <span class="label">Messages</span>
+          <span class="badge-count" id="side-unread-count" hidden>0</span>
+        </a>
+        <a class="side-link" href="/my-orders">
+          <span class="icon" aria-hidden="true">📦</span>
+          <span class="label">My Orders</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" href="/seller/orders" id="side-seller-dashboard" style="display: none;">
+          <span class="icon" aria-hidden="true">📊</span>
+          <span class="label">Seller Dashboard</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" href="/admin" id="side-admin-dashboard" style="display: none;">
+          <span class="icon" aria-hidden="true">🛡️</span>
+          <span class="label">Admin Dashboard</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
       </div>
 
       <div class="side-group">
         <h4>Help</h4>
-        <a class="side-link" href="#delivery">🚚 Delivery Info</a>
-        <a class="side-link" href="https://wa.me/233247881337" target="_blank" rel="noopener">💬 Contact Support</a>
+        <div class="divider"></div>
+        <a class="side-link" href="#delivery">
+          <span class="icon" aria-hidden="true">🚚</span>
+          <span class="label">Delivery Info</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="side-link" href="https://wa.me/233247881337" target="_blank" rel="noopener">
+          <span class="icon" aria-hidden="true">💬</span>
+          <span class="label">Contact Support</span>
+          <span class="ext" aria-hidden="true">↗</span>
+        </a>
       </div>
     </div>
 
-    <!-- AUTH AREA (Settled at the bottom) -->
-    <div id="auth-side-area" style="margin-top: auto; padding: 20px; border-top: 1px solid #eee; background: #fafafa;">
-
-      <!-- Logged In View -->
-      <div id="side-logged-in" style="display: none; flex-direction: column; gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 40px; height: 40px; border-radius: 50%; background: #e87423; color: #fff; display: grid; place-items: center; font-size: 20px;">👤</div>
-          <div style="min-width: 0;">
-            <div style="font-size: 14px; font-weight: 800; color: #242019; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="side-user-name">User Name</div>
-            <div style="font-size: 12px; color: #888; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="side-user-email">user@email.com</div>
+    <div id="auth-side-area">
+      <div id="side-logged-in" style="display: none;">
+        <div class="side-user">
+          <div class="side-avatar" id="side-avatar">👤</div>
+          <div class="side-user-info">
+            <div class="side-user-name" id="side-user-name">User</div>
+            <div class="side-user-email" id="side-user-email">email@example.com</div>
           </div>
         </div>
-        <button id="side-logout-btn" style="width: 100%; background: #fff; border: 1px solid #dc3545; color: #dc3545; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 4px;">Logout</button>
+        <button class="side-logout-btn" id="side-logout-btn">Log out</button>
       </div>
 
-      <!-- Logged Out View (visible by default; JS flips as needed) -->
-      <div id="side-logged-out" style="display: flex; flex-direction: column; gap: 10px;">
-        <a href="/login" class="side-link" style="background: #242019; color: #fff; text-align: center; border-radius: 8px; padding: 12px; text-decoration: none; font-weight: 700;">Login</a>
-        <a href="/login?mode=register" class="side-link" style="border: 1px solid #242019; color: #242019; text-align: center; border-radius: 8px; padding: 12px; text-decoration: none; background: #fff; font-weight: 700;">Create Account</a>
+      <div id="side-logged-out">
+        <a href="/login" class="side-auth-btn primary">Log in</a>
+        <a href="/login?mode=register" class="side-auth-btn secondary">Create Account</a>
       </div>
-
     </div>
   </aside>
 
   <!-- STICKY HEADER -->
   <div class="sticky-top">
     <div class="container header-main">
-      <button class="menu-btn" id="menu-open" aria-label="Open menu">
+      <button class="menu-btn" id="menu-open" aria-label="Open menu" aria-expanded="false" aria-controls="side-menu">
         <span></span><span></span><span></span>
       </button>
       <a class="brand" href="/">
@@ -241,8 +397,6 @@
   </div>
 
   <main class="container">
-
-    <!-- PROMO BANNERS -->
     <section class="banner-section">
       <div class="promo-card deals">
         <div>
@@ -251,14 +405,12 @@
         </div>
         <a href="#products" class="btn-shop">Shop Now</a>
       </div>
-
       <div class="promo-card orange">
         <div><h3>Fast<br>Delivery</h3><p>Direct to your site in Kumasi.</p></div>
         <a href="#delivery" class="btn-shop">Learn More</a>
       </div>
     </section>
 
-    <!-- PRODUCT GRID -->
     <section id="products">
       <div class="skeleton-grid" id="product-skeleton">
         <div class="skeleton-card"></div>
@@ -275,7 +427,6 @@
       </div>
     </section>
 
-    <!-- SMALL FOOTER -->
     <footer id="delivery" style="background: #242019; color: #fff; border-radius: 12px; padding: 32px 24px; margin: 40px 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
       <div>
         <div style="font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 8px; color: var(--gold-2, #e6be79);">🪵 Builder Wood</div>
@@ -290,13 +441,8 @@
         <p style="margin: 0; font-size: 13px; color: #ccc;">🚛 Truck (Bulk orders)</p>
       </div>
     </footer>
-
   </main>
 
-  <!-- CART DRAWER
-       FIX: z-index raised (in inline <style> above) so the header
-       and side menu never cover the × close button.
-       No left-arrow "back" button — the × is the single close affordance. -->
   <div class="backdrop" id="drawer-backdrop" hidden></div>
   <aside class="drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Shopping cart">
     <header class="drawer-head">
@@ -315,23 +461,19 @@
     </footer>
   </aside>
 
-  <!-- FLOATING CART -->
   <a href="#" id="floating-cart" class="floating-cart" aria-label="Open cart">
     🛒 <span id="floating-cart-count" class="floating-cart-count">0</span> | <span id="floating-cart-total" class="floating-cart-total">GH₵0.00</span>
   </a>
 
-  <!-- TOAST -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- SIDEBAR / AUTH LOGIC -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      // --- SIDEBAR LOGIC ---
-      const menuBtn   = document.getElementById("menu-open");
-      const profileBtn = document.getElementById("header-logged-in");
-      const sideMenu  = document.getElementById("side-menu");
+      const menuBtn      = document.getElementById("menu-open");
+      const profileBtn   = document.getElementById("header-logged-in");
+      const sideMenu     = document.getElementById("side-menu");
       const sideBackdrop = document.getElementById("side-backdrop");
-      const sideClose = document.getElementById("side-close");
+      const sideClose    = document.getElementById("side-close");
 
       let lastFocusedEl = null;
 
@@ -340,35 +482,33 @@
         sideMenu.classList.add("open");
         sideMenu.setAttribute("aria-hidden", "false");
         sideBackdrop.hidden = false;
-        sideBackdrop.classList.add("open");
+        requestAnimationFrame(() => sideBackdrop.classList.add("open"));
         document.body.style.overflow = "hidden";
-        sideClose.focus();
+        menuBtn.setAttribute("aria-expanded", "true");
+        setTimeout(() => sideClose.focus(), 60);
       }
 
       function closeSideMenu() {
         sideMenu.classList.remove("open");
         sideMenu.setAttribute("aria-hidden", "true");
         sideBackdrop.classList.remove("open");
-        sideBackdrop.hidden = true;
+        setTimeout(() => { sideBackdrop.hidden = true; }, 280);
         document.body.style.overflow = "";
+        menuBtn.setAttribute("aria-expanded", "false");
         if (lastFocusedEl && lastFocusedEl.focus) lastFocusedEl.focus();
+        lastFocusedEl = null;
       }
 
       menuBtn.addEventListener("click", openSideMenu);
       if (profileBtn) profileBtn.addEventListener("click", openSideMenu);
       sideClose.addEventListener("click", closeSideMenu);
       sideBackdrop.addEventListener("click", closeSideMenu);
-      sideBackdrop.addEventListener("click", closeSideMenu);
 
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && sideMenu.classList.contains("open")) closeSideMenu();
       });
 
-      document.querySelectorAll(".side-link[data-cat]").forEach(link => {
-        link.addEventListener("click", () => closeSideMenu());
-      });
-      // Home link should also close the drawer before navigating
-      document.querySelectorAll('.side-link[href="/"]').forEach(link => {
+      sideMenu.querySelectorAll(".side-link[data-cat], .side-link[href], .side-home").forEach(link => {
         link.addEventListener("click", () => closeSideMenu());
       });
 
@@ -377,6 +517,7 @@
       const userName  = localStorage.getItem("bw_name");
       const userRole  = localStorage.getItem("bw_role");
       const userEmail = localStorage.getItem("bw_email");
+      const userId    = localStorage.getItem("bw_user_id");
 
       const headerLoggedOut = document.getElementById("header-logged-out");
       const headerLoggedIn  = document.getElementById("header-logged-in");
@@ -385,6 +526,7 @@
       const sideLoggedIn  = document.getElementById("side-logged-in");
       const sideUserName  = document.getElementById("side-user-name");
       const sideUserEmail = document.getElementById("side-user-email");
+      const sideAvatar    = document.getElementById("side-avatar");
       const sideLogoutBtn = document.getElementById("side-logout-btn");
 
       const sellerDash = document.getElementById("side-seller-dashboard");
@@ -394,56 +536,63 @@
         headerLoggedOut.style.display = "none";
         headerLoggedIn.style.display  = "block";
 
-        sideLoggedIn.style.display  = "flex";
-        sideLoggedOut.style.display = "none";   // FIX: was previously also set to "none" — correct now
+        sideLoggedIn.style.display  = "block";
+        sideLoggedOut.style.display = "none";
 
         sideUserName.textContent  = userName;
         sideUserEmail.textContent = userEmail || "Loading…";
+        sideAvatar.textContent = (userName || "U").trim().charAt(0).toUpperCase();
 
         if (userRole === "admin") {
-          adminDash.style.display = "block";
-        } else if (userRole === "seller") {
-          sellerDash.style.display = "block";
+          adminDash.style.display = "flex";
+        }
+        if (userRole === "seller" || userRole === "admin") {
+          sellerDash.style.display = "flex";
         }
 
-        if (!userEmail) {
+        if (!userEmail || !userId) {
           fetch("/auth/me", { headers: { "Authorization": `Bearer ${token}` } })
             .then(res => res.ok ? res.json() : null)
             .then(data => {
-              if (data && data.email) {
-                sideUserEmail.textContent = data.email;
-                localStorage.setItem("bw_email", data.email);
-              } else {
-                sideUserEmail.textContent = "No email on file";
+              if (data) {
+                if (data.email) {
+                  sideUserEmail.textContent = data.email;
+                  localStorage.setItem("bw_email", data.email);
+                }
+                if (data.user_id != null) {
+                  localStorage.setItem("bw_user_id", String(data.user_id));
+                }
+                if (data.role) {
+                  localStorage.setItem("bw_role", data.role);
+                  if (data.role === "admin") adminDash.style.display = "flex";
+                  if (data.role === "seller" || data.role === "admin") sellerDash.style.display = "flex";
+                }
+                if (data.name) {
+                  sideUserName.textContent = data.name;
+                  sideAvatar.textContent = data.name.trim().charAt(0).toUpperCase();
+                }
               }
             })
-            .catch(() => sideUserEmail.textContent = "Could not load email");
+            .catch(() => {});
         }
       } else {
         headerLoggedOut.style.display = "flex";
         headerLoggedIn.style.display  = "none";
-
         sideLoggedIn.style.display  = "none";
-        sideLoggedOut.style.display = "flex";   // FIX: was "none" → blank auth area
+        sideLoggedOut.style.display = "block";
       }
 
       sideLogoutBtn.addEventListener("click", () => {
-        localStorage.removeItem("bw_token");
-        localStorage.removeItem("bw_role");
-        localStorage.removeItem("bw_name");
-        localStorage.removeItem("bw_user_id");
-        localStorage.removeItem("bw_email");
+        ["bw_token","bw_role","bw_name","bw_user_id","bw_email"].forEach(k => localStorage.removeItem(k));
         window.location.href = "/";
       });
 
-      // --- BOTTOM CART CLOSE — delegate to the single shared handler in app.js ---
+      // --- CART HELPERS ---
       const cartCloseBottom = document.getElementById("cart-close-bottom");
       if (cartCloseBottom) {
         cartCloseBottom.addEventListener("click", () => {
-          if (window.BW && typeof window.BW.closeCart === "function") {
-            window.BW.closeCart();
-          } else {
-            // fallback if app.js hasn't loaded yet
+          if (window.BW && typeof window.BW.closeCart === "function") window.BW.closeCart();
+          else {
             document.getElementById("cart-drawer").classList.remove("open");
             document.getElementById("drawer-backdrop").hidden = true;
             document.body.style.overflow = "";
@@ -451,7 +600,6 @@
         });
       }
 
-      // Floating cart pill — route through app.js openCart
       const floatPill = document.getElementById("floating-cart");
       if (floatPill) {
         floatPill.addEventListener("click", (e) => {

@@ -67,35 +67,35 @@
       return "GH₵ " + (Number.isFinite(n) ? n.toFixed(2) : "0.00");
     }
 
+    function esc(v) {
+      return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
     async function loadProducts() {
       try {
-        const res = await fetch("/woods/?seller=me", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const res = await fetch("/woods/?seller=me", { headers: { "Authorization": `Bearer ${token}` } });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (!res.ok) throw new Error("Failed");
         const items = await res.json();
         const rows = Array.isArray(items) ? items : (items.items || []);
-
         const host = document.getElementById("products-grid");
         if (!rows.length) {
           host.innerHTML = '<p class="empty-text" style="grid-column: 1 / -1;">No products yet. <a href="/seller/upload" style="color:var(--wood-med);font-weight:700;">Upload your first wood →</a></p>';
           return;
         }
-
         host.innerHTML = rows.map(p => {
           const img = p.image_url || (p.images && p.images[0] && p.images[0].image_url) || "";
           const stock = Number(p.stock_quantity || 0);
           return `
             <article class="product-card">
-              ${img ? `<img src="${img}" alt="">` : `<div style="aspect-ratio:1/1;display:grid;place-items:center;font-size:40px;background:var(--parchment);">🪵</div>`}
+              ${img ? `<img src="${esc(img)}" alt="">` : `<div style="aspect-ratio:1/1;display:grid;place-items:center;font-size:40px;background:var(--parchment);">🪵</div>`}
               <div class="body">
-                <h4>${p.local_name || "Timber"} ${p.size_label || ""}</h4>
-                <div class="meta">${p.category_name || p.trade_name || "Timber"}</div>
+                <h4>${esc(p.local_name || "Timber")} ${esc(p.size_label || "")}</h4>
+                <div class="meta">${esc(p.category_name || p.trade_name || "Timber")}</div>
                 <div class="price">${fmtGHS(p.price_per_piece)}</div>
                 <div class="stock ${stock <= 0 ? 'out' : ''}">${stock <= 0 ? 'Out of stock' : stock + ' in stock'}</div>
               </div>
-            </article>
-          `;
+            </article>`;
         }).join("");
       } catch (e) {
         document.getElementById("products-grid").innerHTML = '<p class="empty-text" style="grid-column: 1 / -1;color:var(--red);">Error loading products.</p>';
