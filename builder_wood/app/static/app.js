@@ -81,13 +81,15 @@
     if ($("#result-count")) $("#result-count").textContent = state.products.length + " items";
 
     if (!state.products.length) {
-      grid.innerHTML = "";
+      if (grid) grid.innerHTML = "";
       if (empty) empty.hidden = false;
       return;
     }
     if (empty) empty.hidden = true;
 
     var loggedInUserId = localStorage.getItem("bw_user_id");
+
+    if (!grid) return;
 
     grid.innerHTML = state.products.map(function (p) {
       var stock = Number(p.stock_quantity || 0);
@@ -101,13 +103,17 @@
         (p.is_featured ? '<span class="product-badge">Popular</span>' : "") +
         (p.is_treated  ? '<span class="product-badge treated">Treated</span>' : "");
 
-      var actionButton = "";
+      var msgSellerBtn = !isMyProduct
+        ? '<button type="button" class="btn-add-icon" style="background:var(--green); width:auto; padding:0 10px;" data-message-seller="' + esc(p.seller_id) + '" data-wood-id="' + esc(getId(p)) + '" title="Message seller">💬</button>'
+        : '';
+
+      var addButton;
       if (isMyProduct) {
-        actionButton = '<button class="btn-add-text" disabled>Your Item</button>';
+        addButton = '<button type="button" class="btn-add-text" disabled>Your Item</button>';
       } else if (stock <= 0) {
-        actionButton = '<button class="btn-add-text" disabled>Out of Stock</button>';
+        addButton = '<button type="button" class="btn-add-text" disabled>Out of Stock</button>';
       } else {
-        actionButton = `
+        addButton = `
           <button type="button" class="btn-add-icon" data-add="${esc(getId(p))}" title="Add to cart">+</button>
           <button type="button" class="btn-add-text" data-add="${esc(getId(p))}">Add</button>
         `;
@@ -120,7 +126,7 @@
             '<a href="/product/' + esc(getId(p)) + '" class="product-title">' + esc(p.display_name) + '</a>' +
             '<div class="product-price">' + money(p.price_per_piece, p.currency) + ' <small>/ pc</small></div>' +
             '<div class="product-sub">Sold by: <b>' + esc(p.seller_name) + '</b></div>' +
-            '<div class="product-actions">' + actionButton + '</div>' +
+            '<div class="product-actions">' + msgSellerBtn + addButton + '</div>' +
           '</div>' +
         '</article>'
       );
@@ -187,46 +193,20 @@
     } catch (err) { toast("Network error"); }
   }
 
-  function renderCart() {
-    var count = state.cart.reduce((n, i) => n + i.quantity, 0);
-    var subtotal = state.cart.reduce((n, i) => n + (i.price_per_piece * i.quantity), 0);
+  async function updateQuantity(id, newQty) {
+    var token = getToken();
+    if (!token) return;
+    if (newQty < 1) return;
 
-    $("#cart-count").textContent = count;
-    $("#cart-subtotal").textContent = money(subtotal);
-
-    // Floating cart pill
-    var floatPill = document.getElementById("floating-cart");
-    if (floatPill) {
-      if (count > 0) {
-        document.getElementById("floating-cart-count").textContent = count;
-        document.getElementById("floating-cart-total").textContent = money(subtotal);
-        floatPill.style.display = "flex";
-      } else {
-        floatPill.style.display = "none";
-      }
-    }
-
-    var host = $("#cart-items");
-    if (!state.cart.length) {
-      host.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #888;"><span style="font-size: 40px; display:block; margin-bottom: 10px;">🪵</span>Your cart is empty</div>';
-      return;
-    }
-
-    host.innerHTML = state.cart.map(item => {
-      return (
-        '<div style="display: flex; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px;">' +
-          '<div style="width: 60px; height: 60px; border-radius: 8px; background: #f5f5f5; overflow: hidden; flex-shrink: 0;">' +
-             (item.image_url ? '<img src="' + esc(item.image_url) + '" style="width:100%; height:100%; object-fit:cover;">' : "🪵") +
-          '</div>' +
-          '<div style="flex: 1;">' +
-            '<div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">' + esc(item.local_name) + '</div>' +
-            '<div style="font-size: 12px; color: #888;">Qty: ' + item.quantity + '</div>' +
-            '<div style="font-weight: 800; font-size: 14px; margin-top: 4px;">' + money(item.price_per_piece * item.quantity, item.currency) + '</div>' +
-          '</div>' +
-          '<button type="button" data-cart-remove="' + item.cart_item_id + '" style="background: none; border: none; cursor: pointer; color: #dc3545; font-size: 16px;">✕</button>' +
-        '</div>'
-      );
-    }).join("");
+    try {
+      const res = await fetch(`/cart/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ quantity: newQty })
+      });
+      if (res.ok) { loadCartFromDB(); }
+      else { const err = await res.json().catch(() => ({})); toast(err.detail || "Could not update quantity"); loadCartFromDB(); }
+    } catch (err) { toast("Network error"); }
   }
 
   async function removeItem(cart_item_id) {
@@ -241,16 +221,90 @@
     } catch (err) { toast("Network error"); }
   }
 
+  function renderCart() {
+    var count = state.cart.reduce((n, i) => n + i.quantity, 0);
+    var subtotal = state.cart.reduce((n, i) => n + (i.price_per_piece * i.quantity), 0);
+
+    if ($("#cart-count")) $("#cart-count").textContent = count;
+    if ($("#drawer-count")) $("#drawer-count").textContent = `(${count})`;
+    if ($("#cart-subtotal")) $("#cart-subtotal").textContent = money(subtotal);
+
+    // Floating cart pill
+    var floatPill = document.getElementById("floating-cart");
+    if (floatPill) {
+      if (count > 0) {
+        document.getElementById("floating-cart-count").textContent = count;
+        document.getElementById("floating-cart-total").textContent = money(subtotal);
+        floatPill.style.display = "flex";
+      } else {
+        floatPill.style.display = "none";
+      }
+    }
+
+    var host = $("#cart-items");
+    if (!host) return;
+
+    if (!state.cart.length) {
+      host.innerHTML = '<div class="cart-empty"><span>🪵</span><b>Your cart is empty</b><p>Add timber to start building your order.</p></div>';
+      return;
+    }
+
+    let cartHtml = state.cart.map(item => {
+      return (
+        '<div class="cart-line">' +
+          '<div class="cart-thumb">' + (item.image_url ? '<img src="' + esc(item.image_url) + '" alt="">' : "🪵") + '</div>' +
+          '<div class="cart-details">' +
+            '<div class="cart-line-title">' + esc(item.local_name) + '</div>' +
+            '<div class="cart-line-price">' + money(item.price_per_piece * item.quantity, item.currency) + '</div>' +
+          '</div>' +
+          '<div class="cart-actions">' +
+            '<div class="qty">' +
+              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="-1">−</button>' +
+              '<input type="number" class="qty-input" data-cart-input="' + item.cart_item_id + '" value="' + item.quantity + '" min="1">' +
+              '<button type="button" data-cart-qty="' + item.cart_item_id + '" data-delta="1">+</button>' +
+            '</div>' +
+            '<button type="button" class="btn-remove" data-cart-remove="' + item.cart_item_id + '">Remove</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    // In-app message seller button (cart drawer)
+    var firstItem = state.cart[0];
+    if (firstItem && firstItem.seller_id) {
+      cartHtml += `
+        <div style="margin-top:20px; text-align:center; padding-top: 15px; border-top: 1px dashed var(--line);">
+          <button type="button"
+                  data-cart-message-seller="${esc(firstItem.seller_id)}"
+                  data-cart-message-wood="${esc(firstItem.wood_id ?? "")}"
+                  style="display:inline-flex; align-items:center; gap:8px; color:var(--green); font-weight:700; font-size:13px; padding: 8px 16px; border: 1px solid var(--green); border-radius: 8px; background:#fff; cursor:pointer;">
+            💬 Message Seller Before Buying
+          </button>
+        </div>
+      `;
+    }
+
+    host.innerHTML = cartHtml;
+  }
+
   function openCart() {
-    $("#cart-drawer").style.right = "0";
-    $("#drawer-backdrop").hidden = false;
+    var cartDrawer = document.getElementById("cart-drawer");
+    var backdrop = document.getElementById("drawer-backdrop");
+
+    if (cartDrawer) cartDrawer.classList.add("open");
+    if (backdrop) backdrop.hidden = false;
+
     document.body.style.overflow = "hidden";
     loadCartFromDB();
   }
 
   function closeCart() {
-    $("#cart-drawer").style.right = "-400px";
-    $("#drawer-backdrop").hidden = true;
+    var cartDrawer = document.getElementById("cart-drawer");
+    var backdrop = document.getElementById("drawer-backdrop");
+
+    if (cartDrawer) cartDrawer.classList.remove("open");
+    if (backdrop) backdrop.hidden = true;
+
     document.body.style.overflow = "";
   }
 
@@ -259,29 +313,136 @@
     var t = $("#toast");
     if (!t) return;
     t.textContent = msg;
-    t.style.opacity = "1";
+    t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.style.opacity = "0"; }, 2500);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  function runSearch() {
+    state.search = $("#search-input").value.trim();
+    fetchProducts();
+  }
+
+  function showHints() {
+    var term = $("#search-input").value.trim().toLowerCase();
+    var host = $("#search-hints");
+    if (!host) return;
+    if (term.length < 2) { host.classList.remove("show"); return; }
+
+    var seen = {}; var unique = [];
+    state.products.forEach(function (p) {
+      var n = p.local_name;
+      if (n && !seen[n]) { seen[n] = true; unique.push(n); }
+    });
+
+    var filtered = unique.filter(n => n.toLowerCase().indexOf(term) !== -1).slice(0, 5);
+    host.innerHTML = filtered.map(s => '<button class="hint-item" data-hint="' + esc(s) + '"><b>' + esc(s) + '</b><span>Search</span></button>').join("");
+    host.classList.toggle("show", filtered.length > 0);
+  }
+
+  async function startConversation(sellerId, woodId, btnEl) {
+    var token = getToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!sellerId) { toast("Seller unavailable."); return; }
+
+    var original = btnEl ? btnEl.innerHTML : null;
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = "Opening…"; }
+
+    try {
+      const res = await fetch("/conversations/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          seller_id: Number(sellerId),
+          wood_id: woodId ? Number(woodId) : null,
+        }),
+      });
+
+      if (res.status === 401) { window.location.href = "/login"; return; }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(
+        typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`
+      );
+
+      window.location.href = `/messages/${data.conversation_id}`;
+    } catch (err) {
+      if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = original; }
+      toast(err.message || "Could not open the conversation.");
+    }
   }
 
   /* ============================================================
      EVENT LISTENERS
      ============================================================ */
   document.addEventListener("click", function (e) {
+    // In-app messaging button (product cards)
+    var msgBtn = e.target.closest("[data-message-seller]");
+    if (msgBtn) {
+      e.preventDefault();
+      startConversation(msgBtn.dataset.messageSeller, msgBtn.dataset.woodId, msgBtn);
+      return;
+    }
+
+    // In-app messaging button (cart drawer)
+    var cartMsgBtn = e.target.closest("[data-cart-message-seller]");
+    if (cartMsgBtn) {
+      e.preventDefault();
+      startConversation(
+        cartMsgBtn.dataset.cartMessageSeller,
+        cartMsgBtn.dataset.cartMessageWood || null,
+        cartMsgBtn
+      );
+      return;
+    }
+
+    // Category Filter
     var cat = e.target.closest("[data-cat]");
     if (cat) { e.preventDefault(); setCategory(cat.dataset.cat); return; }
 
+    // Search Suggestion Click
+    var sp = e.target.closest("[data-search]");
+    if (sp) { e.preventDefault(); $("#search-input").value = sp.dataset.search; runSearch(); return; }
+
+    // Add to Cart
     var add = e.target.closest("[data-add]");
     if (add) {
       e.preventDefault();
-      e.stopPropagation(); // Stop the link from firing
+      e.stopPropagation();
       addToCart(add.dataset.add);
       return;
     }
 
+    // Cart Quantity +/-
+    var qtyBtn = e.target.closest("[data-cart-qty]");
+    if (qtyBtn) {
+      e.preventDefault();
+      var id = Number(qtyBtn.dataset.cartQty);
+      var delta = Number(qtyBtn.dataset.delta);
+      var item = state.cart.find(x => x.cart_item_id === id);
+      if (item) {
+        var newQty = item.quantity + delta;
+        if (newQty >= 1) updateQuantity(id, newQty);
+        else removeItem(id);
+      }
+      return;
+    }
+
+    // Cart Remove
     var rm = e.target.closest("[data-cart-remove]");
     if (rm) { e.preventDefault(); removeItem(Number(rm.dataset.cartRemove)); return; }
 
+    // Search Hint
+    var hint = e.target.closest("[data-hint]");
+    if (hint) { $("#search-input").value = hint.dataset.hint; runSearch(); $("#search-hints").classList.remove("show"); return; }
+
+    // Clear Filters
     var clearBtn = e.target.closest("#empty-clear");
     if (clearBtn) {
       e.preventDefault();
@@ -290,37 +451,75 @@
       state.sort = "featured";
       if ($("#search-input")) $("#search-input").value = "";
       fetchProducts();
+      return;
+    }
+
+    // Cart Open/Close
+    if (e.target.closest("#cart-open")) {
+      e.preventDefault();
+      openCart();
+      return;
+    }
+
+    if (e.target.closest("#floating-cart")) {
+      e.preventDefault();
+      openCart();
+      return;
+    }
+
+    if (e.target.closest("#cart-close")) {
+      e.preventDefault();
+      closeCart();
+      return;
+    }
+
+    if (e.target.closest("#drawer-backdrop")) {
+      e.preventDefault();
+      closeCart();
+      return;
+    }
+
+    // Checkout
+    if (e.target.closest("#checkout-button")) {
+      if (!state.cart.length) {
+        if ($("#cart-message")) $("#cart-message").textContent = "Your cart is empty.";
+        return;
+      }
+      window.location.href = "/checkout";
+      return;
+    }
+
+    // Close search hints
+    if (!e.target.closest(".search")) {
+      if ($("#search-hints")) $("#search-hints").classList.remove("show");
     }
   });
 
+  document.addEventListener("change", function(e) {
+    if (e.target.matches("[data-cart-input]")) {
+      var id = Number(e.target.dataset.cartInput);
+      var newQty = parseInt(e.target.value);
+      if (isNaN(newQty) || newQty < 1) { e.target.value = 1; newQty = 1; }
+      updateQuantity(id, newQty);
+    }
+  });
+
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && e.target.matches("[data-cart-input]")) { e.target.blur(); }
+    if (e.key === "Escape") closeCart();
+  });
+
   if ($("#search-form")) {
-    $("#search-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      state.search = $("#search-input").value.trim();
-      fetchProducts();
-    });
+    $("#search-form").addEventListener("submit", function (e) { e.preventDefault(); runSearch(); });
   }
-
-  if ($("#sort-select")) {
-    $("#sort-select").addEventListener("change", function (e) {
-      state.sort = e.target.value;
-      fetchProducts();
-    });
-  }
-
-  if ($("#cart-open")) $("#cart-open").addEventListener("click", function (e) { e.preventDefault(); openCart(); });
-  if ($("#floating-cart")) $("#floating-cart").addEventListener("click", function (e) { e.preventDefault(); openCart(); });
-  if ($("#cart-close")) $("#cart-close").addEventListener("click", closeCart);
-  if ($("#drawer-backdrop")) $("#drawer-backdrop").addEventListener("click", closeCart);
-
-  if ($("#checkout-button")) {
-    $("#checkout-button").addEventListener("click", function () {
-      if (!state.cart.length) return;
-      window.location.href = "/checkout";
-    });
+  if ($("#search-input")) {
+    $("#search-input").addEventListener("input", showHints);
   }
 
   // Initialize
   loadCartFromDB();
   fetchProducts();
+
+  window.BW = window.BW || {};
+  window.BW.startConversation = startConversation;
 })();
